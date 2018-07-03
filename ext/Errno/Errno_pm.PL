@@ -87,6 +87,7 @@ sub process_file {
 	$err{$1} = 1
 	    if /$pat/;
     }
+    delete $err{EMSCRIPTEN} if $^O eq 'emscripten'; # not an error code
 
     close(FH);
 }
@@ -117,6 +118,10 @@ sub get_files {
     } elsif ($^O eq 'os390') {
 	# OS/390 C compiler doesn't generate #file or #line directives
 	$file{'/usr/include/errno.h'} = 1;
+    } elsif ($^O eq 'emscripten') {
+	my $f = "$ENV{EMSCRIPTEN}/system/lib/libc/musl/arch/emscripten/bits/errno.h";
+	die "didn't find $f" unless -f $f;
+	$file{$f} = 1;
     } elsif ($Config{archname} eq 'arm-riscos') {
 	# Watch out for cross compiling for RISC OS
 	my $dep = `echo "#include <errno.h>" | gcc -E -M -`;
