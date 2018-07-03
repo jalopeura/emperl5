@@ -634,7 +634,7 @@ lintflags = \
 	@echo `$(CCCMDSRC)` -S $*.c
 	@`$(CCCMDSRC)` -S $*.c
 
-all: $(FIRSTMAKEFILE) $(MINIPERL_EXE) $(generated_pods) $(private) $(unidatafiles) $(public) $(dynamic_ext) $(nonxs_ext) extras.make $(MANIFEST_SRT) common_build
+all: $(FIRSTMAKEFILE) $(MINIPERL_EXE) $(private) $(unidatafiles) $(public) $(dynamic_ext) $(nonxs_ext) extras.make $(MANIFEST_SRT) common_build
 	@echo " ";
 	@echo "	Everything is up to date. Type '$(MAKE) test' to run test suite."
 
@@ -783,6 +783,7 @@ ext.libs: $(static_ext)
 $spitshell >>$Makefile <<'!NO!SUBS!'
 perlmain.c: $(MINIPERL_EXE) ext/ExtUtils-Miniperl/pm_to_blib
 	$(MINIPERL) -MExtUtils::Miniperl -e 'writemain(\"perlmain.c", @ARGV)' DynaLoader $(static_ext)
+	patch <perlmain_noexit_patch
 
 # The file ext.libs is a list of libraries that must be linked in
 # for static extensions, e.g. -lm -lgdbm, etc.  The individual
@@ -1026,7 +1027,7 @@ lib/buildcustomize.pl: $& $(miniperl_objs) write_buildcustomize.pl
 			$spitshell >>$Makefile <<!GROK!THIS!
 lib/buildcustomize.pl: \$& \$(miniperl_dep) write_buildcustomize.pl
 	-@rm -f miniperl.xok
-	-@rm \$(MINIPERL_EXE)
+	-@rm -f \$(MINIPERL_EXE)
 	\$(LNS) \$(HOST_PERL) \$(MINIPERL_EXE)
 	\$(LDLIBPTH) ./miniperl\$(HOST_EXE_EXT) -w -Ilib -Idist/Exporter/lib -MExporter -e '<?>' || sh -c 'echo >&2 Failed to build miniperl.  Please run make minitest; exit 1'
 	\$(MINIPERL) -f write_buildcustomize.pl 'osname' "$osname"
@@ -1068,12 +1069,22 @@ $(PERL_EXE): $& $(perlmain_dep) $(LIBPERL) $(static_ext) ext.libs $(PERLEXPORT) 
 	$(SHRPENV) $(CC) -o perl $(PERL_EXE_LDFLAGS) $(CLDFLAGS) $(CCDLFLAGS) $(perlmain_objs) $(static_ext) $(LLIBPERL) `cat ext.libs` $(libs)
 !NO!SUBS!
 	       ;;
-	    *) $spitshell >>$Makefile <<'!NO!SUBS!'
+	   *) $spitshell >>$Makefile <<'!NO!SUBS!'
 	$(SHRPENV) $(CC) -o perl $(CLDFLAGS) $(CCDLFLAGS) $(perlmain_objs) $(static_ext) $(LLIBPERL) `cat ext.libs` $(libs)
 !NO!SUBS!
 	       ;;
 	    esac
         ;;
+
+	# Note: need $(EMPERL_LINK_FLAGS) here so the compiler doesn't remove functions like ccall
+	# and we need NO_EXIT_RUNTIME=0 because otherwise Emscripten won't flush streams on exit etc.
+	emscripten) $spitshell >>$Makefile <<'!NO!SUBS!'
+	$(SHRPENV) $(CC) -o perl.bc $(CLDFLAGS) $(CCDLFLAGS) $(perlmain_objs) $(static_ext) $(LLIBPERL) `cat ext.libs` $(libs)
+	emcc perl.bc $(CLDFLAGS) $(CCDLFLAGS) $(EMPERL_LINK_FLAGS) -s NO_EXIT_RUNTIME=0 --pre-js nodeperl_dev_prerun.js -o nodeperl_dev.js
+	$(LNS) -f nodeperl_dev $(PERL_EXE)
+	touch $(PERL_EXE)
+!NO!SUBS!
+	;;
 
         *) $spitshell >>$Makefile <<'!NO!SUBS!'
 	$(SHRPENV) $(CC) -o perl $(CLDFLAGS) $(CCDLFLAGS) $(perlmain_objs) $(static_ext) $(LLIBPERL) `cat ext.libs` $(libs)
@@ -1082,6 +1093,9 @@ $(PERL_EXE): $& $(perlmain_dep) $(LIBPERL) $(static_ext) ext.libs $(PERLEXPORT) 
         esac
 
 	$spitshell >>$Makefile <<'!NO!SUBS!'
+
+emperl.js: $(PERL_EXE)
+	emcc perl.bc $(CLDFLAGS) $(CCDLFLAGS) $(EMPERL_LINK_FLAGS) --preload-file $(EMPERL_PRELOAD_FILE) -o emperl.js
 
 # Microperl.  This is just a convenience thing if one happens to
 # build also the full Perl and therefore the real big Makefile:
@@ -1538,7 +1552,7 @@ test_prep_pre: preplibrary utilities $(nonxs_ext)
 case "$targethost" in
 '') $spitshell >>$Makefile <<'!NO!SUBS!'
 test_prep test-prep: test_prep_pre $(MINIPERL_EXE) $(unidatafiles) $(PERL_EXE) \
-	$(dynamic_ext) $(TEST_PERL_DLL) runtests $(generated_pods) common_build
+	$(dynamic_ext) $(TEST_PERL_DLL) runtests common_build
 	cd t && (rm -f $(PERL_EXE); $(LNS) ../$(PERL_EXE) $(PERL_EXE))
 
 !NO!SUBS!
@@ -1546,7 +1560,7 @@ test_prep test-prep: test_prep_pre $(MINIPERL_EXE) $(unidatafiles) $(PERL_EXE) \
 *) $spitshell >>$Makefile <<!GROK!THIS!
 test_prep test-prep: test_prep_pre \$(MINIPERL_EXE) \$(unidatafiles) \$(PERL_EXE) \
 	\$(dynamic_ext) \$(TEST_PERL_DLL) runtests \
-	\$(generated_pods) common_build
+	common_build
 	$to libperl.*
 	$to t/*
 	$to lib/*
