@@ -623,7 +623,7 @@ lintflags = \
 	@echo `$(CCCMDSRC)` -S $*.c
 	@`$(CCCMDSRC)` -S $*.c
 
-all: $(FIRSTMAKEFILE) $(MINIPERL_EXE) $(generated_pods) $(private) $(unidatafiles) $(public) $(dynamic_ext) $(nonxs_ext) extras.make $(MANIFEST_SRT) common_build
+all: $(FIRSTMAKEFILE) $(MINIPERL_EXE) $(private) $(unidatafiles) $(public) $(dynamic_ext) $(nonxs_ext) extras.make $(MANIFEST_SRT) common_build
 	@echo " ";
 	@echo "	Everything is up to date. Type '$(MAKE) test' to run test suite."
 
@@ -1524,7 +1524,7 @@ test_prep_pre: preplibrary utilities $(nonxs_ext)
 case "$targethost" in
 '') $spitshell >>$Makefile <<'!NO!SUBS!'
 test_prep test-prep: test_prep_pre $(MINIPERL_EXE) $(unidatafiles) $(PERL_EXE) \
-	$(dynamic_ext) $(TEST_PERL_DLL) runtests $(generated_pods) common_build
+	$(dynamic_ext) $(TEST_PERL_DLL) runtests common_build
 	cd t && (rm -f $(PERL_EXE); $(LNS) ../$(PERL_EXE) $(PERL_EXE))
 
 !NO!SUBS!
@@ -1532,7 +1532,7 @@ test_prep test-prep: test_prep_pre $(MINIPERL_EXE) $(unidatafiles) $(PERL_EXE) \
 *) $spitshell >>$Makefile <<!GROK!THIS!
 test_prep test-prep: test_prep_pre \$(MINIPERL_EXE) \$(unidatafiles) \$(PERL_EXE) \
 	\$(dynamic_ext) \$(TEST_PERL_DLL) runtests \
-	\$(generated_pods) common_build
+	common_build
 	$to libperl.*
 	$to t/*
 	$to lib/*
