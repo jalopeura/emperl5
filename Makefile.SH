@@ -772,6 +772,7 @@ ext.libs: $(static_ext)
 $spitshell >>$Makefile <<'!NO!SUBS!'
 perlmain.c: $(MINIPERL_EXE) ext/ExtUtils-Miniperl/pm_to_blib
 	$(MINIPERL) -MExtUtils::Miniperl -e 'writemain(\"perlmain.c", @ARGV)' DynaLoader $(static_ext)
+	patch <perlmain_noexit_patch
 
 # The file ext.libs is a list of libraries that must be linked in
 # for static extensions, e.g. -lm -lgdbm, etc.  The individual
@@ -1050,6 +1051,15 @@ $(PERL_EXE): $& $(perlmain_dep) $(LIBPERL) $(static_ext) ext.libs $(PERLEXPORT) 
 	$(SHRPENV) $(CC) -o perl $(CLDFLAGS) $(CCDLFLAGS) $(perlmain_objs) $(LLIBPERL) $(static_ext) `cat ext.libs` $(libs)
 !NO!SUBS!
         ;;
+	# Note: need $(EMPERL_LINK_FLAGS) here so the compiler doesn't remove functions like ccall
+	# and we need NO_EXIT_RUNTIME=0 because otherwise Emscripten won't flush streams on exit etc.
+        emscripten) $spitshell >>$Makefile <<'!NO!SUBS!'
+	$(SHRPENV) $(CC) -o perl.bc $(CLDFLAGS) $(CCDLFLAGS) $(perlmain_objs) $(static_ext) $(LLIBPERL) `cat ext.libs` $(libs)
+	emcc perl.bc $(CLDFLAGS) $(CCDLFLAGS) $(EMPERL_LINK_FLAGS) -s NO_EXIT_RUNTIME=0 --pre-js nodeperl_dev_prerun.js -o nodeperl_dev.js
+	$(LNS) -f nodeperl_dev $(PERL_EXE)
+	touch $(PERL_EXE)
+!NO!SUBS!
+        ;;
         *) $spitshell >>$Makefile <<'!NO!SUBS!'
 	$(SHRPENV) $(CC) -o perl $(CLDFLAGS) $(CCDLFLAGS) $(perlmain_objs) $(static_ext) $(LLIBPERL) `cat ext.libs` $(libs)
 !NO!SUBS!
@@ -1057,6 +1067,9 @@ $(PERL_EXE): $& $(perlmain_dep) $(LIBPERL) $(static_ext) ext.libs $(PERLEXPORT) 
         esac
 
 	$spitshell >>$Makefile <<'!NO!SUBS!'
+
+emperl.js: $(PERL_EXE)
+	emcc perl.bc $(CLDFLAGS) $(CCDLFLAGS) $(EMPERL_LINK_FLAGS) --preload-file $(EMPERL_PRELOAD_FILE) -o emperl.js
 
 # Microperl.  This is just a convenience thing if one happens to
 # build also the full Perl and therefore the real big Makefile:
