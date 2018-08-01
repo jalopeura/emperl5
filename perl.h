@@ -1579,6 +1579,28 @@ EXTERN_C char *crypt(const char *, const char *);
 #  define PERL_MY_SNPRINTF_GUARDED
 #endif
 
+#ifdef USE_QUADMATH
+#  define Perl_strtod(s, e) strtoflt128(s, e)
+#elif defined(HAS_LONG_DOUBLE) && defined(USE_LONG_DOUBLE)
+#  if defined(__MINGW64_VERSION_MAJOR) && defined(HAS_STRTOLD)
+      /***********************************************
+       We are unable to use strtold because of
+        https://sourceforge.net/p/mingw-w64/bugs/711/
+        &
+        https://sourceforge.net/p/mingw-w64/bugs/725/
+
+       but __mingw_strtold is fine.
+      ***********************************************/
+#    define Perl_strtod(s, e) __mingw_strtold(s, e)
+#  elif defined(HAS_STRTOLD)
+#    define Perl_strtod(s, e) strtold(s, e)
+#  elif defined(HAS_STRTOD)
+#    define Perl_strtod(s, e) (NV)strtod(s, e) /* Unavoidable loss. */
+#  endif
+#elif defined(HAS_STRTOD)
+#  define Perl_strtod(s, e) strtod(s, e)
+#endif
+
 /* There is no quadmath_vsnprintf, and therefore my_vsnprintf()
  * dies if called under USE_QUADMATH. */
 #if defined(HAS_VSNPRINTF) && defined(HAS_C99_VARIADIC_MACROS) && !(defined(DEBUGGING) && !defined(PERL_USE_GCC_BRACE_GROUPS)) && !defined(PERL_GCC_PEDANTIC)
@@ -6473,18 +6495,6 @@ expression, but with an empty argument list, like this:
 #endif /* !USE_LOCALE_NUMERIC */
 
 #define Atof				my_atof
-
-#ifdef USE_QUADMATH
-#  define Perl_strtod(s, e) strtoflt128(s, e)
-#elif defined(HAS_LONG_DOUBLE) && defined(USE_LONG_DOUBLE)
-#  if defined(HAS_STRTOLD)
-#    define Perl_strtod(s, e) strtold(s, e)
-#  elif defined(HAS_STRTOD)
-#    define Perl_strtod(s, e) (NV)strtod(s, e) /* Unavoidable loss. */
-#  endif
-#elif defined(HAS_STRTOD)
-#  define Perl_strtod(s, e) strtod(s, e)
-#endif
 
 #if !defined(Strtol) && defined(USE_64_BIT_INT) && defined(IV_IS_QUAD) && \
 	(QUADKIND == QUAD_IS_LONG_LONG || QUADKIND == QUAD_IS___INT64)
