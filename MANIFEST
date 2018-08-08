@@ -529,10 +529,6 @@ cpan/Encode/bin/ucmsort		A UCM sort utility
 cpan/Encode/bin/unidump		Unicode Dump like hexdump(1)
 cpan/Encode/Byte/Byte.pm		Encode extension
 cpan/Encode/Byte/Makefile.PL	Encode extension
-cpan/Encode/CN/CN.pm		Encode extension
-cpan/Encode/CN/Makefile.PL	Encode extension
-cpan/Encode/EBCDIC/EBCDIC.pm	Encode extension
-cpan/Encode/EBCDIC/Makefile.PL	Encode extension
 cpan/Encode/encengine.c		Encode extension
 cpan/Encode/Encode.pm		Mother of all Encode extensions
 cpan/Encode/Encode.xs		Encode extension
@@ -544,10 +540,6 @@ cpan/Encode/Encode/encode.h	Encode extension header file
 cpan/Encode/Encode/Makefile_PL.e2x	Skeleton file for enc2xs
 cpan/Encode/Encode/README.e2x	Skeleton file for enc2xs
 cpan/Encode/encoding.pm		Perl Pragmatic Module
-cpan/Encode/JP/JP.pm		Encode extension
-cpan/Encode/JP/Makefile.PL	Encode extension
-cpan/Encode/KR/KR.pm		Encode extension
-cpan/Encode/KR/Makefile.PL	Encode extension
 cpan/Encode/lib/Encode/Alias.pm	Encode extension
 cpan/Encode/lib/Encode/CJKConstants.pm	Encode extension
 cpan/Encode/lib/Encode/CN/HZ.pm		Encode extension
@@ -630,8 +622,6 @@ cpan/Encode/t/utf8strict.t		test script
 cpan/Encode/t/utf8warnings.t
 cpan/Encode/t/whatwg-aliases.json
 cpan/Encode/t/whatwg-aliases.t
-cpan/Encode/TW/Makefile.PL		Encode extension
-cpan/Encode/TW/TW.pm			Encode extension
 cpan/Encode/ucm/8859-1.ucm		Unicode Character Map
 cpan/Encode/ucm/8859-10.ucm		Unicode Character Map
 cpan/Encode/ucm/8859-11.ucm		Unicode Character Map
