@@ -1,0 +1,8 @@
+!/Makefile.PL
+/MYMETA.*
+/*.bs
+/*.o
+/blib/
+/Makefile
+/WebPerl.c
+/pm_to_blib

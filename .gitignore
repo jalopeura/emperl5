@@ -212,4 +212,11 @@ GTAGS
 /lib/WebPerl.pm
 /emperl.*
 /nodeperl_dev.*
+# Modules we import
+/ext/Cpanel-JSON-XS/
+/ext/Devel-StackTrace/
+/ext/Future/
+/lib/Cpanel/
+/lib/Future.pm
+/lib/Future/
 
