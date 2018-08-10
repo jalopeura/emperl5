@@ -571,7 +571,7 @@
 #define _(args) args
 #define I_LIMITS
 #define I_STDARG
-#define STANDARD_C
+#define STANDARD_C 1
 #endif
 
 /* By compiling a perl with -DNO_TAINT_SUPPORT or -DSILENT_NO_TAINT_SUPPORT,
