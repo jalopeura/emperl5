@@ -10,9 +10,9 @@ use Data::Dumper ();
 =head1 SYNOPSIS
 
  use WebPerl qw/js/;
- js(q{ alert("I am JavaScript!") });
+ js(q{ alert("I am JavaScript!"); });
 
-See documentation at L<http://webperl.zero-g.net>.
+Please see the documentation at L<http://webperl.zero-g.net/using.html>!
 
 =head1 Author, Copyright, and License
 

@@ -119,6 +119,7 @@ xs_eval_js(code)
 int
 end_perl()
 	CODE:
+		// TODO Later: end_perl() doesn't cause Module.onExit to be called, right?
 		RETVAL = emperl_end_perl();
 	OUTPUT:
 		RETVAL
