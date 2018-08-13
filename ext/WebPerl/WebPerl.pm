@@ -244,8 +244,7 @@ sub _to_perl { #TODO: this needs tests
 
 {
 	package WebPerl::JSObject;
-	use Carp;
-	use Scalar::Util qw/weaken/;
+	use Scalar::Util ();
 	use overload
 		'&{}' => \&coderef, '@{}' => \&arrayref, '%{}' => \&hashref,
 		fallback => 0; #TODO Later: overload stringify? others?
@@ -284,7 +283,7 @@ sub _to_perl { #TODO: this needs tests
 		if (!$array) {
 			tie my @array, 'WebPerl::JSObject::TiedArray', $self;
 			$array = $self->{array} = \@array;
-			weaken $self->{array}; # tied obj holds a reference back to us, avoid circular references
+			Scalar::Util::weaken($self->{array}); # tied obj holds a reference back to us, avoid circular references
 		}
 		return $array;
 	}
@@ -295,7 +294,7 @@ sub _to_perl { #TODO: this needs tests
 		if (!$hash) {
 			tie my %hash, 'WebPerl::JSObject::TiedHash', $self;
 			$hash = $self->{hash} = \%hash;
-			weaken $self->{hash}; # tied obj holds a reference back to us, avoid circular references
+			Scalar::Util::weaken($self->{hash}); # tied obj holds a reference back to us, avoid circular references
 		}
 		return $hash;
 	}
