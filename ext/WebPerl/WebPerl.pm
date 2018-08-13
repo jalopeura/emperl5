@@ -113,17 +113,13 @@ sub _code_reg {
 		$CodeTable{$subkey} = $sub;
 		$callcode = _perlstr($subkey);
 	}
-	return 'function(){ '
-		# Handing over arguments via a global JS value is not pretty, but it works for now.
-		.'Perl._call_code_args=arguments;'
-		.'Perl.eval('.$JSON->encode(
-			'WebPerl::_call_code('.$callcode.')'
-		).');'
-		.'if(Perl._call_code_error){var err=Perl._call_code_error;delete Perl._call_code_error;throw err;}'
-		.'else {var rv=Perl._call_code_rv;delete Perl._call_code_rv;return rv;} }';
+	return 'Perl.dispatch.bind(null,'
+			. $JSON->encode( 'WebPerl::_call_code('.$callcode.')' )
+		.')';
 }
 sub _call_code {
 	my $code = shift;
+	# Handing over arguments via a global JS value is not pretty, but it works for now.
 	my @args = js('Perl._call_code_args')->@*;
 	js('delete Perl._call_code_args;');
 	my $dbname;
