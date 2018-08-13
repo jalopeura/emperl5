@@ -215,7 +215,7 @@ sub _to_js { #TODO Later: should we provide this to the outside as well? (what f
 	else { return $JSON->encode($what) }
 }
 
-sub _to_perl {
+sub _to_perl { #TODO: this needs tests
 	confess "bad nr of args" unless @_==1;
 	my $what = shift;
 	if (my $r = ref $what) {
@@ -229,14 +229,15 @@ sub _to_perl {
 			no overloading '%{}';
 			if ($what->{type} eq 'F') { # JS Function
 				# note we don't just return $what->coderef because that doesn't keep a reference to $what alive
-				return sub { $what->(@_) }
+				return sub { $what->coderef->(@_) }
 			}
 			elsif ($what->{type} eq 'A') { # JS Array
-				return [ map { _to_perl($_) } @$what ];
+				return [ map { _to_perl($_) } $what->arrayref->@* ];
 			}
 			elsif ($what->{type} eq 'O') { # JS Object
 				# I think this only keeps alive methods defined directly as keys on this object? (TODO: test)
-				return { map { ( $_ => _to_perl($$what{$_}) ) } keys %$what };
+				my $hr = $what->hashref;
+				return { map { ( $_ => _to_perl($hr->{$_}) ) } keys $hr->%* };
 			}
 			else { confess "internal error: unexpected type "._perlstr($what->{type}) }
 		}
