@@ -71,7 +71,7 @@ sub js {
 	$TRACE and say STDERR "js(",_perlstr($code),")";
 	carp "js: non-ASCII characters in non-UTF-8 string" #TODO Later: compare to how $JSON->encode() handles this
 		if !utf8::is_utf8($code) && $code=~/[\x80-\xFF]/aa;
-	my $rv = xs_eval_js($code);
+	my $rv = xs_eval_js($code, defined wantarray ? 1 : 0);
 	my $type = chop($rv);
 	   if ($type eq 'U') { return undef }
 	elsif ($type eq 'B') { return !!$rv }

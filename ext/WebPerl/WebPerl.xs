@@ -39,12 +39,14 @@ const char* webperl_eval_perl(const char* code) {
 #error "Unsupported Size_t"
 #endif
 
-EM_JS(const char*, js_eval_js, (const char* codestr, STRLEN ilen, STRLEN* olen), {
+EM_JS(const char*, js_eval_js, (const char* codestr, STRLEN ilen, int wantrv, STRLEN* olen), {
 	var out = "";
 	try {
 		var code = my_UTF8ArrayToString(codestr, ilen);
-		if (Perl.trace) console.debug("Perl: eval", code);
+		if (Perl.trace) console.debug("Perl: eval", code, "- wantrv",wantrv);
 		var rv = eval(code);
+		if (wantrv==0)       // js() was called in void context, so we don't need
+			rv = undefined;  // any handling of the return value, especially GlueTable stuff!
 		// In the future, we could switch to using the supposedly faster Function constructor,
 		// but we need to make sure callers know this because of the differences (e.g. in accessing global JS objects)
 		//var rv = Function( '"use strict"; return (' + code + ')' )();
@@ -101,8 +103,9 @@ refcount(ref)
 		RETVAL
 
 SV *
-xs_eval_js(code)
+xs_eval_js(code, wantrv)
 	SV*	code
+	int	wantrv
 	INIT:
 		STRLEN ilen;
 		STRLEN olen;
@@ -110,7 +113,7 @@ xs_eval_js(code)
 		const char *out;
 	CODE:
 		codestr = SvPV(code, ilen);
-		out = js_eval_js(codestr, ilen, &olen);
+		out = js_eval_js(codestr, ilen, wantrv, &olen);
 		RETVAL = newSVpvn_utf8(out, olen, 1);
 		free((void*)out);
 	OUTPUT:
