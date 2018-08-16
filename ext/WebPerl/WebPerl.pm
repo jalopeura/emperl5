@@ -16,7 +16,7 @@ Please see the documentation at L<http://webperl.zero-g.net/using.html>!
 
 =head1 Author, Copyright, and License
 
-B<< WebPerl L<http://webperl.zero-g.net> >>
+B<< WebPerl - L<http://webperl.zero-g.net> >>
 
 Copyright (c) 2018 Hauke Daempfling (haukex@zero-g.net)
 at the Leibniz Institute of Freshwater Ecology and Inland Fisheries (IGB),
