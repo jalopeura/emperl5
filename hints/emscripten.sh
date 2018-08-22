@@ -127,6 +127,7 @@ d_pthread_yield='undef'
 # Commented out stuff is correctly detected.
 #TODO: JavaScript uses 64-bit IEEE double FP numbers - will Perl use those?
 #TODO: Now that we've switched to WebAssembly, can we use 64 bits everywhere?
+# see https://groups.google.com/forum/#!topic/emscripten-discuss/nWmO3gi8_Jg
 #use64bitall='undef'
 #use64bitint='undef'
 #usemorebits='undef'
