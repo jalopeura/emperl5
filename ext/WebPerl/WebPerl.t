@@ -115,3 +115,6 @@ subtest 'advanced function tests' => sub {
 };
 
 done_testing;
+
+note "All tests passed!" if Test::More->builder->is_passing;
+
