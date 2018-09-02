@@ -44,7 +44,7 @@ require XSLoader;
 XSLoader::load('WebPerl', $VERSION);
 
 use Exporter 'import';
-our @EXPORT_OK = qw/ js encode_json unregister sub_once sub1 /;
+our @EXPORT_OK = qw/ js encode_json unregister sub_once sub1 js_new /;
 
 our $JSON = Cpanel::JSON::XS->new->allow_nonref;
 our $TRACE = 0;
@@ -241,6 +241,8 @@ sub _to_perl { #TODO: this needs tests
 	}
 	else { return $what }
 }
+
+sub js_new { js( 'new '.shift.'('.join(',',map {_to_js($_)} @_).')' ) }
 
 {
 	package WebPerl::JSObject;
