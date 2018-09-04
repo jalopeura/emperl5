@@ -38,7 +38,7 @@ If not, see L<http://perldoc.perl.org/index-licence.html>.
 
 =cut
 
-our $VERSION = '0.05'; # v0.05-beta
+our $VERSION = '0.07'; # v0.07-beta
 
 require XSLoader;
 XSLoader::load('WebPerl', $VERSION);
@@ -200,10 +200,9 @@ sub _to_js { #TODO Later: should we provide this to the outside as well? (what f
 			{ return _code_reg($what) }
 		else {
 			if (blessed($what) && $what->isa('WebPerl::JSObject')) {
-				no overloading '%{}';
 				#TODO Later: Are there any cases where we might be passing GlueTable entries to JS that are deleted by our JSObject::DESTROY before JS can get to them?
 				# (that will depend on all of the places we use _to_js())
-				return 'Perl.GlueTable['.$JSON->encode($what->{id}).']';
+				return $what->jscode;
 			}
 			croak "can't encode ref $r to JS";
 		}
@@ -254,6 +253,11 @@ sub js_new { js( 'new '.shift.'('.join(',',map {_to_js($_)} @_).')' ) }
 	
 	# Note: constructor is WebPerl::js()
 	
+	sub jscode {
+		my $self = shift;
+		return 'Perl.GlueTable['.$WebPerl::JSON->encode($self->{id}).']';
+	}
+	
 	sub AUTOLOAD {
 		our $AUTOLOAD;
 		#$TRACE and say STDERR "AUTOLOAD ",_perlstr($AUTOLOAD);
@@ -264,14 +268,14 @@ sub js_new { js( 'new '.shift.'('.join(',',map {_to_js($_)} @_).')' ) }
 	sub methodcall {
 		my $self = shift;
 		my $meth = shift;
-		return WebPerl::js('Perl.GlueTable['.$WebPerl::JSON->encode($self->{id}).']'
+		return WebPerl::js($self->jscode
 			.'['.$WebPerl::JSON->encode("$meth").']('.join(',',map {WebPerl::_to_js($_)} @_).')');
 	}
 	
 	sub coderef {
 		my $self = shift;
 		if (!$self->{sub}) {
-			my $gt = 'Perl.GlueTable['.$WebPerl::JSON->encode($self->{id}).']';
+			my $gt = $self->jscode;
 			$self->{sub} = sub {
 				return WebPerl::js($gt.'('.join(',',map {WebPerl::_to_js($_)} @_).')');
 			};
@@ -323,10 +327,7 @@ sub js_new { js( 'new '.shift.'('.join(',',map {_to_js($_)} @_).')' ) }
 		confess "bad nr of args" unless @_==2;
 		my $class = shift;
 		my $obj = shift;
-		no overloading '%{}'; # for $obj->{id}
-		return bless { obj=>$obj,
-			gt=>'Perl.GlueTable['.$WebPerl::JSON->encode($obj->{id}).']' },
-			$class;
+		return bless { obj=>$obj, gt=>$obj->jscode }, $class;
 	}
 	sub FETCH {
 		my ($self,$idx) = @_;
@@ -385,10 +386,7 @@ sub js_new { js( 'new '.shift.'('.join(',',map {_to_js($_)} @_).')' ) }
 		confess "bad nr of args" unless @_==2;
 		my $class = shift;
 		my $obj = shift;
-		no overloading '%{}'; # for $obj->{id}
-		return bless { obj=>$obj,
-			gt=>'Perl.GlueTable['.$WebPerl::JSON->encode($obj->{id}).']' },
-			$class;
+		return bless { obj=>$obj, gt=>$obj->jscode }, $class;
 	}
 	sub FETCH {
 		my ($self,$key) = @_;

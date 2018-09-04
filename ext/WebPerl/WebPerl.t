@@ -64,6 +64,10 @@ subtest 'basic function tests' => sub {
 	my $pl = $func->toperl;
 	is ref $pl, 'CODE', 'toperl gives code ref';
 	is $pl->('i','j'), 'xiyjz', 'code ref works';
+	
+	is js( '('.js([qw/foo bar quz/])->jscode.')[1]' ), "bar", 'basic jscode test';
+	ok js( '('.js('document')->jscode.')===('.js('document')->jscode.')' ), 'jscode equality test';
+	ok !js( '('.js('document')->jscode.')===('.js('window')->jscode.')' ), 'jscode inequality test';
 };
 
 subtest 'basic array test' => sub {
