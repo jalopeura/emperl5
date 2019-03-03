@@ -38,7 +38,7 @@ If not, see L<http://perldoc.perl.org/index-licence.html>.
 
 =cut
 
-our $VERSION = '0.07'; # v0.07-beta
+our $VERSION = '0.09'; # v0.09-beta
 
 require XSLoader;
 XSLoader::load('WebPerl', $VERSION);
