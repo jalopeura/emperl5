@@ -1079,8 +1079,8 @@ $(PERL_EXE): $& $(perlmain_dep) $(LIBPERL) $(static_ext) ext.libs $(PERLEXPORT) 
 	# Note: need $(EMPERL_LINK_FLAGS) here so the compiler doesn't remove functions like ccall
 	# and we need NO_EXIT_RUNTIME=0 because otherwise Emscripten won't flush streams on exit etc.
 	emscripten) $spitshell >>$Makefile <<'!NO!SUBS!'
-	$(SHRPENV) $(CC) -o perl.bc $(CLDFLAGS) $(CCDLFLAGS) $(perlmain_objs) $(static_ext) $(LLIBPERL) `cat ext.libs` $(libs)
-	emcc perl.bc $(CLDFLAGS) $(CCDLFLAGS) $(EMPERL_LINK_FLAGS) -s NO_EXIT_RUNTIME=0 --pre-js nodeperl_dev_prerun.js -o nodeperl_dev.js
+	$(SHRPENV) $(CC) -r -o perl.bc $(CLDFLAGS) $(CCDLFLAGS) $(perlmain_objs) $(static_ext) $(LLIBPERL) `cat ext.libs` $(libs)
+	emcc perl.bc $(CLDFLAGS) $(CCDLFLAGS) $(EMPERL_LINK_FLAGS) -s NO_EXIT_RUNTIME=0 --pre-js nodeperl_dev_prerun.js -lnodefs.js -o nodeperl_dev.js
 	$(LNS) -f nodeperl_dev $(PERL_EXE)
 	touch $(PERL_EXE)
 !NO!SUBS!
@@ -1095,7 +1095,7 @@ $(PERL_EXE): $& $(perlmain_dep) $(LIBPERL) $(static_ext) ext.libs $(PERLEXPORT) 
 	$spitshell >>$Makefile <<'!NO!SUBS!'
 
 emperl.js: $(PERL_EXE)
-	emcc perl.bc $(CLDFLAGS) $(CCDLFLAGS) $(EMPERL_LINK_FLAGS) --preload-file $(EMPERL_PRELOAD_FILE) -o emperl.js
+	emcc perl.bc $(CLDFLAGS) $(CCDLFLAGS) $(EMPERL_LINK_FLAGS) --preload-file $(EMPERL_PRELOAD_FILE) -lidbfs.js -o emperl.js
 
 # Microperl.  This is just a convenience thing if one happens to
 # build also the full Perl and therefore the real big Makefile:

@@ -34,9 +34,19 @@ perladmin='root@localhost'
 cc="emcc"
 ld="emcc"
 
-nm="`which llvm-nm`"  # note from Glossary: 'After Configure runs, the value is reset to a plain "nm" and is not useful.'
-ar="`which llvm-ar`"  # note from Glossary: 'After Configure runs, the value is reset to a plain "ar" and is not useful.'
-ranlib="`which llvm-ranlib`"
+# prevent configure from overriding $ar and $nm
+newlist=''
+for item in $trylist; do
+	case "$item" in
+	ar|nm) ;;
+	*) newlist="$newlist $item" ;;
+	esac
+done
+trylist="$newlist"
+
+nm="emnm"  # note from Glossary: 'After Configure runs, the value is reset to a plain "nm" and is not useful.'
+ar="emar"  # note from Glossary: 'After Configure runs, the value is reset to a plain "ar" and is not useful.'
+ranlib="emranlib"
 
 # Here's a fun one: apparently, when building perlmini.c, emcc notices that it's a symlink to perl.c, and compiles to perl.o
 # (because there is no -o option), so the final perl ends up thinking it's miniperl (shown in "perl -v", @INC doesn't work, etc.).
@@ -144,7 +154,7 @@ selectminbits='32'
 optimize="$EMPERL_OPTIMIZ"
 
 # the following is needed for the "musl" libc provided by emscripten to provide all functions
-ccflags="$ccflags -D_GNU_SOURCE -D_POSIX_C_SOURCE"
+ccflags="$ccflags -D_GNU_SOURCE -D_POSIX_C_SOURCE -Wno-compound-token-split-by-macro"
 
 # from Makefile.emcc / Makefile.micro
 ccflags="$ccflags -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -DNO_MATHOMS"
@@ -164,14 +174,14 @@ ldflags="$ldflags -s WASM=1 -s BINARYEN_METHOD=native-wasm"
 alignbytes='4'
 
 # enable all checks for debugging (remember to keep in sync with build.sh!)
-ccflags="$ccflags $EMPERL_DEBUG_FLAGS"
-ldflags="$ldflags $EMPERL_DEBUG_FLAGS"
-lddlflags="$lddlflags $EMPERL_DEBUG_FLAGS"
+ccflags="$ccflags $EMPERL_CC_DEBUG_FLAGS"
+ldflags="$ldflags $EMPERL_LD_DEBUG_FLAGS"
+lddlflags="$lddlflags $EMPERL_LD_DEBUG_FLAGS"
 
 # disable this warning, I don't think we need it - TODO: how to append this after -Wall?
 ccflags="$ccflags -Wno-null-pointer-arithmetic"
 
 # Configure apparently changes "-s ASSERTIONS=2 -s STACK_OVERFLOW_CHECK=2" to "-s -s" when converting ccflags to cppflags
 # this is the current hack/workaround: copy cppflags from config.sh and fix it (TODO Later: better way would be to patch Configure)
-cppflags='-D_GNU_SOURCE -D_POSIX_C_SOURCE -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -DNO_MATHOMS -Wno-null-pointer-arithmetic -fno-strict-aliasing -pipe -fstack-protector-strong -I/usr/local/include'
+cppflags='-D_GNU_SOURCE -D_POSIX_C_SOURCE -Wno-compound-token-split-by-macro -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -DNO_MATHOMS -Wno-null-pointer-arithmetic -fno-strict-aliasing -pipe -I/usr/local/include'
 

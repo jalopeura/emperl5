@@ -1438,6 +1438,10 @@ char *tzname[] = { "" , "" };
 #endif /* WIN32 || NETWARE */
 #endif /* __VMS */
 
+#ifdef __EMSCRIPTEN__
+#  define sigsuspend(a)     not_here("sigsuspend")
+#endif /* __EMSCRIPTEN__ */
+
 typedef int SysRet;
 typedef long SysRetLong;
 typedef sigset_t* POSIX__SigSet;

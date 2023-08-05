@@ -247,6 +247,9 @@ foreach my $spec (@extspec)  {
 	if (-d "ext/$spec") {
 	    # Old style ext/Data/Dumper/
 	    $ext_pathname = "ext/$spec";
+	} elsif ($spec=~m{^Encode/(Byte|Symbol|Unicode)$}) {
+	    print "Skipping $spec (already built by Encode)\n" if $verbose;
+	    next;
 	} else {
 	    warn "Can't find extension $spec in any of @ext_dirs";
 	    next;
