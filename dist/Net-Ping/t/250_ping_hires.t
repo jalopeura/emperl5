@@ -3,12 +3,11 @@
 use strict;
 
 BEGIN {
-  if ($ENV{PERL_CORE}) {
-    unless ($ENV{PERL_TEST_Net_Ping}) {
-      print "1..0 # Skip: network dependent test\n";
-        exit;
-    }
-  }
+  if ($ENV{NO_NETWORK_TESTING} ||
+      ($ENV{PERL_CORE}) && !$ENV{PERL_TEST_Net_Ping}) {
+    print "1..0 \# Skip: network dependent test\n";
+    exit;
+  } 
   unless (eval "require Socket") {
     print "1..0 \# Skip: no Socket\n";
     exit;
@@ -19,6 +18,10 @@ BEGIN {
   }
   unless (getservbyname('echo', 'tcp')) {
     print "1..0 \# Skip: no echo port\n";
+    exit;
+  }
+  unless (Socket::getaddrinfo('localhost', &Socket::AF_INET())) {
+    print "1..0 \# Skip: no localhost resolver on $^O\n";
     exit;
   }
 }
@@ -41,12 +44,17 @@ is($Net::Ping::hires, 0, 'Make sure disable works');
 $p -> hires(1);
 isnt($Net::Ping::hires, 0, 'Enable hires again');
 
-# Test on the default port
-my ($ret, $duration) = $p -> ping("localhost");
+SKIP: {
+  skip "unreliable ping localhost on $^O", 2
+    if $^O =~ /^(?:hpux|os390|irix|freebsd)$/;
 
-isnt($ret, 0, 'localhost should always be reachable');
+  # Test on the default port
+  my ($ret, $duration) = $p -> ping("localhost");
 
-# It is extremely likely that the duration contains a decimal
-# point if Time::HiRes is functioning properly, except when it
-# is fast enough to be "0", or slow enough to be exactly "1".
-like($duration, qr/\.|^[01]$/, 'returned duration is valid');
+  isnt($ret, 0, 'localhost should always be reachable');
+
+  # It is extremely likely that the duration contains a decimal
+  # point if Time::HiRes is functioning properly, except when it
+  # is fast enough to be "0", or slow enough to be exactly "1".
+  like($duration, qr/\.|^[01]$/, 'returned duration is valid');
+}

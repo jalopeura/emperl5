@@ -2,7 +2,7 @@ package Test2::API::Context;
 use strict;
 use warnings;
 
-our $VERSION = '1.302162';
+our $VERSION = '1.302194';
 
 
 use Carp qw/confess croak/;
@@ -71,6 +71,8 @@ sub DESTROY {
         # show the warning about using eq.
         no warnings 'uninitialized';
         if($self->{+EVAL_ERROR} eq $@ && $hub->is_local) {
+            require Carp;
+            my $mess = Carp::longmess("Context destroyed");
             my $frame = $self->{+_IS_SPAWN} || $self->{+TRACE}->frame;
             warn <<"            EOT";
 A context appears to have been destroyed without first calling release().
@@ -86,6 +88,10 @@ release():
   File: $frame->[1]
   Line: $frame->[2]
   Tool: $frame->[3]
+
+Here is a trace to the code that caused the context to be destroyed, this could
+be an exit(), a goto, or simply the end of a scope:
+$mess
 
 Cleaning up the CONTEXT stack...
             EOT
@@ -1003,7 +1009,7 @@ F<http://github.com/Test-More/test-more/>.
 
 =head1 COPYRIGHT
 
-Copyright 2019 Chad Granum E<lt>exodist@cpan.orgE<gt>.
+Copyright 2020 Chad Granum E<lt>exodist@cpan.orgE<gt>.
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

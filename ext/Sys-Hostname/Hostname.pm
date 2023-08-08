@@ -4,9 +4,8 @@ use strict;
 
 use Carp;
 
-require Exporter;
+use Exporter 'import';
 
-our @ISA     = qw/ Exporter /;
 our @EXPORT  = qw/ hostname /;
 
 our $VERSION;
@@ -16,7 +15,7 @@ use warnings ();
 our $host;
 
 BEGIN {
-    $VERSION = '1.22';
+    $VERSION = '1.25';
     {
 	local $SIG{__DIE__};
 	eval {
@@ -29,7 +28,7 @@ BEGIN {
 
 
 sub hostname {
-  @_ and warnings::warnif("deprecated", "hostname() doesn't accept any arguments. This will become fatal in Perl 5.32");
+  @_ and croak("hostname() does not accepts arguments (it used to silently discard any provided)");
 
   # method 1 - we already know it
   return $host if defined $host;
@@ -132,7 +131,7 @@ Sys::Hostname - Try every conceivable way to get hostname
 =head1 SYNOPSIS
 
     use Sys::Hostname;
-    $host = hostname;
+    my $host = hostname;
 
 =head1 DESCRIPTION
 

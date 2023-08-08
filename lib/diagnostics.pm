@@ -72,7 +72,7 @@ trace.
 
 =head2 The I<splain> Program
 
-While apparently a whole nuther program, I<splain> is actually nothing
+Another program, I<splain> is actually nothing
 more than a link to the (executable) F<diagnostics.pm> module, as well as
 a link to the F<diagnostics.pod> documentation.  The B<-v> flag is like
 the C<use diagnostics -verbose> directive.
@@ -186,7 +186,7 @@ use 5.009001;
 use Carp;
 $Carp::Internal{__PACKAGE__.""}++;
 
-our $VERSION = '1.36';
+our $VERSION = '1.39';
 our $DEBUG;
 our $VERBOSE;
 our $PRETTY;
@@ -265,6 +265,8 @@ if (eof(POD_DIAG)) {
     'lt'	=>	'<',	#   left chevron, less-than
     'gt'	=>	'>',	#   right chevron, greater-than
     'quot'	=>	'"',	#   double quote
+    'sol'	=>	'/',	#   forward slash / solidus
+    'verbar'    =>	'|',	#   vertical bar
 
     "Aacute"	=>	"A\\*'",	#   capital A, acute accent
     # etc
@@ -276,8 +278,11 @@ if (eof(POD_DIAG)) {
     'lt'	=>	'<',	#   left chevron, less-than
     'gt'	=>	'>',	#   right chevron, greater-than
     'quot'	=>	'"',	#   double quote
+    'sol'	=>	'/',	#   Forward slash / solidus
+    'verbar'    =>	'|',	#   vertical bar
 
-    "Aacute"	=>	"\xC1"	#   capital A, acute accent
+    #                           #   capital A, acute accent
+    "Aacute"	=>	chr utf8::unicode_to_native(0xC1)
 
     # etc
 );
@@ -287,6 +292,8 @@ if (eof(POD_DIAG)) {
     'lt'	=>	'<',	#   left chevron, less-than
     'gt'	=>	'>',	#   right chevron, greater-than
     'quot'	=>	'"',	#   double quote
+    'sol'	=>	'/',	#   Forward slash / solidus
+    'verbar'    =>	'|',	#   vertical bar
 
     "Aacute"	=>	"A"	#   capital A, acute accent
     # etc

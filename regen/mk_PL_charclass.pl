@@ -13,7 +13,7 @@ use Unicode::UCD 'prop_invlist';
 # an application to see if the code point "i" has a particular property, it
 # just does
 #    'PL_charclass[i] & BIT'
-# The bit names are of the form '_CC_property_suffix', where 'CC' stands for
+# The bit names are of the form 'CC_property_suffix_', where 'CC' stands for
 # character class, and 'property' is the corresponding property, and 'suffix'
 # is one of '_A' to mean the property is true only if the corresponding code
 # point is ASCII, and '_L1' means that the range includes any Latin1
@@ -49,6 +49,9 @@ my %bit_names = (
             XDIGIT                  => 0,
             VERTSPACE               => 0,
             IS_IN_SOME_FOLD         => '_Perl_Any_Folds',
+            BINDIGIT                => [ ord '0', ord '1' ],
+            OCTDIGIT                => [ ord '0', ord '1', ord '2', ord '3',
+                                         ord '4', ord '5', ord '6', ord '7' ],
 
             # These are the control characters that there are mnemonics for
             MNEMONIC_CNTRL          => [ ord "\a", ord "\b", ord "\e", ord "\f",
@@ -274,12 +277,12 @@ foreach my $bit_name (sort keys %bit_names) {
     foreach my $cp (@code_points) {
         last if $cp > 0xFF;
         $bits[$cp] .= '|' if $bits[$cp];
-        $bits[$cp] .= "(1U<<_CC_$bit_name)";
+        $bits[$cp] .= "(1U<<CC_${bit_name}_)";
     }
 }
 
 my $out_fh = open_new('l1_char_class_tab.h', '>',
-		      {style => '*', by => $0,
+                      {style => '*', by => $0,
                       from => "Unicode::UCD"});
 
 print $out_fh <<END;
@@ -372,25 +375,6 @@ foreach my $charset (get_supported_code_pages()) {
         $out[$index] .= sprintf "I8=%02X ", $i8 if defined $i8 && $i8 != $ord;
         $out[$index] .= "$name */ ";
         $out[$index] .= $bits[$ord];
-
-        # For EBCDIC character sets, we also add some data for when the bytes
-        # are in UTF-EBCDIC; these are based on the fundamental
-        # characteristics of UTF-EBCDIC.
-        if (@utf_to_i8) {
-            if ($i8 >= 0xC5 && $i8 != 0xE0) {
-                $out[$index] .= '|(1U<<_CC_UTF8_IS_START)';
-                if ($i8 <= 0xC7) {
-                    $out[$index] .= '|(1U<<_CC_UTF8_IS_DOWNGRADEABLE_START)';
-                }
-            }
-            if (($i8 & 0xE0) == 0xA0) {
-                $out[$index] .= '|(1U<<_CC_UTF8_IS_CONTINUATION)';
-            }
-            if ($i8 >= 0xF1) {
-                $out[$index] .=
-                          '|(1U<<_CC_UTF8_START_BYTE_IS_FOR_AT_LEAST_SURROGATE)';
-            }
-        }
 
         $out[$index] .= ",\n";
     }

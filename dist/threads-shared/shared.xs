@@ -40,7 +40,7 @@
  * proxy PVLV element with attached element magic.
  *
  * Pointers to the shared SV are squirrelled away in the mg->mg_ptr field
- * of magic (with mg_len == 0), and in the IV2PTR(SvIV(sv)) field of tied
+ * of magic (with mg_len == 0), and in the INT2PTR(SvIV(sv)) field of tied
  * object SVs. These pointers have to be hidden like this because they
  * cross interpreter boundaries, and we don't want sv_clear() and friends
  * following them.
@@ -130,14 +130,11 @@
 #include "EXTERN.h"
 #include "perl.h"
 #include "XSUB.h"
-#ifdef HAS_PPPORT_H
-#  define NEED_sv_2pv_flags
-#  define NEED_vnewSVpvf
-#  define NEED_warner
-#  define NEED_newSVpvn_flags
-#  include "ppport.h"
-#  include "shared.h"
-#endif
+#define NEED_sv_2pv_flags
+#define NEED_vnewSVpvf
+#define NEED_warner
+#define NEED_newSVpvn_flags
+#include "ppport.h"
 
 #ifndef CLANG_DIAG_IGNORE
 # define CLANG_DIAG_IGNORE(x)
@@ -704,10 +701,10 @@ Perl_sharedsv_cond_timedwait(perl_cond *cond, perl_mutex *mut, double abs)
     abs -= (NV)ts.tv_sec;
     ts.tv_nsec = (long)(abs * 1000000000.0);
 
-    CLANG_DIAG_IGNORE_STMT(-Wthread-safety);
+    CLANG_DIAG_IGNORE(-Wthread-safety)
     /* warning: calling function 'pthread_cond_timedwait' requires holding mutex 'mut' exclusively [-Wthread-safety-analysis] */
     switch (pthread_cond_timedwait(cond, mut, &ts)) {
-	CLANG_DIAG_RESTORE_STMT;
+	CLANG_DIAG_RESTORE
 
         case 0:         got_it = 1; break;
         case ETIMEDOUT:             break;
@@ -818,12 +815,16 @@ sharedsv_scalar_store(pTHX_ SV *sv, SV *ssv)
         SV *obj = SvRV(sv);
         SV *sobj = Perl_sharedsv_find(aTHX_ obj);
         if (sobj) {
+            SV* tmpref;
             SHARED_CONTEXT;
-            (void)SvUPGRADE(ssv, SVt_RV);
-            sv_setsv_nomg(ssv, &PL_sv_undef);
+            /* Creating a tmp ref to sobj then assigning it to ssv ensures
+             * that any previous contents of ssv are correctly freed
+             * by sv_setsv(). Not sure if there is a better, API-legal way
+             * to achieve this */
+            tmpref = newRV_inc(sobj);
+            sv_setsv_nomg(ssv, tmpref);
+            SvREFCNT_dec_NN(tmpref);
 
-            SvRV_set(ssv, SvREFCNT_inc(sobj));
-            SvROK_on(ssv);
             if (SvOBJECT(sobj)) {
                 /* Remove any old blessing */
                 SvREFCNT_dec(SvSTASH(sobj));
@@ -1141,7 +1142,7 @@ sharedsv_array_mg_CLEAR(pTHX_ SV *sv, MAGIC *mg)
             I32 items = isav ? AvFILLp((AV *)ssv) + 1 : 0;
             HE *iter;
             if (!isav) hv_iterinit((HV *)ssv);
-            while (isav ? items-- : !!(iter = hv_iternext((HV *)ssv))) {
+            while (isav ? items-- : cBOOL(iter = hv_iternext((HV *)ssv))) {
                 SV *sv = isav ? *svp++ : HeVAL(iter);
                 if (!sv) continue;
                 if ( (SvOBJECT(sv) || (SvROK(sv) && (sv = SvRV(sv))))
@@ -1176,7 +1177,7 @@ sharedsv_array_mg_free(pTHX_ SV *sv, MAGIC *mg)
  * This is called when perl is about to access an element of
  * the array -
  */
-#if PERL_VERSION >= 11
+#if PERL_VERSION_GE(5,11,0)
 static int
 sharedsv_array_mg_copy(pTHX_ SV *sv, MAGIC* mg,
                        SV *nsv, const char *name, I32 namlen)
@@ -1289,14 +1290,16 @@ static void
 Perl_sharedsv_init(pTHX)
 {
     dTHXc;
-    PL_sharedsv_space = perl_alloc();
-    perl_construct(PL_sharedsv_space);
-    /* The pair above leaves us in shared context (what dTHX would get),
-     * but aTHX still points to caller context */
-    aTHX = PL_sharedsv_space;
-    LEAVE; /* This balances the ENTER at the end of perl_construct.  */
-    PERL_SET_CONTEXT((aTHX = caller_perl));
-    recursive_lock_init(aTHX_ &PL_sharedsv_lock);
+    if (!PL_sharedsv_space) {
+        PL_sharedsv_space = perl_alloc();
+        perl_construct(PL_sharedsv_space);
+        /* The pair above leaves us in shared context (what dTHX would get),
+         * but aTHX still points to caller context */
+        aTHX = PL_sharedsv_space;
+        LEAVE; /* This balances the ENTER at the end of perl_construct.  */
+        PERL_SET_CONTEXT((aTHX = caller_perl));
+        recursive_lock_init(aTHX_ &PL_sharedsv_lock);
+    }
     PL_lockhook = &Perl_sharedsv_locksv;
     PL_sharehook = &Perl_sharedsv_share;
 #ifdef PL_destroyhook

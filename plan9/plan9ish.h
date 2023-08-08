@@ -12,7 +12,7 @@
  *	This symbol, if defined, indicates that the ioctl() routine is
  *	available to set I/O characteristics
  */
-#define	HAS_IOCTL		/**/
+#define HAS_IOCTL               /**/
  
 /* HAS_UTIME:
  *	This symbol, if defined, indicates that the routine utime() is
@@ -86,7 +86,7 @@
  *	as the first line of a Perl program designed to be executed directly
  *	by name, instead of the standard Unix #!.  If ALTERNATE_SHEBANG
  *	begins with a character other then #, then Perl will only treat
- *	it as a command line if if finds the string "perl" in the first
+ *	it as a command line if it finds the string "perl" in the first
  *	word; otherwise it's treated as the first line of code in the script.
  *	(IOW, Perl won't hand off to another interpreter via an alternate
  *	shebang sequence that might be legal Perl code.)
@@ -105,7 +105,7 @@
 
 #define BIT_BUCKET "/dev/null"
 #define PERL_SYS_INIT_BODY(c,v)				    \
-	MALLOC_CHECK_TAINT2(*c,*v) PERLIO_INIT; MALLOC_INIT
+        MALLOC_CHECK_TAINT2(*c,*v) PERLIO_INIT; MALLOC_INIT
 #define dXSUB_SYS dNOOP
 #define PERL_SYS_TERM_BODY()	PERLIO_TERM; MALLOC_TERM
 

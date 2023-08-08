@@ -32,10 +32,6 @@
 #include "perl.h"
 #include "XSUB.h"
 
-#ifdef NETWARE
-#include "nwutil.h"
-#endif
-
 #ifdef USE_KERN_PROC_PATHNAME
 #  include <sys/sysctl.h>
 #endif
@@ -43,12 +39,6 @@
 #ifdef USE_NSGETEXECUTABLEPATH
 # include <mach-o/dyld.h>
 #endif
-
-/* Note: Functions in this file must not have bool parameters.  When
-   PERL_BOOL_AS_CHAR is #defined, mach-o/dyld.h overrides it in this file
-   by #including stdbool.h, so the function parameters here would conflict
-   with those in proto.h.
-*/
 
 void
 Perl_set_caret_X(pTHX) {
@@ -77,7 +67,7 @@ Perl_set_caret_X(pTHX) {
     mib[3] = -1;
 
     if (sysctl(mib, 4, NULL, &size, NULL, 0) == 0
-        && size > 0 && size < MAXPATHLEN * MAXPATHLEN) {
+        && inRANGE(size, 1, -1 + MAXPATHLEN * MAXPATHLEN)) {
         sv_grow(caret_x, size);
 
         if (sysctl(mib, 4, SvPVX(caret_x), &size, NULL, 0) == 0
@@ -131,7 +121,7 @@ Perl_set_caret_X(pTHX) {
        returning the text "unknown" from the readlink rather than the path
        to the executable (or returning an error from the readlink). Any
        valid path has a '/' in it somewhere, so use that to validate the
-       result. See http://www.freebsd.org/cgi/query-pr.cgi?pr=35703
+       result. See https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=35703
     */
     if (len > 0 && memchr(buf, '/', len)) {
         sv_setpvn(caret_x, buf, len);

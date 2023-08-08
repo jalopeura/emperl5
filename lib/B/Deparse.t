@@ -20,6 +20,8 @@ my $deparse = B::Deparse->new();
 isa_ok($deparse, 'B::Deparse', 'instantiate a B::Deparse object');
 my %deparse;
 
+sub dummy_sub {42}
+
 $/ = "\n####\n";
 while (<DATA>) {
     chomp;
@@ -305,14 +307,19 @@ x(); z()
 .
 EOCODH
 
-is runperl(stderr => 1, switches => [ '-MO=-qq,Deparse', $path, '-T' ],
+SKIP: {
+    skip("Your perl was built without taint support", 1)
+        unless $Config::Config{taint_support};
+
+    is runperl(stderr => 1, switches => [ '-MO=-qq,Deparse', $path, '-T' ],
            prog => "format =\n\@\n\$;\n.\n"),
-   <<'EOCODM', '$; on format line';
-format STDOUT =
-@
-$;
-.
-EOCODM
+        <<~'EOCODM', '$; on format line';
+        format STDOUT =
+        @
+        $;
+        .
+        EOCODM
+}
 
 is runperl(stderr => 1, switches => [ '-MO=-qq,Deparse,-l', $path ],
            prog => "format =\n\@\n\$foo\n.\n"),
@@ -411,9 +418,8 @@ like runperl(stderr => 1, switches => [ '-MO=-qq,Deparse', $path ],
      qr/sub f\s*\(\$\)\s*\{\s*\}/,
     'predeclared prototyped subs';
 like runperl(stderr => 1, switches => [ '-MO=-qq,Deparse', $path ],
-           prog => 'use Scalar::Util q-weaken-;
-                    sub f($);
-                    BEGIN { weaken($_=\$::{f}) }'),
+           prog => 'sub f($);
+                    BEGIN { use builtin q-weaken-; weaken($_=\$::{f}) }'),
      qr/sub f\s*\(\$\)\s*;/,
     'prototyped stub with weak reference to the stash entry';
 like runperl(stderr => 1, switches => [ '-MO=-qq,Deparse', $path ],
@@ -533,13 +539,17 @@ like runperl(stderr => 1, switches => [ '-MO=-qq,Deparse', $path ],
 
 is runperl(stderr => 1, switches => [ '-MO=-qq,Deparse', $path ],
              prog => 'BEGIN { $::{f}=\!0 }'),
-   "sub BEGIN {\n    \$main::{'f'} = \\1;\n}\n",
+   "sub BEGIN {\n    \$main::{'f'} = \\!0;\n}\n",
    '&PL_sv_yes constant (used to croak)';
 
-is runperl(stderr => 1, switches => [ '-MO=-qq,Deparse', $path, '-T' ],
+SKIP: {
+    skip("Your perl was built without taint support", 1)
+        unless $Config::Config{taint_support};
+    is runperl(stderr => 1, switches => [ '-MO=-qq,Deparse', $path, '-T' ],
            prog => '$x =~ (1?/$a/:0)'),
-  '$x =~ ($_ =~ /$a/);'."\n",
-  '$foo =~ <branch-folded match> under taint mode';
+        '$x =~ ($_ =~ /$a/);'."\n",
+        '$foo =~ <branch-folded match> under taint mode';
+}
 
 unlike runperl(stderr => 1, switches => [ '-MO=-qq,Deparse', $path, '-w' ],
                prog => 'BEGIN { undef &foo }'),
@@ -565,7 +575,7 @@ is runperl(stderr => 1, switches => [ '-MO=-qq,Deparse', $path ],
 done_testing($tests);
 
 __DATA__
-# TODO [perl #120950] This succeeds when run a 2nd time
+# [perl #120950] Previously on a 2nd instance succeeded
 # y/uni/code/
 tr/\x{345}/\x{370}/;
 ####
@@ -678,6 +688,19 @@ $_ .= readline(ARGV) . readline(ARGV) . readline($foo);
 readline $foo;
 glob $foo;
 glob $foo;
+####
+# more <>
+no warnings;
+no strict;
+my $fh;
+if (dummy_sub < $fh > /bar/g) { 1 }
+>>>>
+no warnings;
+no strict;
+my $fh;
+if (dummy_sub(glob((' ' . $fh . ' ')) / 'bar' / 'g')) {
+    1;
+}
 ####
 # readline
 readline 'FH';
@@ -863,6 +886,13 @@ my $f = sub {
     +{[]};
 } ;
 ####
+# anonconst
+# CONTEXT no warnings 'experimental::const_attr';
+my $f = sub : const {
+    123;
+}
+;
+####
 # bug #43010
 '!@$%'->();
 ####
@@ -1040,7 +1070,7 @@ my $c = [];
 my $d = \[];
 ####
 # SKIP ?$] < 5.010 && "smartmatch and given/when not implemented on this Perl version"
-# CONTEXT use feature ':5.10'; no warnings 'experimental::smartmatch';
+# CONTEXT use feature ':5.10'; no warnings 'deprecated';
 # implicit smartmatch in given/when
 given ('foo') {
     when ('bar') { continue; }
@@ -1481,6 +1511,49 @@ tr/\000-\375/A-C/cds;
 tr/\000-\375/A-D/cds;
 tr/\000-\375/A-I/cds;
 ####
+# tr/// with all the flags: empty replacement
+tr/\x{101}-\x{106}//;
+tr/\x{101}-\x{106}//c;
+tr/\x{101}-\x{106}//d;
+tr/\x{101}-\x{106}//s;
+tr/\x{101}-\x{106}//cd;
+tr/\x{101}-\x{106}//ds;
+tr/\x{101}-\x{106}//cs;
+tr/\x{101}-\x{106}//cds;
+tr/\x{101}-\x{106}//r;
+####
+# tr/// with all the flags: short replacement
+tr/\x{101}-\x{106}/\x{111}/;
+tr/\x{101}-\x{106}/\x{111}/c;
+tr/\x{101}-\x{106}/\x{111}/d;
+tr/\x{101}-\x{106}/\x{111}/s;
+tr/\x{101}-\x{106}/\x{111}/cd;
+tr/\x{101}-\x{106}/\x{111}/ds;
+tr/\x{101}-\x{106}/\x{111}/cs;
+tr/\x{101}-\x{106}/\x{111}/cds;
+tr/\x{101}-\x{106}/\x{111}/r;
+####
+# tr/// with all the flags: equal length replacement
+tr/\x{101}-\x{106}/\x{111}-\x{116}/;
+tr/\x{101}-\x{106}/\x{111}-\x{116}/c;
+tr/\x{101}-\x{106}/\x{111}-\x{116}/s;
+tr/\x{101}-\x{106}/\x{111}-\x{116}/cs;
+tr/\x{101}-\x{106}/\x{111}-\x{116}/r;
+####
+# tr across 255/256 boundary, complemented
+tr/\cA-\x{100}/AB/c;
+tr/\cA-\x{100}/A-C/c;
+tr/\cA-\x{100}/A-D/c;
+tr/\cA-\x{100}/A-I/c;
+tr/\cA-\x{100}/AB/cd;
+tr/\cA-\x{100}/A-C/cd;
+tr/\cA-\x{100}/A-D/cd;
+tr/\cA-\x{100}/A-I/cd;
+tr/\cA-\x{100}/AB/cds;
+tr/\cA-\x{100}/A-C/cds;
+tr/\cA-\x{100}/A-D/cds;
+tr/\cA-\x{100}/A-I/cds;
+####
 # [perl #119807] s//\(3)/ge should not warn when deparsed (\3 warns)
 s/foo/\(3);/eg;
 ####
@@ -1560,7 +1633,7 @@ my @a;
 $a[0] = 1;
 ####
 # feature features without feature
-# CONTEXT no warnings 'experimental::smartmatch';
+# CONTEXT no warnings 'deprecated';
 CORE::state $x;
 CORE::say $x;
 CORE::given ($x) {
@@ -1576,7 +1649,7 @@ CORE::evalbytes '';
 () = CORE::fc $x;
 ####
 # feature features when feature has been disabled by use VERSION
-# CONTEXT no warnings 'experimental::smartmatch';
+# CONTEXT no warnings 'deprecated';
 use feature (sprintf(":%vd", $^V));
 use 1;
 CORE::say $_;
@@ -1606,7 +1679,7 @@ CORE::evalbytes '';
 () = CORE::__SUB__;
 ####
 # (the above test with CONTEXT, and the output is equivalent but different)
-# CONTEXT use feature ':5.10'; no warnings 'experimental::smartmatch';
+# CONTEXT use feature ':5.10'; no warnings 'deprecated';
 # feature features when feature has been disabled by use VERSION
 use feature (sprintf(":%vd", $^V));
 use 1;
@@ -1640,7 +1713,7 @@ CORE::evalbytes '';
 ####
 # SKIP ?$] < 5.017004 && "lexical subs not implemented on this Perl version"
 # lexical subroutines and keywords of the same name
-# CONTEXT use feature 'lexical_subs', 'switch'; no warnings 'experimental';
+# CONTEXT use feature 'lexical_subs', 'switch'; no warnings 'experimental'; no warnings 'deprecated';
 my sub default;
 my sub else;
 my sub elsif;
@@ -2044,7 +2117,6 @@ no warnings "experimental::lexical_subs";
 my sub f {}
 print f();
 >>>>
-BEGIN {${^WARNING_BITS} = "\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x54\x55\x55\x55\x55\x55"}
 my sub f {
     
 }
@@ -2057,7 +2129,6 @@ no warnings 'experimental::lexical_subs';
 state sub f {}
 print f();
 >>>>
-BEGIN {${^WARNING_BITS} = "\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x54\x55\x55\x55\x55\x55"}
 state sub f {
     
 }
@@ -2072,7 +2143,7 @@ print f();
     {
       foo();
       my sub b;
-      b ;
+      b;
       main::b();
       &main::b;
       &main::b();
@@ -2088,7 +2159,7 @@ print f();
 ();
 state sub sb2;
 sub sb2 {
-    sb2 ;
+    sb2;
 }
 ####
 # lexical subroutine with outer declaration and inner definition
@@ -2174,6 +2245,14 @@ optoptwack($a = $b);
 wackbrack($a = $b);
 optwackbrack($a = $b);
 optoptwackbrack($a = $b);
+optbar;
+optoptbar;
+optplus;
+optoptplus;
+optwack;
+optoptwack;
+optwackbrack;
+optoptwackbrack;
 >>>>
 package prototest;
 dollar($a < $b);
@@ -2185,15 +2264,91 @@ optoptdollar($a < $b);
 bar($a < $b);
 optbar($a < $b);
 optoptbar($a < $b);
-&plus($a < $b);
-&optplus($a < $b);
-&optoptplus($a < $b);
+plus($a < $b);
+optplus($a < $b);
+optoptplus($a < $b);
 &wack(\($a = $b));
 &optwack(\($a = $b));
 &optoptwack(\($a = $b));
 &wackbrack(\($a = $b));
 &optwackbrack(\($a = $b));
 &optoptwackbrack(\($a = $b));
+optbar;
+optoptbar;
+optplus;
+optoptplus;
+optwack;
+optoptwack;
+optwackbrack;
+optoptwackbrack;
+####
+# enreferencing prototypes: @
+# CONTEXT sub wackat(\@) {} sub optwackat(;\@) {} sub wackbrackat(\[@]) {} sub optwackbrackat(;\[@]) {}
+wackat(my @a0);
+wackat(@a0);
+wackat(@ARGV);
+wackat(@{['t'];});
+optwackat;
+optwackat(my @a1);
+optwackat(@a1);
+optwackat(@ARGV);
+optwackat(@{['t'];});
+wackbrackat(my @a2);
+wackbrackat(@a2);
+wackbrackat(@ARGV);
+wackbrackat(@{['t'];});
+optwackbrackat;
+optwackbrackat(my @a3);
+optwackbrackat(@a3);
+optwackbrackat(@ARGV);
+optwackbrackat(@{['t'];});
+####
+# enreferencing prototypes: %
+# CONTEXT sub wackperc(\%) {} sub optwackperc(;\%) {} sub wackbrackperc(\[%]) {} sub optwackbrackperc(;\[%]) {}
+wackperc(my %a0);
+wackperc(%a0);
+wackperc(%ARGV);
+wackperc(%{+{'t', 1};});
+optwackperc;
+optwackperc(my %a1);
+optwackperc(%a1);
+optwackperc(%ARGV);
+optwackperc(%{+{'t', 1};});
+wackbrackperc(my %a2);
+wackbrackperc(%a2);
+wackbrackperc(%ARGV);
+wackbrackperc(%{+{'t', 1};});
+optwackbrackperc;
+optwackbrackperc(my %a3);
+optwackbrackperc(%a3);
+optwackbrackperc(%ARGV);
+optwackbrackperc(%{+{'t', 1};});
+####
+# enreferencing prototypes: +
+# CONTEXT sub plus(+) {} sub optplus(;+) {}
+plus('hi');
+plus(my @a0);
+plus(my %h0);
+plus(\@a0);
+plus(\%h0);
+optplus;
+optplus('hi');
+optplus(my @a1);
+optplus(my %h1);
+optplus(\@a1);
+optplus(\%h1);
+>>>>
+plus('hi');
+plus(my @a0);
+plus(my %h0);
+plus(@a0);
+plus(%h0);
+optplus;
+optplus('hi');
+optplus(my @a1);
+optplus(my %h1);
+optplus(@a1);
+optplus(%h1);
 ####
 # ensure aelemfast works in the range -128..127 and that there's no
 # funky edge cases
@@ -2472,6 +2627,18 @@ foreach \&a (sub { 9; } , sub { 10; } ) {
     die;
 }
 ####
+# CONTEXT no warnings 'experimental::for_list';
+my %hash;
+foreach my ($key, $value) (%hash) {
+    study $_;
+}
+####
+# CONTEXT no warnings 'experimental::for_list';
+my @ducks;
+foreach my ($tick, $trick, $track) (@ducks) {
+    study $_;
+}
+####
 # join $foo, pos
 my $foo;
 $_ = join $foo, pos
@@ -2674,6 +2841,22 @@ sub ($a, $b = ($a + 1), $c = 1) {
 no warnings;
 use feature 'signatures';
 sub ($a, $=) {
+    $a;
+}
+;
+####
+# defined-or default
+no warnings;
+use feature 'signatures';
+sub ($a //= 'default') {
+    $a;
+}
+;
+####
+# logical-or default
+no warnings;
+use feature 'signatures';
+sub ($a ||= 'default') {
     $a;
 }
 ;
@@ -3062,3 +3245,110 @@ $#{$s;} = 1;
 # TODO doesn't preserve backslash
 my @a;
 my $s = "$a[0]\[1]";
+####
+# GH #17301 aux_list() sometimes returned wrong #args
+my($r, $h);
+$r = $h->{'i'};
+$r = $h->{'i'}{'j'};
+$r = $h->{'i'}{'j'}{'k'};
+$r = $h->{'i'}{'j'}{'k'}{'l'};
+$r = $h->{'i'}{'j'}{'k'}{'l'}{'m'};
+$r = $h->{'i'}{'j'}{'k'}{'l'}{'m'}{'n'};
+$r = $h->{'i'}{'j'}{'k'}{'l'}{'m'}{'n'}{'o'};
+$r = $h->{'i'}{'j'}{'k'}{'l'}{'m'}{'n'}{'o'}{'p'};
+$r = $h->{'i'}{'j'}{'k'}{'l'}{'m'}{'n'}{'o'}{'p'}{'q'};
+$r = $h->{'i'}{'j'}{'k'}{'l'}{'m'}{'n'}{'o'}{'p'}{'q'}{'r'};
+$r = $h->{'i'}{'j'}{'k'}{'l'}{'m'}{'n'}{'o'}{'p'}{'q'}{'r'}{'s'};
+$r = $h->{'i'}{'j'}{'k'}{'l'}{'m'}{'n'}{'o'}{'p'}{'q'}{'r'}{'s'}{'t'};
+####
+# chained comparison
+my($a, $b, $c, $d, $e, $f, $g);
+$a = $b gt $c >= $d;
+$a = $b < $c <= $d > $e;
+$a = $b == $c != $d;
+$a = $b eq $c ne $d == $e;
+$a = $b << $c < $d << $e <= $f << $g;
+$a = int $b < int $c <= int $d;
+$a = ($b < $c) < ($d < $e) <= ($f < $g);
+$a = ($b == $c) < ($d == $e) <= ($f == $g);
+$a = ($b & $c) < ($d & $e) <= ($f & $g);
+$a = $b << $c == $d << $e != $f << $g;
+$a = int $b == int $c != int $d;
+$a = $b < $c == $d < $e != $f < $g;
+$a = ($b == $c) == ($d == $e) != ($f == $g);
+$a = ($b & $c) == ($d & $e) != ($f & $g);
+$a = $b << ($c < $d <= $e);
+$a = int($c < $d <= $e);
+$a = $b < ($c < $d <= $e);
+$a = $b == $c < $d <= $e;
+$a = $b & $c < $d <= $e;
+$a = $b << ($c == $d != $e);
+$a = int($c == $d != $e);
+$a = $b < ($c == $d != $e);
+$a = $b == ($c == $d != $e);
+$a = $b & $c == $d != $e;
+####
+# try/catch
+# CONTEXT use feature 'try'; no warnings 'experimental::try';
+try {
+    FIRST();
+}
+catch($var) {
+    SECOND();
+}
+####
+# CONTEXT use feature 'try'; no warnings 'experimental::try';
+try {
+    FIRST();
+}
+catch($var) {
+    my $x;
+    SECOND();
+}
+####
+# CONTEXT use feature 'try'; no warnings 'experimental::try';
+try {
+    FIRST();
+}
+catch($var) {
+    SECOND();
+}
+finally {
+    THIRD();
+}
+####
+# defer blocks
+# CONTEXT use feature "defer"; no warnings 'experimental::defer';
+defer {
+    $a = 123;
+}
+####
+# builtin:: functions
+# CONTEXT no warnings 'experimental::builtin';
+my $x;
+$x = builtin::is_bool(undef);
+$x = builtin::is_weak(undef);
+builtin::weaken($x);
+builtin::unweaken($x);
+$x = builtin::blessed(undef);
+$x = builtin::refaddr(undef);
+$x = builtin::reftype(undef);
+$x = builtin::ceil($x);
+$x = builtin::floor($x);
+$x = builtin::is_tainted($x);
+####
+# boolean true preserved
+my $x = !0;
+####
+# boolean false preserved
+my $x = !1;
+####
+# const NV: NV-ness preserved
+my(@x) = (-2.0, -1.0, -0.0, 0.0, 1.0, 2.0);
+####
+# PADSV_STORE optimised my should be handled
+() = (my $s = 1);
+####
+# PADSV_STORE optimised state should be handled
+# CONTEXT use feature "state";
+() = (state $s = 1);

@@ -5,12 +5,13 @@ use strict;
 use warnings;
 use warnings::register;
 use Carp;
+use constant _IS_CYGWIN => $^O eq "cygwin";
 
 BEGIN { *warnif = \&warnings::warnif }
 
 our(@EXPORT, @EXPORT_OK, %EXPORT_TAGS);
 
-our $VERSION = '1.08';
+our $VERSION = '1.13';
 
 our @fields;
 our ( $st_dev, $st_ino, $st_mode,
@@ -82,7 +83,7 @@ sub _ingroup {
 # component (at which point we might as well just call Perl_cando and
 # have done with it).
     
-if (grep $^O eq $_, qw/os2 MSWin32 dos/) {
+if (grep $^O eq $_, qw/os2 MSWin32/) {
 
     # from doio.c
     *cando = sub { ($_[0][2] & $_[1]) ? 1 : "" };
@@ -98,7 +99,7 @@ else {
         # This code basically assumes that the rwx bits of the mode are
         # the 0777 bits, but so does Perl_cando.
 
-        if ($uid == 0 && $^O ne "VMS") {
+        if (_IS_CYGWIN ? _ingroup(544, $eff) : ($uid == 0 && $^O ne "VMS")) {
             # If we're root on unix
             # not testing for executable status => all file tests are true
             return 1 if !($mode & 0111);
@@ -232,8 +233,8 @@ File::stat - by-name interface to Perl's built-in stat() functions
 =head1 SYNOPSIS
 
  use File::stat;
- $st = stat($file) or die "No $file: $!";
- if ( ($st->mode & 0111) && $st->nlink > 1) ) {
+ my $st = stat($file) or die "No $file: $!";
+ if ( ($st->mode & 0111) && ($st->nlink > 1) ) {
      print "$file is executable with lotsa links\n";
  } 
 

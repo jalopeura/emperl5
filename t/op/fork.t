@@ -10,7 +10,7 @@ BEGIN {
     skip_all('no fork')
 	unless ($Config::Config{d_fork} or $Config::Config{d_pseudofork});
     skip_all('no fork')
-        if $^O eq 'MSWin32' && is_miniperl;
+        if $^O eq 'MSWin32' && is_miniperl();
 }
 
 $|=1;
@@ -21,6 +21,8 @@ my $shell = $ENV{SHELL} || '';
 SKIP: {
     skip "This test can only be run under bash or zsh"
         unless $shell =~ m{/(?:ba|z)sh$};
+    skip "LSAN noise failing to create a thread due to limits"
+        if $Config::Config{ccflags} =~ /sanitize=address/;
     my $probe = qx{
         $shell -c 'ulimit -u 1 2>/dev/null && echo good'
     };
@@ -252,7 +254,7 @@ ok 1 child
 $| = 1;
 $\ = "\n";
 my $getenv;
-if ($^O eq 'MSWin32' || $^O eq 'NetWare') {
+if ($^O eq 'MSWin32') {
     $getenv = qq[$^X -e "print \$ENV{TST}"];
 }
 else {

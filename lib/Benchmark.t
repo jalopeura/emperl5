@@ -8,7 +8,7 @@ BEGIN {
 use warnings;
 use strict;
 our ($foo, $bar, $baz, $ballast);
-use Test::More tests => 213;
+use Test::More;
 
 use Benchmark qw(:all);
 
@@ -38,6 +38,89 @@ sub cmp_delta {
     ($min, $max) = ($max, $min) if $max < $min;
     return 0 if $min < 1; # avoid / 0
     return $max/$min <= (1+$delta);
+}
+
+sub splatter {
+    my ($message) = @_;
+    my $splatter = <<~'EOF_SPLATTER';
+    Please file a ticket to report this. Our bug tracker can be found at
+
+        https://github.com/Perl/perl5/issues
+
+    Make sure you include the full output of perl -V, also uname -a,
+    and the version details for the C compiler you are using are
+    very helpful.
+
+    Please also try compiling and running the C program that can
+    be found at
+
+        https://github.com/Perl/perl5/issues/20839#issuecomment-1439286875
+
+    and provide the results (or compile errors) as part of your
+    bug report.
+
+    EOF_SPLATTER
+
+    if ( $message =~ s/\.\.\.//) {
+        $splatter =~ s/Please/please/;
+    }
+    die $message, $splatter;
+}
+
+{
+    # Benchmark may end up "looping forever" if time() or times() are
+    # broken such that they do not return different values over time.
+    # The following crude test is intended to ensure that we can rely
+    # on them and be confident that we won't infinite loop in the
+    # following tests.
+    #
+    # You can simulate a broken time or times() function by setting
+    # the appropriate env var to a true value:
+    #
+    #   time()    -> SIMULATE_BROKEN_TIME_FUNCTION
+    #   times()   -> SIMULATE_BROKEN_TIMES_FUNCTION
+    #
+    # If you have a very fast box you may need to set the FAST_CPU env
+    # var to a number larger than 1 to require these tests to perform
+    # more iterations to see the time actually tick over. (You could
+    # also set it to a value between 0 and 1 to speed this up, but I
+    # don't see why you would...)
+    #
+    # See https://github.com/Perl/perl5/issues/20839 for the ticket
+    # that motivated this test. - Yves
+
+    my @times0;
+    for ( 1 .. 3 ) {
+        my $end_time = time + 1;
+        my $count = 0;
+        my $scale = $ENV{FAST_CPU} || 1;
+        my $count_threshold = 20_000;
+        while ( $ENV{SIMULATE_BROKEN_TIME_FUNCTION} || time < $end_time ) {
+            my $x = 0.0;
+            for ( 1 .. 10_000 ) {
+                $x += sqrt(time);
+            }
+            if (++$count > $count_threshold * $scale) {
+                last;
+            }
+        }
+        cmp_ok($count,"<",$count_threshold * $scale,
+            "expecting \$count < ($count_threshold * $scale)")
+        or splatter(<<~'EOF_SPLATTER');
+        Either this system is extremely fast, or the time() function
+        is broken.
+
+        If you think this system is extremely fast you may scale up the
+        number of iterations allowed by this test by setting FAST_CPU=N
+        in the environment. Higher N will allow more ops-per-second
+        before we decide time() is broken.
+
+        If setting a higher FAST_CPU value does not fix this problem then ...
+        EOF_SPLATTER
+        push @times0, $ENV{SIMULATE_BROKEN_TIMES_FUNCTION} ? 0 : (times)[0];
+    }
+    isnt("@times0", "0 0 0", "Make sure times() does not always return 0.")
+        or splatter("It appears you have a broken a times() function.\n\n");
 }
 
 my $t0 = new Benchmark;
@@ -138,7 +221,7 @@ is ($auto, $default, 'timestr ($diff, "auto") matches timestr ($diff)');
         is ($auto, $all, '"auto" isn\'t "noc", so should be eq to "all"');
     }
 
-    like (timestr ($diff, 'all', 'E'), 
+    like (timestr ($diff, 'all', 'E'),
           qr/(\d+) +wallclock secs? +\( *\d\.\d+E[-+]?\d\d\d? +usr +\d\.\d+E[-+]?\d\d\d? +sys +\+ +\d\.\d+E[-+]?\d\d\d? +cusr +\d\.\d+E[-+]?\d\d\d? +csys += +\d\.\d+E[-+]?\d\d\d? +CPU\)/, 'timestr ($diff, "all", "E") [sprintf format of "E"]');
 }
 
@@ -221,7 +304,7 @@ is(ref ($got), 'HASH', "timethese should return a hashref");
 isa_ok($got->{Foo}, 'Benchmark', "Foo value");
 isa_ok($got->{Bar}, 'Benchmark', "Bar value");
 isa_ok($got->{Baz}, 'Benchmark', "Baz value");
-eq_set([keys %$got], [qw(Foo Bar Baz)], 'should be exactly three objects');
+is_deeply([sort keys %$got], [sort qw(Foo Bar Baz)], 'should be exactly three objects');
 is ($foo, $iterations, "Foo code was run $iterations times");
 is ($bar, $iterations, "Bar code was run $iterations times");
 is ($baz, $iterations, "Baz code was run $iterations times");
@@ -243,7 +326,7 @@ like ($got, $Default_Pattern, 'should find default format somewhere');
     select OUT;
 
     eval {
-        timethese( 1, 
+        timethese( 1,
                    { undeclared_var => q{ $i++; $i-- },
                      symbolic_ref   => q{ $bar = 42;
                                           $foo = 'bar';
@@ -287,7 +370,7 @@ my $results;
     is(ref ($results), 'HASH', "timethese should return a hashref");
     isa_ok($results->{Foo}, 'Benchmark', "Foo value");
     isa_ok($results->{Bar}, 'Benchmark', "Bar value");
-    eq_set([keys %$results], [qw(Foo Bar)], 'should be exactly two objects');
+    is_deeply([sort keys %$results], [sort qw(Foo Bar)], 'should be exactly two objects');
     cmp_ok($foo, '>', 0, "Foo code was run");
     cmp_ok($bar, '>', 0, "Bar code was run");
 
@@ -584,7 +667,7 @@ my @after5_keys = keys %Benchmark::Cache;
 $bar = 0;
 isa_ok(timeit(10, '++$bar'), 'Benchmark', "timeit eval");
 is ($bar, 10, "benchmarked code was run 10 times");
-ok (!eq_array ([keys %Benchmark::Cache], \@after5_keys), "10 differs from 5");
+cmp_ok (scalar keys %Benchmark::Cache, '>', scalar @after5_keys, "10 differs from 5");
 
 clearcache(10);
 # Hash key order will be the same if there are the same keys.
@@ -634,6 +717,7 @@ is_deeply ([keys %Benchmark::Cache], \@before_keys,
     }
 }
 
+done_testing();
 
 package TieOut;
 

@@ -34,7 +34,7 @@ EXTERN_C void boot_DynaLoader (pTHX_ CV* cv);
 static void
 xs_init(pTHX)
 {
-    char *file = __FILE__;
+    const char *file = __FILE__;
     dXSUB_SYS;
     newXS("DynaLoader::boot_DynaLoader", boot_DynaLoader, file);
     /* other similar records will be included from "perllibst.h" */
@@ -44,9 +44,6 @@ xs_init(pTHX)
 
 #ifdef PERL_IMPLICIT_SYS
 
-/* WINCE: include replaced by:
-extern "C" void win32_checkTLS(PerlInterpreter *host_perl);
-*/
 #include "perlhost.h"
 
 void
@@ -54,120 +51,85 @@ win32_checkTLS(PerlInterpreter *host_perl)
 {
     dTHX;
     if (host_perl != my_perl) {
-	int *nowhere = NULL;
-#ifdef UNDER_CE
-	printf(" ... bad in win32_checkTLS\n");
-	printf("  %08X ne %08X\n",host_perl,my_perl);
-#endif
-	abort();
+        int *nowhere = NULL;
+        abort();
     }
 }
-
-#ifdef UNDER_CE
-int GetLogicalDrives() {
-    return 0; /* no logical drives on CE */
-}
-int GetLogicalDriveStrings(int size, char addr[]) {
-    return 0; /* no logical drives on CE */
-}
-/* TBD */
-DWORD GetFullPathNameA(LPCSTR fn, DWORD blen, LPTSTR buf,  LPSTR *pfile) {
-    return 0;
-}
-/* TBD */
-DWORD GetFullPathNameW(CONST WCHAR *fn, DWORD blen, WCHAR * buf,  WCHAR **pfile) {
-    return 0;
-}
-/* TBD */
-DWORD SetCurrentDirectoryA(LPSTR pPath) {
-    return 0;
-}
-/* TBD */
-DWORD SetCurrentDirectoryW(CONST WCHAR *pPath) {
-    return 0;
-}
-int xcesetuid(uid_t id){return 0;}
-int xceseteuid(uid_t id){  return 0;}
-int xcegetuid() {return 0;}
-int xcegeteuid(){ return 0;}
-#endif
-
-/* WINCE??: include "perlhost.h" */
 
 EXTERN_C void
 perl_get_host_info(struct IPerlMemInfo* perlMemInfo,
-		   struct IPerlMemInfo* perlMemSharedInfo,
-		   struct IPerlMemInfo* perlMemParseInfo,
-		   struct IPerlEnvInfo* perlEnvInfo,
-		   struct IPerlStdIOInfo* perlStdIOInfo,
-		   struct IPerlLIOInfo* perlLIOInfo,
-		   struct IPerlDirInfo* perlDirInfo,
-		   struct IPerlSockInfo* perlSockInfo,
-		   struct IPerlProcInfo* perlProcInfo)
+                   struct IPerlMemInfo* perlMemSharedInfo,
+                   struct IPerlMemInfo* perlMemParseInfo,
+                   struct IPerlEnvInfo* perlEnvInfo,
+                   struct IPerlStdIOInfo* perlStdIOInfo,
+                   struct IPerlLIOInfo* perlLIOInfo,
+                   struct IPerlDirInfo* perlDirInfo,
+                   struct IPerlSockInfo* perlSockInfo,
+                   struct IPerlProcInfo* perlProcInfo)
 {
     if (perlMemInfo) {
-	Copy(&perlMem, &perlMemInfo->perlMemList, perlMemInfo->nCount, void*);
-	perlMemInfo->nCount = (sizeof(struct IPerlMem)/sizeof(void*));
+        Copy(&perlMem, &perlMemInfo->perlMemList, perlMemInfo->nCount, void*);
+        perlMemInfo->nCount = (sizeof(struct IPerlMem)/sizeof(void*));
     }
     if (perlMemSharedInfo) {
-	Copy(&perlMem, &perlMemSharedInfo->perlMemList, perlMemSharedInfo->nCount, void*);
-	perlMemSharedInfo->nCount = (sizeof(struct IPerlMem)/sizeof(void*));
+        Copy(&perlMem, &perlMemSharedInfo->perlMemList, perlMemSharedInfo->nCount, void*);
+        perlMemSharedInfo->nCount = (sizeof(struct IPerlMem)/sizeof(void*));
     }
     if (perlMemParseInfo) {
-	Copy(&perlMem, &perlMemParseInfo->perlMemList, perlMemParseInfo->nCount, void*);
-	perlMemParseInfo->nCount = (sizeof(struct IPerlMem)/sizeof(void*));
+        Copy(&perlMem, &perlMemParseInfo->perlMemList, perlMemParseInfo->nCount, void*);
+        perlMemParseInfo->nCount = (sizeof(struct IPerlMem)/sizeof(void*));
     }
     if (perlEnvInfo) {
-	Copy(&perlEnv, &perlEnvInfo->perlEnvList, perlEnvInfo->nCount, void*);
-	perlEnvInfo->nCount = (sizeof(struct IPerlEnv)/sizeof(void*));
+        Copy(&perlEnv, &perlEnvInfo->perlEnvList, perlEnvInfo->nCount, void*);
+        perlEnvInfo->nCount = (sizeof(struct IPerlEnv)/sizeof(void*));
     }
     if (perlStdIOInfo) {
-	Copy(&perlStdIO, &perlStdIOInfo->perlStdIOList, perlStdIOInfo->nCount, void*);
-	perlStdIOInfo->nCount = (sizeof(struct IPerlStdIO)/sizeof(void*));
+        Copy(&perlStdIO, &perlStdIOInfo->perlStdIOList, perlStdIOInfo->nCount, void*);
+        perlStdIOInfo->nCount = (sizeof(struct IPerlStdIO)/sizeof(void*));
     }
     if (perlLIOInfo) {
-	Copy(&perlLIO, &perlLIOInfo->perlLIOList, perlLIOInfo->nCount, void*);
-	perlLIOInfo->nCount = (sizeof(struct IPerlLIO)/sizeof(void*));
+        Copy(&perlLIO, &perlLIOInfo->perlLIOList, perlLIOInfo->nCount, void*);
+        perlLIOInfo->nCount = (sizeof(struct IPerlLIO)/sizeof(void*));
     }
     if (perlDirInfo) {
-	Copy(&perlDir, &perlDirInfo->perlDirList, perlDirInfo->nCount, void*);
-	perlDirInfo->nCount = (sizeof(struct IPerlDir)/sizeof(void*));
+        Copy(&perlDir, &perlDirInfo->perlDirList, perlDirInfo->nCount, void*);
+        perlDirInfo->nCount = (sizeof(struct IPerlDir)/sizeof(void*));
     }
     if (perlSockInfo) {
-	Copy(&perlSock, &perlSockInfo->perlSockList, perlSockInfo->nCount, void*);
-	perlSockInfo->nCount = (sizeof(struct IPerlSock)/sizeof(void*));
+        Copy(&perlSock, &perlSockInfo->perlSockList, perlSockInfo->nCount, void*);
+        perlSockInfo->nCount = (sizeof(struct IPerlSock)/sizeof(void*));
     }
     if (perlProcInfo) {
-	Copy(&perlProc, &perlProcInfo->perlProcList, perlProcInfo->nCount, void*);
-	perlProcInfo->nCount = (sizeof(struct IPerlProc)/sizeof(void*));
+        Copy(&perlProc, &perlProcInfo->perlProcList, perlProcInfo->nCount, void*);
+        perlProcInfo->nCount = (sizeof(struct IPerlProc)/sizeof(void*));
     }
 }
 
 EXTERN_C PerlInterpreter*
 perl_alloc_override(struct IPerlMem** ppMem, struct IPerlMem** ppMemShared,
-		 struct IPerlMem** ppMemParse, struct IPerlEnv** ppEnv,
-		 struct IPerlStdIO** ppStdIO, struct IPerlLIO** ppLIO,
-		 struct IPerlDir** ppDir, struct IPerlSock** ppSock,
-		 struct IPerlProc** ppProc)
+                 struct IPerlMem** ppMemParse, struct IPerlEnv** ppEnv,
+                 struct IPerlStdIO** ppStdIO, struct IPerlLIO** ppLIO,
+                 struct IPerlDir** ppDir, struct IPerlSock** ppSock,
+                 struct IPerlProc** ppProc)
 {
     PerlInterpreter *my_perl = NULL;
     CPerlHost* pHost = new CPerlHost(ppMem, ppMemShared, ppMemParse, ppEnv,
-				     ppStdIO, ppLIO, ppDir, ppSock, ppProc);
+                                     ppStdIO, ppLIO, ppDir, ppSock, ppProc);
 
     if (pHost) {
-	my_perl = perl_alloc_using(pHost->m_pHostperlMem,
-				   pHost->m_pHostperlMemShared,
-				   pHost->m_pHostperlMemParse,
-				   pHost->m_pHostperlEnv,
-				   pHost->m_pHostperlStdIO,
-				   pHost->m_pHostperlLIO,
-				   pHost->m_pHostperlDir,
-				   pHost->m_pHostperlSock,
-				   pHost->m_pHostperlProc);
-	if (my_perl) {
-	    w32_internal_host = pHost;
-	    pHost->host_perl  = my_perl;
-	}
+        my_perl = perl_alloc_using(pHost->m_pHostperlMem,
+                                   pHost->m_pHostperlMemShared,
+                                   pHost->m_pHostperlMemParse,
+                                   pHost->m_pHostperlEnv,
+                                   pHost->m_pHostperlStdIO,
+                                   pHost->m_pHostperlLIO,
+                                   pHost->m_pHostperlDir,
+                                   pHost->m_pHostperlSock,
+                                   pHost->m_pHostperlProc);
+        if (my_perl) {
+            w32_internal_host = pHost;
+            pHost->host_perl  = my_perl;
+        }
     }
     return my_perl;
 }
@@ -178,19 +140,19 @@ perl_alloc(void)
     PerlInterpreter* my_perl = NULL;
     CPerlHost* pHost = new CPerlHost();
     if (pHost) {
-	my_perl = perl_alloc_using(pHost->m_pHostperlMem,
-				   pHost->m_pHostperlMemShared,
-				   pHost->m_pHostperlMemParse,
-				   pHost->m_pHostperlEnv,
-				   pHost->m_pHostperlStdIO,
-				   pHost->m_pHostperlLIO,
-				   pHost->m_pHostperlDir,
-				   pHost->m_pHostperlSock,
-				   pHost->m_pHostperlProc);
-	if (my_perl) {
-	    w32_internal_host = pHost;
+        my_perl = perl_alloc_using(pHost->m_pHostperlMem,
+                                   pHost->m_pHostperlMemShared,
+                                   pHost->m_pHostperlMemParse,
+                                   pHost->m_pHostperlEnv,
+                                   pHost->m_pHostperlStdIO,
+                                   pHost->m_pHostperlLIO,
+                                   pHost->m_pHostperlDir,
+                                   pHost->m_pHostperlSock,
+                                   pHost->m_pHostperlProc);
+        if (my_perl) {
+            w32_internal_host = pHost;
             pHost->host_perl  = my_perl;
-	}
+        }
     }
     return my_perl;
 }
@@ -213,23 +175,12 @@ RunPerl(int argc, char **argv, char **env)
     PerlInterpreter *my_perl, *new_perl = NULL;
     bool use_environ = (env == environ);
 
-#ifdef PERL_GLOBAL_STRUCT
-#define PERLVAR(prefix,var,type) /**/
-#define PERLVARA(prefix,var,type) /**/
-#define PERLVARI(prefix,var,type,init) PL_Vars.prefix##var = init;
-#define PERLVARIC(prefix,var,type,init) PL_Vars.prefix##var = init;
-#include "perlvars.h"
-#undef PERLVAR
-#undef PERLVARA
-#undef PERLVARI
-#undef PERLVARIC
-#endif
-
     PERL_SYS_INIT(&argc,&argv);
 
     if (!(my_perl = perl_alloc()))
-	return (1);
+        return (1);
     perl_construct(my_perl);
+    PL_exit_flags |= PERL_EXIT_DESTRUCT_END;
     PL_perl_destruct_level = 0;
 
     /* PERL_SYS_INIT() may update the environment, e.g. via ansify_path().
@@ -244,11 +195,11 @@ RunPerl(int argc, char **argv, char **env)
 
     if (!perl_parse(my_perl, xs_init, argc, argv, env)) {
 #if defined(TOP_CLONE) && defined(USE_ITHREADS)		/* XXXXXX testing */
-	new_perl = perl_clone(my_perl, 1);
-	(void) perl_run(new_perl);
-	PERL_SET_THX(my_perl);
+        new_perl = perl_clone(my_perl, 1);
+        (void) perl_run(new_perl);
+        PERL_SET_THX(my_perl);
 #else
-	(void) perl_run(my_perl);
+        (void) perl_run(my_perl);
 #endif
     }
 
@@ -256,9 +207,9 @@ RunPerl(int argc, char **argv, char **env)
     perl_free(my_perl);
 #ifdef USE_ITHREADS
     if (new_perl) {
-	PERL_SET_THX(new_perl);
-	exitstatus = perl_destruct(new_perl);
-	perl_free(new_perl);
+        PERL_SET_THX(new_perl);
+        exitstatus = perl_destruct(new_perl);
+        perl_free(new_perl);
     }
 #endif
 
@@ -279,49 +230,47 @@ EXTERN_C		/* GCC in C++ mode mangles the name, otherwise */
 #endif
 BOOL APIENTRY
 DllMain(HINSTANCE hModule,	/* DLL module handle */
-	DWORD fdwReason,	/* reason called */
-	LPVOID lpvReserved)	/* reserved */
+        DWORD fdwReason,	/* reason called */
+        LPVOID lpvReserved)	/* reserved */
 { 
     switch (fdwReason) {
-	/* The DLL is attaching to a process due to process
-	 * initialization or a call to LoadLibrary.
-	 */
+        /* The DLL is attaching to a process due to process
+         * initialization or a call to LoadLibrary.
+         */
     case DLL_PROCESS_ATTACH:
-#ifndef UNDER_CE
-	DisableThreadLibraryCalls((HMODULE)hModule);
-#endif
+        DisableThreadLibraryCalls((HMODULE)hModule);
 
-	w32_perldll_handle = hModule;
-	set_w32_module_name();
-	break;
+        w32_perldll_handle = hModule;
+        set_w32_module_name();
+        break;
 
-	/* The DLL is detaching from a process due to
-	 * process termination or call to FreeLibrary.
-	 */
+        /* The DLL is detaching from a process due to
+         * process termination or call to FreeLibrary.
+         */
     case DLL_PROCESS_DETACH:
-        /* As long as we use TerminateProcess()/TerminateThread() etc. for mimicing kill()
+        /* As long as we use TerminateProcess()/TerminateThread() etc. for mimicking kill()
            anything here had better be harmless if:
             A. Not called at all.
             B. Called after memory allocation for Heap has been forcibly removed by OS.
             PerlIO_cleanup() was done here but fails (B).
          */     
-	EndSockets();
+        EndSockets();
 #if defined(USE_ITHREADS)
-	if (PL_curinterp)
-	    FREE_THREAD_KEY;
+        if (PL_curinterp)
+            FREE_THREAD_KEY;
 #endif
-	break;
+        break;
 
-	/* The attached process creates a new thread. */
+        /* The attached process creates a new thread. */
     case DLL_THREAD_ATTACH:
-	break;
+        break;
 
-	/* The thread of the attached process terminates. */
+        /* The thread of the attached process terminates. */
     case DLL_THREAD_DETACH:
-	break;
+        break;
 
     default:
-	break;
+        break;
     }
     return TRUE;
 }
@@ -347,6 +296,6 @@ perl_clone_host(PerlInterpreter* proto_perl, UV flags) {
     proto_perl->Isys_intern.internal_host = h;
     h->host_perl  = proto_perl;
     return proto_perl;
-	
+        
 }
 #endif

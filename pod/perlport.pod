@@ -364,15 +364,15 @@ filenames.
 
 Don't assume C<< > >> won't be the first character of a filename.
 Always use the three-arg version of
-L<C<open>|perlfunc/open FILEHANDLE,EXPR>:
+L<C<open>|perlfunc/open FILEHANDLE,MODE,EXPR>:
 
     open my $fh, '<', $existing_file) or die $!;
 
-Two-arg L<C<open>|perlfunc/open FILEHANDLE,EXPR> is magic and can
+Two-arg L<C<open>|perlfunc/open FILEHANDLE,MODE,EXPR> is magic and can
 translate characters like C<< > >>, C<< < >>, and C<|> in filenames,
 which is usually the wrong thing to do.
 L<C<sysopen>|perlfunc/sysopen FILEHANDLE,FILENAME,MODE> and three-arg
-L<C<open>|perlfunc/open FILEHANDLE,EXPR> don't have this problem.
+L<C<open>|perlfunc/open FILEHANDLE,MODE,EXPR> don't have this problem.
 
 Don't use C<:> as a part of a filename since many systems use that for
 their own semantics (Mac OS Classic for separating pathname components,
@@ -413,7 +413,7 @@ L<C<close>|perlfunc/close FILEHANDLE> files when you are done with them.
 Don't L<C<unlink>|perlfunc/unlink LIST> or
 L<C<rename>|perlfunc/rename OLDNAME,NEWNAME> an open file.  Don't
 L<C<tie>|perlfunc/tie VARIABLE,CLASSNAME,LIST> or
-L<C<open>|perlfunc/open FILEHANDLE,EXPR> a file already tied or opened;
+L<C<open>|perlfunc/open FILEHANDLE,MODE,EXPR> a file already tied or opened;
 L<C<untie>|perlfunc/untie VARIABLE> or
 L<C<close>|perlfunc/close FILEHANDLE> it first.
 
@@ -486,7 +486,7 @@ executable code for that command or program.
 First, many systems have "internal" commands that are built-in to the
 shell or OS and while these commands can be invoked, there is no
 corresponding file.  Second, some operating systems (e.g., Cygwin,
-DJGPP, OS/2, and VOS) have required suffixes for executable files;
+OS/2, and VOS) have required suffixes for executable files;
 these suffixes are generally permitted on the command name but are not
 required.  Thus, a command like C<perl> might exist in a file named
 F<perl>, F<perl.exe>, or F<perl.pm>, depending on the operating system.
@@ -561,7 +561,7 @@ portable.  That means, no L<C<system>|perlfunc/system LIST>,
 L<C<exec>|perlfunc/exec LIST>, L<C<fork>|perlfunc/fork>,
 L<C<pipe>|perlfunc/pipe READHANDLE,WRITEHANDLE>,
 L<C<``> or C<qxE<sol>E<sol>>|perlop/C<qxE<sol>I<STRING>E<sol>>>,
-L<C<open>|perlfunc/open FILEHANDLE,EXPR> with a C<|>, nor any of the other
+L<C<open>|perlfunc/open FILEHANDLE,MODE,EXPR> with a C<|>, nor any of the other
 things that makes being a Perl hacker worth being.
 
 Commands that launch external processes are generally supported on
@@ -670,7 +670,7 @@ When calculating specific times, such as for tests in time or date modules,
 it may be appropriate to calculate an offset for the epoch.
 
     use Time::Local qw(timegm);
-    my $offset = timegm(0, 0, 0, 1, 0, 70);
+    my $offset = timegm(0, 0, 0, 1, 0, 1970);
 
 The value for C<$offset> in Unix will be C<0>, but in Mac OS Classic
 will be some large number.  C<$offset> can then be added to a Unix time
@@ -827,7 +827,7 @@ Mailing list: cpan-testers-discuss@perl.org
 
 =item *
 
-Testing results: L<http://www.cpantesters.org/>
+Testing results: L<https://www.cpantesters.org/>
 
 =back
 
@@ -917,7 +917,7 @@ The DOS FAT filesystem can accommodate only "8.3" style filenames.  Under
 the "case-insensitive, but case-preserving" HPFS (OS/2) and NTFS (NT)
 filesystems you may have to be careful about case returned with functions
 like L<C<readdir>|perlfunc/readdir DIRHANDLE> or used with functions like
-L<C<open>|perlfunc/open FILEHANDLE,EXPR> or
+L<C<open>|perlfunc/open FILEHANDLE,MODE,EXPR> or
 L<C<opendir>|perlfunc/opendir DIRHANDLE,EXPR>.
 
 DOS also treats several filenames as special, such as F<AUX>, F<PRN>,
@@ -1013,11 +1013,6 @@ Also see:
 
 =item *
 
-The djgpp environment for DOS, L<http://www.delorie.com/djgpp/>
-and L<perldos>.
-
-=item *
-
 The EMX environment for DOS, OS/2, etc. emx@iaehv.nl,
 L<ftp://hobbes.nmsu.edu/pub/os2/dev/emx/>  Also L<perlos2>.
 
@@ -1032,17 +1027,12 @@ The C<Win32::*> modules in L<Win32>.
 
 =item *
 
-The ActiveState Pages, L<http://www.activestate.com/>
+The ActiveState Pages, L<https://www.activestate.com/>
 
 =item *
 
 The Cygwin environment for Win32; F<README.cygwin> (installed
-as L<perlcygwin>), L<http://www.cygwin.com/>
-
-=item *
-
-The U/WIN environment for Win32,
-L<http://www.research.att.com/sw/tools/uwin/>
+as L<perlcygwin>), L<https://www.cygwin.com/>
 
 =item *
 
@@ -1234,8 +1224,8 @@ character sets internally (usually Character Code Set ID 0037 for OS/400
 and either 1047 or POSIX-BC for S/390 systems).
 
 The rest of this section may need updating, but we don't know what it
-should say.  Please email comments to
-L<perlbug@perl.org|mailto:perlbug@perl.org>.
+should say.  Please submit comments to
+L<https://github.com/Perl/perl5/issues>.
 
 On the mainframe Perl currently works under the "Unix system
 services for OS/390" (formerly known as OpenEdition), VM/ESA OpenEdition, or
@@ -1378,7 +1368,7 @@ expand system variables in filenames if enclosed in angle brackets, so
 C<< <System$Dir>.Modules >> would look for the file
 S<C<$ENV{'System$Dir'} . 'Modules'>>.  The obvious implication of this is
 that B<fully qualified filenames can start with C<< <> >>> and the
-three-argument form of L<C<open>|perlfunc/open FILEHANDLE,EXPR> should
+three-argument form of L<C<open>|perlfunc/open FILEHANDLE,MODE,EXPR> should
 always be used.
 
 Because C<.> was in use as a directory separator and filenames could not
@@ -1466,12 +1456,6 @@ See also:
 
 Amiga, F<README.amiga> (installed as L<perlamiga>).
 
-=item *
-
-A free perl5-based PERL.NLM for Novell Netware is available in
-precompiled binary and source code form from L<http://www.novell.com/>
-as well as from CPAN.
-
 =item  *
 
 S<Plan 9>, F<README.plan9>
@@ -1526,6 +1510,9 @@ C<-x>, C<-o>.
 (Win32, VMS, S<RISC OS>)
 C<-g>, C<-k>, C<-l>, C<-u>, C<-A> are not particularly meaningful.
 
+(Win32)
+C<-l> returns true for both symlinks and directory junctions.
+
 (VMS, S<RISC OS>)
 C<-p> is not particularly meaningful.
 
@@ -1570,6 +1557,12 @@ filehandle may be closed, or pointer may be in a different position.
 (Win32)
 The value returned by L<C<tell>|perlfunc/tell FILEHANDLE> may be affected
 after the call, and the filehandle may be flushed.
+
+=item chdir
+
+(Win32)
+The current directory reported by the system may include any symbolic
+links specified to chdir().
 
 =item chmod
 
@@ -1654,9 +1647,6 @@ code.
 
 (SunOS, Solaris, HP-UX)
 Does not automatically flush output handles on some platforms.
-
-(Symbian OS)
-Not supported.
 
 =item exit
 
@@ -1949,7 +1939,7 @@ but usually by no more than an hour.
 Not implemented.
 
 (Win32)
-Return values (especially for device and inode) may be bogus.
+Treats directory junctions as symlinks.
 
 =item msgctl
 
@@ -1979,8 +1969,12 @@ implications for your code.
 
 =item readlink
 
-(Win32, VMS, S<RISC OS>)
+(VMS, S<RISC OS>)
 Not implemented.
+
+(Win32)
+readlink() on a directory junction returns the object name, not a
+simple path.
 
 =item rename
 
@@ -2077,9 +2071,6 @@ C<ctime> not supported on UFS.
 (Win32)
 C<ctime> is creation time instead of inode change time.
 
-(Win32)
-C<dev> and C<ino> are not meaningful.
-
 (VMS)
 C<dev> and C<ino> are not necessarily reliable.
 
@@ -2095,16 +2086,27 @@ meaningful and will differ between stat calls on the same file.
 Some versions of cygwin when doing a C<stat("foo")> and not finding it
 may then attempt to C<stat("foo.exe")>.
 
-(Win32)
-C<stat> needs to open the file to determine the link count
-and update attributes that may have been changed through hard links.
-Setting L<C<${^WIN32_SLOPPY_STAT}>|perlvar/${^WIN32_SLOPPY_STAT}> to a
-true value speeds up C<stat> by not performing this operation.
-
 =item symlink
 
-(Win32, S<RISC OS>)
+(S<RISC OS>)
 Not implemented.
+
+(Win32)
+Requires either elevated permissions or developer mode and a
+sufficiently recent version of Windows 10. You can check whether the current
+process has the required privileges using the
+L<Win32::IsSymlinkCreationAllowed()|Win32/Win32::IsSymlinkCreationAllowed()>
+function.
+
+Since Windows needs to know whether the target is a directory or not when
+creating the link the target Perl will only create the link as a directory
+link when the target exists and is a directory.
+
+Windows does not recognize forward slashes as path separators in
+symbolic links.  Hence on Windows, any C</> in the I<OLDFILE>
+parameter to symlink() are converted to C<\>.  This is reflected in
+the result returned by readlink(), the C<\> in the result are not
+converted back to C</>.
 
 (VMS)
 Implemented on 64 bit VMS 8.3.  VMS requires the symbolic link to be in Unix
@@ -2277,7 +2279,7 @@ Some tests are known to fail:
 =item *
 
 F<ext/XS-APItest/t/call_checker.t> - see
-L<https://rt.perl.org/Ticket/Display.html?id=78502>
+L<https://github.com/Perl/perl5/issues/10750>
 
 =item *
 
@@ -2300,8 +2302,6 @@ F<ext/Win32CORE/t/win32core.t> - may fail on recent cygwin installs.
 =item I64 (8.2 and later)
 
 =back
-
-=item Symbian
 
 =item NetBSD
 
@@ -2333,8 +2333,6 @@ Caveats:
 
 =back
 
-=item Symbian (Series 60 v3, 3.2 and 5 - what else?)
-
 =item Stratus VOS / OpenVOS
 
 =item AIX
@@ -2352,6 +2350,34 @@ ensure you have that library installed when building perl.
 =back
 
 =head1 EOL Platforms
+
+=head2 (Perl 5.37.1)
+
+The following platforms were supported by a previous version of
+Perl but have been officially removed from Perl's source code
+as of 5.37.1:
+
+=over
+
+=item Ultrix
+
+=back
+
+=head2 (Perl 5.36)
+
+The following platforms were supported by a previous version of
+Perl but have been officially removed from Perl's source code
+as of 5.36:
+
+=over
+
+=item NetWare
+
+=item DOS/DJGPP
+
+=item AT&T UWIN
+
+=back
 
 =head2 (Perl 5.20)
 
@@ -2475,7 +2501,8 @@ the past (5.005_03 and earlier), but we haven't been able to verify
 their status for the current release, either because the
 hardware/software platforms are rare or because we don't have an
 active champion on these platforms--or both.  They used to work,
-though, so go ahead and try compiling them, and let perlbug@perl.org
+though, so go ahead and try compiling them, and let
+L<https://github.com/Perl/perl5/issues> know
 of any trouble.
 
         3b1
@@ -2505,7 +2532,6 @@ of any trouble.
         SVR2
         TI1500
         TitanOS
-        Ultrix
         Unisys Dynix
 
 The following platforms have their own source code distributions and
@@ -2533,10 +2559,10 @@ L<http://www.cpan.org/ports/index.html> for binary distributions.
 =head1 SEE ALSO
 
 L<perlaix>, L<perlamiga>, L<perlbs2000>,
-L<perlce>, L<perlcygwin>, L<perldos>,
+L<perlcygwin>,
 L<perlebcdic>, L<perlfreebsd>, L<perlhurd>, L<perlhpux>, L<perlirix>,
-L<perlmacos>, L<perlmacosx>,
-L<perlnetware>, L<perlos2>, L<perlos390>, L<perlos400>,
+L<perlmacosx>,
+L<perlos2>, L<perlos390>, L<perlos400>,
 L<perlplan9>, L<perlqnx>, L<perlsolaris>, L<perltru64>,
 L<perlunicode>, L<perlvms>, L<perlvos>, L<perlwin32>, and L<Win32>.
 

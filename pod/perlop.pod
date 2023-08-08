@@ -36,7 +36,8 @@ C<(2 + 4) * 5>. So the expression yields C<2 + 20 == 22>, rather than
 C<6 * 5 == 30>.
 
 I<Operator associativity> defines what happens if a sequence of the same
-operators is used one after another: whether they will be grouped at the left
+operators is used one after another:
+usually that they will be grouped at the left
 or the right. For example, in C<9 - 3 - 2>, subtraction is left associative,
 so C<9 - 3> is grouped together as the left-hand operand of the second
 subtraction, rather than C<3 - 2> being grouped together as the right-hand
@@ -59,6 +60,63 @@ special evaluation rules that can result in an operand not being evaluated at
 all; in general, the top-level operator in an expression has control of
 operand evaluation.
 
+Some comparison operators, as their associativity, I<chain> with some
+operators of the same precedence (but never with operators of different
+precedence).  This chaining means that each comparison is performed
+on the two arguments surrounding it, with each interior argument taking
+part in two comparisons, and the comparison results are implicitly ANDed.
+Thus S<C<"$x E<lt> $y E<lt>= $z">> behaves exactly like S<C<"$x E<lt>
+$y && $y E<lt>= $z">>, assuming that C<"$y"> is as simple a scalar as
+it looks.  The ANDing short-circuits just like C<"&&"> does, stopping
+the sequence of comparisons as soon as one yields false.
+
+In a chained comparison, each argument expression is evaluated at most
+once, even if it takes part in two comparisons, but the result of the
+evaluation is fetched for each comparison.  (It is not evaluated
+at all if the short-circuiting means that it's not required for any
+comparisons.)  This matters if the computation of an interior argument
+is expensive or non-deterministic.  For example,
+
+    if($x < expensive_sub() <= $z) { ...
+
+is not entirely like
+
+    if($x < expensive_sub() && expensive_sub() <= $z) { ...
+
+but instead closer to
+
+    my $tmp = expensive_sub();
+    if($x < $tmp && $tmp <= $z) { ...
+
+in that the subroutine is only called once.  However, it's not exactly
+like this latter code either, because the chained comparison doesn't
+actually involve any temporary variable (named or otherwise): there is
+no assignment.  This doesn't make much difference where the expression
+is a call to an ordinary subroutine, but matters more with an lvalue
+subroutine, or if the argument expression yields some unusual kind of
+scalar by other means.  For example, if the argument expression yields
+a tied scalar, then the expression is evaluated to produce that scalar
+at most once, but the value of that scalar may be fetched up to twice,
+once for each comparison in which it is actually used.
+
+In this example, the expression is evaluated only once, and the tied
+scalar (the result of the expression) is fetched for each comparison that
+uses it.
+
+    if ($x < $tied_scalar < $z) { ...
+
+In the next example, the expression is evaluated only once, and the tied
+scalar is fetched once as part of the operation within the expression.
+The result of that operation is fetched for each comparison, which
+normally doesn't matter unless that expression result is also magical due
+to operator overloading.
+
+    if ($x < $tied_scalar + 42 < $z) { ...
+
+Some operators are instead non-associative, meaning that it is a syntax
+error to use a sequence of those operators of the same precedence.
+For example, S<C<"$x .. $y .. $z">> is an error.
+
 Perl operators have the following associativity and precedence,
 listed from highest precedence to lowest.  Operators borrowed from
 C keep the same precedence relationship with each other, even where
@@ -70,16 +128,17 @@ values only, not array values.
     left	->
     nonassoc	++ --
     right	**
-    right	! ~ \ and unary + and -
+    right	! ~ ~. \ and unary + and -
     left	=~ !~
     left	* / % x
     left	+ - .
     left	<< >>
     nonassoc	named unary operators
-    nonassoc	< > <= >= lt gt le ge
-    nonassoc	== != <=> eq ne cmp ~~
-    left	&
-    left	| ^
+    nonassoc    isa
+    chained 	< > <= >= lt gt le ge
+    chain/na	== != eq ne <=> cmp ~~
+    left	& &.
+    left	| |. ^ ^.
     left	&&
     left	|| //
     nonassoc	..  ...
@@ -171,8 +230,9 @@ assignment.)  See L<perlreftut> and L<perlref>.
 
 Otherwise, the right side is a method name or a simple scalar
 variable containing either the method name or a subroutine reference,
-and the left side must be either an object (a blessed reference)
-or a class name (that is, a package name).  See L<perlobj>.
+and (if it is a method name) the left side must be either an object (a
+blessed reference) or a class name (that is, a package name).  See
+L<perlobj>.
 
 The dereferencing cases (as opposed to method-calling cases) are
 somewhat extended by the C<postderef> feature.  For the
@@ -516,6 +576,12 @@ Binary C<"ge"> returns true if the left argument is stringwise greater
 than or equal to the right argument.
 X<< ge >>
 
+A sequence of relational operators, such as S<C<"$x E<lt> $y E<lt>=
+$z">>, performs chained comparisons, in the manner described above in
+the section L</"Operator Precedence and Associativity">.
+Beware that they do not chain with equality operators, which have lower
+precedence.
+
 =head2 Equality Operators
 X<equality> X<equal> X<equals> X<operator, equality>
 
@@ -526,6 +592,20 @@ X<==>
 Binary C<< "!=" >> returns true if the left argument is numerically not equal
 to the right argument.
 X<!=>
+
+Binary C<"eq"> returns true if the left argument is stringwise equal to
+the right argument.
+X<eq>
+
+Binary C<"ne"> returns true if the left argument is stringwise not equal
+to the right argument.
+X<ne>
+
+A sequence of the above equality operators, such as S<C<"$x == $y ==
+$z">>, performs chained comparisons, in the manner described above in
+the section L</"Operator Precedence and Associativity">.
+Beware that they do not chain with relational operators, which have
+higher precedence.
 
 Binary C<< "<=>" >> returns -1, 0, or 1 depending on whether the left
 argument is numerically less than, equal to, or greater than the right
@@ -544,22 +624,25 @@ X<spaceship>
 (Note that the L<bigint>, L<bigrat>, and L<bignum> pragmas all
 support C<"NaN">.)
 
-Binary C<"eq"> returns true if the left argument is stringwise equal to
-the right argument.
-X<eq>
-
-Binary C<"ne"> returns true if the left argument is stringwise not equal
-to the right argument.
-X<ne>
-
 Binary C<"cmp"> returns -1, 0, or 1 depending on whether the left
 argument is stringwise less than, equal to, or greater than the right
 argument.
+
+Here we can see the difference between <=> and cmp,
+
+    print 10 <=> 2 #prints 1
+    print 10 cmp 2 #prints -1
+
+(likewise between gt and >, lt and <, etc.)
 X<cmp>
 
 Binary C<"~~"> does a smartmatch between its arguments.  Smart matching
 is described in the next section.
 X<~~>
+
+The two-sided ordering operators C<"E<lt>=E<gt>"> and C<"cmp">, and the
+smartmatch operator C<"~~">, are non-associative with respect to each
+other and with respect to the equality operators of the same precedence.
 
 C<"lt">, C<"le">, C<"ge">, C<"gt"> and C<"cmp"> use the collation (sort)
 order specified by the current C<LC_COLLATE> locale if a S<C<use
@@ -574,6 +657,25 @@ For case-insensitive comparisons, look at the L<perlfunc/fc> case-folding
 function, available in Perl v5.16 or later:
 
     if ( fc($x) eq fc($y) ) { ... }
+
+=head2 Class Instance Operator
+X<isa operator>
+
+Binary C<isa> evaluates to true when the left argument is an object instance of
+the class (or a subclass derived from that class) given by the right argument.
+If the left argument is not defined, not a blessed object instance, nor does
+not derive from the class given by the right argument, the operator evaluates
+as false. The right argument may give the class either as a bareword or a
+scalar expression that yields a string class name:
+
+    if( $obj isa Some::Class ) { ... }
+
+    if( $obj isa "Different::Class" ) { ... }
+    if( $obj isa $name_of_class ) { ... }
+
+This feature is available from Perl 5.31.6 onwards when enabled by
+C<use feature 'isa'>. This feature is enabled automatically by a
+C<use v5.36> (or higher) declaration in the current scope.
 
 =head2 Smartmatch Operator
 
@@ -641,7 +743,7 @@ the table is sorted on the right operand instead of on the left.
                 like: grep { exists HASH->{$_} } ARRAY
  Regexp    HASH       any HASH keys pattern match Regexp
                 like: grep { /Regexp/ } keys HASH
- undef     HASH       always false (undef can't be a key)
+ undef     HASH       always false (undef cannot be a key)
                 like: 0 == 1
  Any       HASH       HASH key existence
                 like: exists HASH->{Any}
@@ -657,7 +759,7 @@ the table is sorted on the right operand instead of on the left.
  Any       CODE       sub passed Any returns true
                 like: CODE->(Any)
 
-Right operand is a Regexp:
+ Right operand is a Regexp:
 
  Left      Right      Description and pseudocode
  ===============================================================
@@ -1081,9 +1183,68 @@ And now some examples as a list operator:
     @foo = @foo[0 .. $#foo];        # an expensive no-op
     @foo = @foo[$#foo-4 .. $#foo];  # slice last 5 items
 
-The range operator (in list context) makes use of the magical
-auto-increment algorithm if the operands are strings.  You
-can say
+Because each operand is evaluated in integer form, S<C<2.18 .. 3.14>> will
+return two elements in list context.
+
+    @list = (2.18 .. 3.14); # same as @list = (2 .. 3);
+
+The range operator in list context can make use of the magical
+auto-increment algorithm if both operands are strings, subject to the
+following rules:
+
+=over
+
+=item *
+
+With one exception (below), if both strings look like numbers to Perl,
+the magic increment will not be applied, and the strings will be treated
+as numbers (more specifically, integers) instead.
+
+For example, C<"-2".."2"> is the same as C<-2..2>, and
+C<"2.18".."3.14"> produces C<2, 3>.
+
+=item *
+
+The exception to the above rule is when the left-hand string begins with
+C<0> and is longer than one character, in this case the magic increment
+I<will> be applied, even though strings like C<"01"> would normally look
+like a number to Perl.
+
+For example, C<"01".."04"> produces C<"01", "02", "03", "04">, and
+C<"00".."-1"> produces C<"00"> through C<"99"> - this may seem
+surprising, but see the following rules for why it works this way.
+To get dates with leading zeros, you can say:
+
+    @z2 = ("01" .. "31");
+    print $z2[$mday];
+
+If you want to force strings to be interpreted as numbers, you could say
+
+    @numbers = ( 0+$first .. 0+$last );
+
+B<Note:> In Perl versions 5.30 and below, I<any> string on the left-hand
+side beginning with C<"0">, including the string C<"0"> itself, would
+cause the magic string increment behavior. This means that on these Perl
+versions, C<"0".."-1"> would produce C<"0"> through C<"99">, which was
+inconsistent with C<0..-1>, which produces the empty list. This also means
+that C<"0".."9"> now produces a list of integers instead of a list of
+strings.
+
+=item *
+
+If the initial value specified isn't part of a magical increment
+sequence (that is, a non-empty string matching C</^[a-zA-Z]*[0-9]*\z/>),
+only the initial value will be returned.
+
+For example, C<"ax".."az"> produces C<"ax", "ay", "az">, but
+C<"*x".."az"> produces only C<"*x">.
+
+=item *
+
+For other initial values that are strings that do follow the rules of the
+magical increment, the corresponding sequence will be returned.
+
+For example, you can say
 
     @alphabet = ("A" .. "Z");
 
@@ -1091,16 +1252,20 @@ to get all normal letters of the English alphabet, or
 
     $hexdigit = (0 .. 9, "a" .. "f")[$num & 15];
 
-to get a hexadecimal digit, or
+to get a hexadecimal digit.
 
-    @z2 = ("01" .. "31");
-    print $z2[$mday];
-
-to get dates with leading zeros.
+=item *
 
 If the final value specified is not in the sequence that the magical
 increment would produce, the sequence goes until the next value would
-be longer than the final value specified.
+be longer than the final value specified. If the length of the final
+string is shorter than the first, the empty list is returned.
+
+For example, C<"a".."--"> is the same as C<"a".."zz">, C<"0".."xx">
+produces C<"0"> through C<"99">, and C<"aaa".."--"> returns the empty
+list.
+
+=back
 
 As of Perl 5.26, the list-context range operator on strings works as expected
 in the scope of L<< S<C<"use feature 'unicode_strings">>|feature/The
@@ -1108,10 +1273,8 @@ in the scope of L<< S<C<"use feature 'unicode_strings">>|feature/The
 that feature, it exhibits L<perlunicode/The "Unicode Bug">: its behavior
 depends on the internal encoding of the range endpoint.
 
-If the initial value specified isn't part of a magical increment
-sequence (that is, a non-empty string matching C</^[a-zA-Z]*[0-9]*\z/>),
-only the initial value will be returned.  So the following will only
-return an alpha:
+Because the magical increment only works on non-empty strings matching
+C</^[a-zA-Z]*[0-9]*\z/>, the following will only return an alpha:
 
     use charnames "greek";
     my @greek_small =  ("\N{alpha}" .. "\N{omega}");
@@ -1130,11 +1293,6 @@ just those, to match lowercase Greek characters in a regular expression,
 you could use the pattern C</(?:(?=\p{Greek})\p{Lower})+/> (or the
 L<experimental feature|perlrecharclass/Extended Bracketed Character
 Classes> C<S</(?[ \p{Greek} & \p{Lower} ])+/>>).
-
-Because each operand is evaluated in integer form, S<C<2.18 .. 3.14>> will
-return two elements in list context.
-
-    @list = (2.18 .. 3.14); # same as @list = (2 .. 3);
 
 =head2 Conditional Operator
 X<operator, conditional> X<operator, ternary> X<ternary> X<?:>
@@ -1444,6 +1602,8 @@ is a word character (meaning it matches C</\w/>):
 
 The following escape sequences are available in constructs that interpolate,
 and in transliterations whose delimiters aren't single quotes (C<"'">).
+In all the ones with braces, any number of blanks and/or tabs adjoining
+and within the braces are allowed (and ignored).
 X<\t> X<\n> X<\r> X<\f> X<\b> X<\a> X<\e> X<\x> X<\0> X<\c> X<\N> X<\N{}>
 X<\o{}>
 
@@ -1455,13 +1615,20 @@ X<\o{}>
     \b                  backspace         (BS)
     \a                  alarm (bell)      (BEL)
     \e                  escape            (ESC)
-    \x{263A}     [1,8]  hex char          (example: SMILEY)
+    \x{263A}     [1,8]  hex char          (example shown: SMILEY)
+    \x{ 263A }          Same, but shows optional blanks inside and
+                        adjoining the braces
     \x1b         [2,8]  restricted range hex char (example: ESC)
     \N{name}     [3]    named Unicode character or character sequence
     \N{U+263D}   [4,8]  Unicode character (example: FIRST QUARTER MOON)
     \c[          [5]    control char      (example: chr(27))
     \o{23072}    [6,8]  octal char        (example: SMILEY)
     \033         [7,8]  restricted range octal char  (example: ESC)
+
+Note that any escape sequence using braces inside interpolated
+constructs may have optional blanks (tab or space characters) adjoining
+with and inside of the braces, as illustrated above by the second
+S<C<\x{ }>> example.
 
 =over 4
 
@@ -1470,10 +1637,13 @@ X<\o{}>
 The result is the character specified by the hexadecimal number between
 the braces.  See L</[8]> below for details on which character.
 
-Only hexadecimal digits are valid between the braces.  If an invalid
-character is encountered, a warning will be issued and the invalid
-character and all subsequent characters (valid or invalid) within the
-braces will be discarded.
+Blanks (tab or space characters) may separate the number from either or
+both of the braces.
+
+Otherwise, only hexadecimal digits are valid between the braces.  If an
+invalid character is encountered, a warning will be issued and the
+invalid character and all subsequent characters (valid or invalid)
+within the braces will be discarded.
 
 If there are no valid digits between the braces, the generated character is
 the NULL character (C<\x{00}>).  However, an explicit empty brace (C<\x{}>)
@@ -1559,10 +1729,13 @@ To get platform independent controls, you can use C<\N{...}>.
 The result is the character specified by the octal number between the braces.
 See L</[8]> below for details on which character.
 
-If a character that isn't an octal digit is encountered, a warning is raised,
-and the value is based on the octal digits before it, discarding it and all
-following characters up to the closing brace.  It is a fatal error if there are
-no octal digits at all.
+Blanks (tab or space characters) may separate the number from either or
+both of the braces.
+
+Otherwise, if a character that isn't an octal digit is encountered, a
+warning is raised, and the value is based on the octal digits before it,
+discarding it and all following characters up to the closing brace.  It
+is a fatal error if there are no octal digits at all.
 
 =item [7]
 
@@ -1631,7 +1804,7 @@ are quoted by C<\Q>.
 C<\L>, C<\U>, C<\F>, and C<\Q> can stack, in which case you need one
 C<\E> for each.  For example:
 
- say"This \Qquoting \ubusiness \Uhere isn't quite\E done yet,\E is it?";
+ say "This \Qquoting \ubusiness \Uhere isn't quite\E done yet,\E is it?";
  This quoting\ Business\ HERE\ ISN\'T\ QUITE\ done\ yet\, is it?
 
 If a S<C<use locale>> form that includes C<LC_CTYPE> is in effect (see
@@ -1776,8 +1949,8 @@ Options (specified by the following modifiers) are:
         square-bracketed character classes
     p	When matching preserve a copy of the matched string so
         that ${^PREMATCH}, ${^MATCH}, ${^POSTMATCH} will be
-        defined (ignored starting in v5.20) as these are always
-        defined starting in that release
+        defined (ignored starting in v5.20 as these are always
+        defined starting in that release)
     o	Compile pattern only once.
     a   ASCII-restrict: Use ASCII for \d, \s, \w and [[:posix:]]
         character classes; specifying two a's adds the further
@@ -1882,11 +2055,24 @@ The bottom line is that using C</o> is almost never a good idea.
 =item The empty pattern C<//>
 
 If the I<PATTERN> evaluates to the empty string, the last
-I<successfully> matched regular expression is used instead.  In this
-case, only the C<g> and C<c> flags on the empty pattern are honored;
-the other flags are taken from the original pattern.  If no match has
+I<successfully> matched regular expression is used instead. In this
+case, only the C<g> and C<c> flags on the empty pattern are honored; the
+other flags are taken from the original pattern. If no match has
 previously succeeded, this will (silently) act instead as a genuine
-empty pattern (which will always match).
+empty pattern (which will always match).  Using a user supplied string as
+a pattern has the risk that if the string is empty that it triggers the
+"last successful match" behavior, which can be very confusing. In such
+cases you are recommended to replace C<m/$pattern/> with
+C<m/(?:$pattern)/> to avoid this behavior.
+
+The last successful pattern may be accessed as a variable via
+C<${^LAST_SUCCESSFUL_PATTERN}>. Matching against it, or the empty
+pattern should have the same effect, with the exception that when there
+is no last successful pattern the empty pattern will silently match,
+whereas using the C<${^LAST_SUCCESSFUL_PATTERN}> variable will produce
+undefined warnings (if warnings are enabled). You can check
+C<defined(${^LAST_SUCCESSFUL_PATTERN})> to test if there is a "last
+successful match" in the current scope.
 
 Note that it's possible to confuse Perl into thinking C<//> (the empty
 regex) is really C<//> (the defined-or operator).  Perl is usually pretty
@@ -2185,8 +2371,9 @@ Examples:
     # Add one to the value of any numbers in the string
     s/(\d+)/1 + $1/eg;
 
-    # Titlecase words in the last 30 characters only
-    substr($str, -30) =~ s/\b(\p{Alpha}+)\b/\u\L$1/g;
+    # Titlecase words in the last 30 characters only (presuming
+    # that the substring doesn't start in the middle of a word)
+    substr($str, -30) =~ s/\b(\p{Alpha})(\p{Alpha}*)\b/\u$1\L$2/g;
 
     # This will expand any embedded scalar variable
     # (including lexicals) in $_ : First $1 is interpolated
@@ -2228,6 +2415,9 @@ to occur that you might want.  Here are two common cases:
     # expand tabs to 8-column spacing
     1 while s/\t+/' ' x (length($&)*8 - length($`)%8)/e;
 
+X</c>While C<s///> accepts the C</c> flag, it has no effect beyond
+producing a warning if warnings are enabled.
+
 =back
 
 =head2 Quote-Like Operators
@@ -2251,7 +2441,7 @@ the delimiter or backslash is interpolated.
 =item C<qq/I<STRING>/>
 X<qq> X<quote, double> X<"> X<"">
 
-=item "I<STRING>"
+=item C<"I<STRING>">
 
 A double-quoted, interpolated string.
 
@@ -2266,13 +2456,16 @@ X<qx> X<`> X<``> X<backtick>
 =item C<`I<STRING>`>
 
 A string which is (possibly) interpolated and then executed as a
-system command with F</bin/sh> or its equivalent.  Shell wildcards,
-pipes, and redirections will be honored.  The collected standard
-output of the command is returned; standard error is unaffected.  In
-scalar context, it comes back as a single (potentially multi-line)
-string, or C<undef> if the command failed.  In list context, returns a
+system command, via F</bin/sh> or its equivalent if required.  Shell
+wildcards, pipes, and redirections will be honored.  Similarly to
+C<system>, if the string contains no shell metacharacters then it will
+executed directly.  The collected standard output of the command is
+returned; standard error is unaffected.  In scalar context, it comes
+back as a single (potentially multi-line) string, or C<undef> if the
+shell (or command) could not be started.  In list context, returns a
 list of lines (however you've defined lines with C<$/> or
-C<$INPUT_RECORD_SEPARATOR>), or an empty list if the command failed.
+C<$INPUT_RECORD_SEPARATOR>), or an empty list if the shell (or command)
+could not be started.
 
 Because backticks do not affect standard error, use shell file descriptor
 syntax (assuming the shell supports this) if you care to address this.
@@ -2428,9 +2621,11 @@ Unless the C</r> option is used, the string specified with C<=~> must be a
 scalar variable, an array element, a hash element, or an assignment to one
 of those; in other words, an lvalue.
 
-If the characters delimiting I<SEARCHLIST> and I<REPLACEMENTLIST>
+The characters delimitting I<SEARCHLIST> and I<REPLACEMENTLIST>
+can be any printable character, not just forward slashes.  If they
 are single quotes (C<tr'I<SEARCHLIST>'I<REPLACEMENTLIST>'>), the only
-interpolation is removal of C<\> from pairs of C<\\>.
+interpolation is removal of C<\> from pairs of C<\\>; so hyphens are
+interpreted literally rather than specifying a character range.
 
 Otherwise, a character range may be specified with a hyphen, so
 C<tr/A-J/0-9/> does the same replacement as
@@ -2438,25 +2633,37 @@ C<tr/ACEGIBDFHJ/0246813579/>.
 
 If the I<SEARCHLIST> is delimited by bracketing quotes, the
 I<REPLACEMENTLIST> must have its own pair of quotes, which may or may
-not be bracketing quotes; for example, C<tr[aeiouy][yuoiea]> or
-C<tr(+\-*/)/ABCD/>.
+not be bracketing quotes; for example, C<tr(aeiouy)(yuoiea)> or
+C<tr[+\-*/]"ABCD">.  This final example shows a way to visually clarify
+what is going on for people who are more familiar with regular
+expression patterns than with C<tr>, and who may think forward slash
+delimiters imply that C<tr> is more like a regular expression pattern
+than it actually is.  (Another option might be to use C<tr[...][...]>.)
 
-Characters may be literals, or (if the delimiters aren't single quotes)
-any of the escape sequences accepted in double-quoted strings.  But
-there is never any variable interpolation, so C<"$"> and C<"@"> are
-always treated as literals.  A hyphen at the beginning or end, or
-preceded by a backslash is also always considered a literal.  Escape
-sequence details are in L<the table near the beginning of this
-section|/Quote and Quote-like Operators>.
+C<tr> isn't fully like bracketed character classes, just
+(significantly) more like them than it is to full patterns.  For
+example, characters appearing more than once in either list behave
+differently here than in patterns, and C<tr> lists do not allow
+backslashed character classes such as C<\d> or C<\pL>, nor variable
+interpolation, so C<"$"> and C<"@"> are always treated as literals.
 
-Note that C<tr> does B<not> do regular expression character classes such as
-C<\d> or C<\pL>.  The C<tr> operator is not equivalent to the C<L<tr(1)>>
-utility.  C<tr[a-z][A-Z]> will uppercase the 26 letters "a" through "z",
-but for case changing not confined to ASCII, use
-L<C<lc>|perlfunc/lc>, L<C<uc>|perlfunc/uc>,
-L<C<lcfirst>|perlfunc/lcfirst>, L<C<ucfirst>|perlfunc/ucfirst>
-(all documented in L<perlfunc>), or the
-L<substitution operator C<sE<sol>I<PATTERN>E<sol>I<REPLACEMENT>E<sol>>|/sE<sol>PATTERNE<sol>REPLACEMENTE<sol>msixpodualngcer>
+The allowed elements are literals plus C<\'> (meaning a single quote).
+If the delimiters aren't single quotes, also allowed are any of the
+escape sequences accepted in double-quoted strings.  Escape sequence
+details are in L<the table near the beginning of this section|/Quote and
+Quote-like Operators>.
+
+A hyphen at the beginning or end, or preceded by a backslash is also
+always considered a literal.  Precede a delimiter character with a
+backslash to allow it.
+
+The C<tr> operator is not equivalent to the C<L<tr(1)>> utility.
+C<tr[a-z][A-Z]> will uppercase the 26 letters "a" through "z", but for
+case changing not confined to ASCII, use L<C<lc>|perlfunc/lc>,
+L<C<uc>|perlfunc/uc>, L<C<lcfirst>|perlfunc/lcfirst>,
+L<C<ucfirst>|perlfunc/ucfirst> (all documented in L<perlfunc>), or the
+L<substitution operator
+C<sE<sol>I<PATTERN>E<sol>I<REPLACEMENT>E<sol>>|/sE<sol>PATTERNE<sol>REPLACEMENTE<sol>msixpodualngcer>
 (with C<\U>, C<\u>, C<\L>, and C<\l> string-interpolation escapes in the
 I<REPLACEMENT> portion).
 
@@ -2514,8 +2721,8 @@ If the C</s> modifier is specified, sequences of characters, all in a
 row, that were transliterated to the same character are squashed down to
 a single instance of that character.
 
- my $a = "aaaba"
- $a =~ tr/a/a/s     # $a now is "aba"
+ my $a = "aaabbbca";
+ $a =~ tr/ab/dd/s;     # $a now is "dcd"
 
 If the C</d> modifier is used, the I<REPLACEMENTLIST> is always interpreted
 exactly as specified.  Otherwise, if the I<REPLACEMENTLIST> is shorter
@@ -2713,12 +2920,18 @@ This will print...
 
 ...with no leading whitespace.
 
-The delimiter is used to determine the B<exact> whitespace to
-remove from the beginning of each line.  All lines B<must> have
-at least the same starting whitespace (except lines only
-containing a newline) or perl will croak.  Tabs and spaces can
-be mixed, but are matched exactly.  One tab will not be equal to
-8 spaces!
+The line containing the delimiter that marks the end of the here-doc
+determines the indentation template for the whole thing.  Compilation
+croaks if any non-empty line inside the here-doc does not begin with the
+precise indentation of the terminating line.  (An empty line consists of
+the single character "\n".)  For example, suppose the terminating line
+begins with a tab character followed by 4 space characters.  Every
+non-empty line in the here-doc must begin with a tab followed by 4
+spaces.  They are stripped from each line, and any leading white space
+remaining on a line serves as the indentation for that line.  Currently,
+only the TAB and SPACE characters are treated as whitespace for this
+purpose.  Tabs and spaces may be mixed, but are matched exactly; tabs
+remain tabs and are not expanded.
 
 Additional beginning whitespace (beyond what preceded the
 delimiter) will be preserved:
@@ -2935,7 +3148,7 @@ are not available for here-docs.
 
 No interpolation is performed at this stage.
 Any backslashed sequences including C<\\> are treated at the stage
-to L</"parsing regular expressions">.
+of L</"Parsing regular expressions">.
 
 =item C<''>, C<q//>, C<tr'''>, C<y'''>, the replacement of C<s'''>
 
@@ -3004,7 +3217,7 @@ brackets.  because the outcome may be determined by voting based
 on heuristic estimators, the result is not strictly predictable.
 Fortunately, it's usually correct for ambiguous cases.
 
-=item the replacement of C<s///>
+=item The replacement of C<s///>
 
 Processing of C<\Q>, C<\U>, C<\u>, C<\L>, C<\l>, C<\F> and interpolation
 happens as with C<qq//> constructs.
@@ -3074,7 +3287,7 @@ non-whitespace choices.
 This step is the last one for all constructs except regular expressions,
 which are processed further.
 
-=item parsing regular expressions
+=item Parsing regular expressions
 X<regexp, parse>
 
 Previous steps were performed during the compilation of Perl code,
@@ -3219,7 +3432,8 @@ way, so use with care.
 C<< <I<FILEHANDLE>> >>  may also be spelled C<readline(*I<FILEHANDLE>)>.
 See L<perlfunc/readline>.
 
-The null filehandle C<< <> >> is special: it can be used to emulate the
+The null filehandle C<< <> >> (sometimes called the diamond operator) is
+special: it can be used to emulate the
 behavior of B<sed> and B<awk>, and any other Unix filter program
 that takes a list of filenames, doing the same to each line
 of input from all of them.  Input from C<< <> >> comes either from
@@ -3260,7 +3474,8 @@ it interprets special characters, so if you have a script like this:
 and call it with S<C<perl dangerous.pl 'rm -rfv *|'>>, it actually opens a
 pipe, executes the C<rm> command and reads C<rm>'s output from that pipe.
 If you want all items in C<@ARGV> to be interpreted as file names, you
-can use the module C<ARGV::readonly> from CPAN, or use the double bracket:
+can use the module C<ARGV::readonly> from CPAN, or use the double
+diamond bracket:
 
     while (<<>>) {
         print;

@@ -1,24 +1,36 @@
 use strict; 
 BEGIN {
-  if ($ENV{PERL_CORE}) {
-    unless ($ENV{PERL_TEST_Net_Ping}) {
-      print "1..0 # Skip: network dependent test\n";
-        exit;
-    }
+  if ($ENV{NO_NETWORK_TESTING} ||
+      ($ENV{PERL_CORE}) && !$ENV{PERL_TEST_Net_Ping}) {
+    print "1..0 \# Skip: network dependent test\n";
+    exit;
+  } 
+  if ($^O eq 'freebsd') {
+    print "1..0 \# Skip: unreliable localhost resolver on $^O\n";
+    exit;
   }
   unless (eval "require Socket") {
     print "1..0 \# Skip: no Socket\n";
     exit;
   }
   if (my $port = getservbyname('echo', 'tcp')) {
-    socket(*ECHO, &Socket::PF_INET(), &Socket::SOCK_STREAM(), (getprotobyname 'tcp')[2]);
-    unless (connect(*ECHO, scalar &Socket::sockaddr_in($port, &Socket::inet_aton("localhost")))) {
+    socket(*ECHO, &Socket::PF_INET(), &Socket::SOCK_STREAM(),
+                  (getprotobyname 'tcp')[2]);
+    unless (connect(*ECHO,
+                    scalar
+                      &Socket::sockaddr_in($port,
+                                           &Socket::inet_aton("localhost"))))
+    {
       print "1..0 \# Skip: loopback tcp echo service is off ($!)\n";
       exit;
     }
     close (*ECHO);
   } else {
     print "1..0 \# Skip: no echo port\n";
+    exit;
+  }
+  unless (Socket::getaddrinfo('localhost', &Socket::AF_INET)) {
+    print "1..0 \# Skip: no localhost resolver on $^O\n";
     exit;
   }
 }

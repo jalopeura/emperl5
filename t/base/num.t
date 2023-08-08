@@ -1,6 +1,6 @@
 #!./perl
 
-print "1..53\n";
+print "1..56\n";
 
 # First test whether the number stringification works okay.
 # (Testing with == would exercise the IV/NV part, not the PV.)
@@ -176,13 +176,13 @@ $a = 0.00049999999999999999999999999999999999999;
 $b = 0.0005000000000000000104;
 print $a <= $b ? "ok 46\n" : "not ok 46\n";
 
-if ($^O eq 'ultrix' || $^O eq 'VMS' ||
+if ($^O eq 'VMS' ||
     (pack("d", 1) =~ /^[\x80\x10]\x40/)  # VAX D_FLOAT, G_FLOAT.
     ) {
-  # Ultrix enters looong nirvana over this. VMS blows up when configured with
-  # D_FLOAT (but with G_FLOAT or IEEE works fine).  The test should probably
-  # make the number of 0's a function of NV_DIG, but that's not in Config and 
-  # we probably don't want to suck Config into a base test anyway.
+  # VMS blows up when configured with D_FLOAT (but with G_FLOAT or IEEE works
+  # fine).  The test should probably make the number of 0's a function of
+  # NV_DIG, but that's not in Config and we probably don't want to suck Config
+  # into a base test anyway.
   print "ok 47 # skipped on $^O\n";
 } else {
   $a = 0.00000000000000000000000000000000000000000000000000000000000000000001;
@@ -211,3 +211,14 @@ print $a eq "16702650"     ? "ok 52\n" : "not ok 52 # $a\n";
 
 $a = 0B1101; "$a";
 print $a eq "13"           ? "ok 53\n" : "not ok 53 # $a\n";
+
+# 0odddd octal constants
+
+$a = 0o100; "$a";
+print $a eq "64"       ? "ok 54\n" : "not ok 54 # $a\n";
+
+$a = 0o100; "$a";
+print $a + 1 == 0o101  ? "ok 55\n" : "not ok 55 #" . $a + 1 . "\n";
+
+$a = 0O1703; "$a";
+print $a eq "963"      ? "ok 56\n" : "not ok 56 # $a\n";

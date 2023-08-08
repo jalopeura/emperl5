@@ -19,7 +19,7 @@ BEGIN {
     $extra = 1
         if eval { require Test::NoWarnings ;  import Test::NoWarnings; 1 };
 
-    plan tests => 595 + $extra ;
+    plan tests => 114 + $extra ;
 
     use_ok('Compress::Raw::Zlib') ;
 
@@ -37,12 +37,12 @@ sub ReadHeaderInfo
     my %opts = @_ ;
 
     my $buffer ;
-    ok my $def = new IO::Compress::Deflate \$buffer, %opts ;
+    ok my $def = IO::Compress::Deflate->new( \$buffer, %opts );
     is $def->write($string), length($string), "write" ;
     ok $def->close, "closed" ;
     #print "ReadHeaderInfo\n"; hexDump(\$buffer);
 
-    ok my $inf = new IO::Uncompress::Inflate \$buffer, Append => 1  ;
+    ok my $inf = IO::Uncompress::Inflate->new( \$buffer, Append => 1 );
     my $uncomp = "";
     #ok $inf->read($uncomp) ;
     my $actual = 0 ;
@@ -67,12 +67,12 @@ sub ReadHeaderInfoZlib
     my %opts = @_ ;
 
     my $buffer ;
-    ok my $def = new Compress::Raw::Zlib::Deflate AppendOutput => 1, %opts ;
+    ok my $def = Compress::Raw::Zlib::Deflate->new( AppendOutput => 1, %opts );
     cmp_ok $def->deflate($string, $buffer), '==',  Z_OK;
     cmp_ok $def->flush($buffer), '==', Z_OK;
     #print "ReadHeaderInfoZlib\n"; hexDump(\$buffer);
-    
-    ok my $inf = new IO::Uncompress::Inflate \$buffer, Append => 1  ;
+
+    ok my $inf = IO::Uncompress::Inflate->new( \$buffer, Append => 1 );
     my $uncomp ;
     #ok $inf->read($uncomp) ;
     my $actual = 0 ;
@@ -94,7 +94,7 @@ sub ReadHeaderInfoZlib
 sub printHeaderInfo
 {
     my $buffer = shift ;
-    my $inf = new IO::Uncompress::Inflate \$buffer  ;
+    my $inf = IO::Uncompress::Inflate->new( \$buffer );
     my $hdr = $inf->getHeaderInfo();
 
     no warnings 'uninitialized' ;
@@ -107,7 +107,7 @@ sub printHeaderInfo
 # Check the Deflate Header Parameters
 #========================================
 
-#my $lex = new LexFile my $name ;
+#my $lex = LexFile->new( my $name );
 
 {
     title "Check default header settings" ;
@@ -123,6 +123,7 @@ EOM
 
 }
 
+if (0) # disable these tests: IO::Compress::Deflate doesn't create the zlib header itself so no need to test
 {
     title "Check user-defined header settings match zlib" ;
 
@@ -168,13 +169,16 @@ EOM
 
         my $hdr1 = ReadHeaderInfoZlib($string, %$opts);
 
+        # zlib-ng <= 2.0.6 with Level 1 sets the CINFO value to 5 . All other zlib & zlib-ng use expected value of 7
+        # Note that zlib-ng 2.0.x uses a 16-bit encoding for ZLIBNG_VERNUM
+        my $cinfoValue =  Compress::Raw::Zlib::is_zlibng() && Compress::Raw::Zlib::ZLIBNG_VERNUM() <= 0x2060 && defined $opts->{'-Level'} && $opts->{'-Level'} == 1 ? 5 : 7;
         is $hdr->{CM},     8, "  CM is 8";
-        is $hdr->{CINFO},  7, "  CINFO is 7";
+        is $hdr->{CINFO},  $cinfoValue, "  CINFO is $cinfoValue";
         is $hdr->{FDICT},  0, "  FDICT is 0";
 
         while (my ($k, $v) = each %$expect)
         {
-            if (ZLIB_VERNUM >= 0x1220)
+            if (Compress::Raw::Zlib::is_zlibng() || ZLIB_VERNUM >= 0x1220)
               { is $hdr->{$k}, $v, "  $k is $v" }
             else
               { ok 1, "  Skip test for $k" }
@@ -210,7 +214,7 @@ some text
 EOM
 
     my $good ;
-    ok my $x = new IO::Compress::Deflate \$good ;
+    ok my $x = IO::Compress::Deflate->new( \$good );
     ok $x->write($string) ;
     ok $x->close ;
 
@@ -219,7 +223,7 @@ EOM
         my $buffer = $good ;
         substr($buffer, 0, 1) = "\x00" ;
 
-        ok ! new IO::Uncompress::Inflate \$buffer, -Transparent => 0  ;
+        ok ! IO::Uncompress::Inflate->new( \$buffer, -Transparent => 0 );
         like $IO::Uncompress::Inflate::InflateError, '/Header Error: CRC mismatch/',
             "CRC mismatch";
     }
@@ -229,7 +233,7 @@ EOM
         my $buffer = $good ;
         substr($buffer, 1, 1) = "\x00" ;
 
-        ok ! new IO::Uncompress::Inflate \$buffer, -Transparent => 0  ;
+        ok ! IO::Uncompress::Inflate->new( \$buffer, -Transparent => 0 );
         like $IO::Uncompress::Inflate::InflateError, '/Header Error: CRC mismatch/',
             "CRC mismatch";
     }
@@ -260,8 +264,8 @@ EOM
 
         substr($buffer, 0, 2) = $header;
 
-        my $un = new IO::Uncompress::Inflate \$buffer, -Transparent => 0  ;
-        ok ! new IO::Uncompress::Inflate \$buffer, -Transparent => 0  ;
+        my $un = IO::Uncompress::Inflate->new( \$buffer, -Transparent => 0 );
+        ok ! IO::Uncompress::Inflate->new( \$buffer, -Transparent => 0 );
         like $IO::Uncompress::Inflate::InflateError, '/Header Error: Not Deflate \(CM is 3\)/',
             "  Not Deflate";
     }
@@ -277,7 +281,7 @@ EOM
 
     $string = $string x 1000;
     my $good ;
-    ok my $x = new IO::Compress::Deflate \$good ;
+    ok my $x = IO::Compress::Deflate->new( \$good );
     ok $x->write($string) ;
     ok $x->close ;
 
@@ -287,7 +291,7 @@ EOM
         foreach my $s (0, 1)
         {
             title "Trailer Corruption - Trailer truncated to $got bytes, strict $s" ;
-		my $lex = new LexFile my $name ;
+		    my $lex = LexFile->new( my $name );
             my $buffer = $good ;
             my $expected_trailing = substr($good, -4, 4) ;
             substr($expected_trailing, $trim) = '';
@@ -295,7 +299,7 @@ EOM
             substr($buffer, $trim) = '';
             writeFile($name, $buffer) ;
 
-            ok my $gunz = new IO::Uncompress::Inflate $name, Append => 1, Strict => $s;
+            ok my $gunz = IO::Uncompress::Inflate->new( $name, Append => 1, Strict => $s );
             my $uncomp ;
             if ($s)
             {
@@ -322,10 +326,10 @@ EOM
         my $buffer = $good ;
         my $crc = unpack("N", substr($buffer, -4, 4));
         substr($buffer, -4, 4) = pack('N', $crc+1);
-		my $lex = new LexFile my $name ;
+		my $lex = LexFile->new( my $name );
         writeFile($name, $buffer) ;
 
-        ok my $gunz = new IO::Uncompress::Inflate $name, Append => 1, Strict => 1;
+        ok my $gunz = IO::Uncompress::Inflate->new( $name, Append => 1, Strict => 1 );
         my $uncomp ;
         my $status ;
         1 while ($status = $gunz->read($uncomp)) > 0;
@@ -343,10 +347,10 @@ EOM
         my $buffer = $good ;
         my $crc = unpack("N", substr($buffer, -4, 4));
         substr($buffer, -4, 4) = pack('N', $crc+1);
-		my $lex = new LexFile my $name ;
+		my $lex = LexFile->new( my $name );
         writeFile($name, $buffer) ;
 
-        ok my $gunz = new IO::Uncompress::Inflate $name, Append => 1, Strict => 0;
+        ok my $gunz = IO::Uncompress::Inflate->new( $name, Append => 1, Strict => 0 );
         my $uncomp ;
         my $status ;
         1 while ($status = $gunz->read($uncomp)) > 0;
@@ -357,4 +361,3 @@ EOM
         ok $gunz->close ;
     }
 }
-

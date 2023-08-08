@@ -11,7 +11,32 @@ sub mungepath {
     $p =~ s/[ ;]+$//;
     $p =~ s/'/"/g;
     my @p = map { $_ = "\"$_\"" if /\s/ and !/^".*"$/; $_ } split /;/, $p;
-    return join(' ', @p);
+    return wantarray ? @p : join(' ', @p);
+}
+
+# check that the directories in the provided var exist
+sub check_path {
+    my $opt = shift;
+    my $p = shift;
+    my @paths = mungepath($p);
+    my $header_seen = 0;
+    foreach my $path (@paths) {
+        $path =~ s/^"(.*)"$/$1/;
+        next, if -d $path;
+
+        if (not $header_seen++) {
+            print STDERR "'$opt' contains the following non-existing paths:\n";
+        }
+        print STDERR "\t$path\n";
+    }
+    if ($header_seen) {
+        print STDERR <<EOF;
+Did you provide a correct value for the 'CCHOME' option?
+
+(This check can be skipped by using the SKIP_CCHOME_CHECK=1 option)
+EOF
+        exit 1;
+    }
 }
 
 # generate an array of option strings from command-line args
@@ -35,6 +60,12 @@ sub loadopts {
     else {
 	return \@ARGV;
     }
+}
+
+my $prebuilt; # are we making the prebuilt config used to bootstrap?
+if (@ARGV && $ARGV[0] eq '--prebuilt') {
+    ++$prebuilt;
+    shift;
 }
 
 my %opt;
@@ -106,6 +137,11 @@ if (!$opt{cf_email}) {
 }
 $opt{usemymalloc} = 'y' if $opt{d_mymalloc} eq 'define';
 
+unless ($opt{SKIP_CCHOME_CHECK}) {
+    check_path('CCLIBDIR', $opt{libpth});
+    check_path('CCINCDIR', $opt{incpath});
+}
+
 $opt{libpth} = mungepath($opt{libpth}) if exists $opt{libpth};
 $opt{incpath} = mungepath($opt{incpath}) if exists $opt{incpath};
 
@@ -115,16 +151,6 @@ if ($opt{cc} =~ /\b(?:cl|icl)/) {
 }
 elsif ($opt{cc} =~ /\bgcc\b/) {
     $int64  = 'long long';
-}
-
-# set large files options
-if ($opt{uselargefiles} eq 'define') {
-    $opt{lseeksize} = 8;
-    $opt{lseektype} = $int64;
-}
-else {
-    $opt{lseeksize} = 4;
-    $opt{lseektype} = 'long';
 }
 
 # set 64-bit options
@@ -149,7 +175,7 @@ else {
 
 # set 64-bit-int options
 if ($opt{use64bitint} eq 'define') {
-    if ($opt{uselongdouble} eq 'define') {
+    if ($opt{uselongdouble} eq 'define' || $opt{usequadmath} eq 'define') {
         $opt{d_nv_preserves_uv} = 'define';
         $opt{nv_preserves_uv_bits} = 64;
     }
@@ -227,8 +253,35 @@ if ($opt{uselongdouble} eq 'define') {
     $opt{nveformat} = '"Le"';
     $opt{nvfformat} = '"Lf"';
     $opt{nvgformat} = '"Lg"';
+    $opt{nvmantbits} = 64;
     $opt{longdblkind} = 3;
     $opt{longdblmantbits} = 64;
+}
+# set __float128 options
+elsif ($opt{usequadmath} eq 'define') {
+    $opt{d_Gconvert} = 'sprintf((b),"%.*""Lg",(n),(x))';
+    $opt{d_PRIEUldbl} = 'define';
+    $opt{d_PRIFUldbl} = 'define';
+    $opt{d_PRIGUldbl} = 'define';
+    $opt{d_modflproto} = 'define';
+    $opt{d_strtold} = 'define';
+    $opt{d_PRIeldbl} = 'define';
+    $opt{d_PRIfldbl} = 'define';
+    $opt{d_PRIgldbl} = 'define';
+    $opt{d_SCNfldbl} = 'define';
+    $opt{nv_overflows_integers_at} = '256.0*256.0*256.0*256.0*256.0*256.0*256.0*256.0*256.0*256.0*256.0*256.0*256.0*256.0*2.0';
+    $opt{nvsize} = 16;
+    $opt{nvtype} = '__float128';
+    $opt{nvEUformat} = '"QE"';
+    $opt{nvFUformat} = '"QF"';
+    $opt{nvGUformat} = '"QG"';
+    $opt{nveformat} = '"Qe"';
+    $opt{nvfformat} = '"Qf"';
+    $opt{nvgformat} = '"Qg"';
+    $opt{nvmantbits} = 112;
+    $opt{longdblkind} = 3;
+    $opt{longdblmantbits} = 64;
+    $opt{i_quadmath} = 'define';
 }
 else {
     $opt{d_Gconvert} = 'sprintf((b),"%.*g",(n),(x))';
@@ -262,14 +315,11 @@ else {
 # change some configuration variables based on compiler version
 if ($opt{cc} =~ /\bcl/ and $opt{ccversion} =~ /^(\d+)/) {
     my $ccversion = $1;
-    if ($ccversion < 13) { # VC6
-	$opt{ar} ='lib';
-    }
     if ($ccversion >= 14) { # VC8+
 	$opt{sGMTIME_max} = 32535291599;
 	$opt{sLOCALTIME_max} = 32535244799;
     }
-    if ($ccversion >= 16) { # VC10+
+    if ($ccversion >= 16 && !$prebuilt) { # VC10+
 	$opt{i_stdint} = 'define';
     }
     if ($ccversion >= 19) { # VC14+
@@ -277,7 +327,7 @@ if ($opt{cc} =~ /\bcl/ and $opt{ccversion} =~ /^(\d+)/) {
 	$opt{stdio_bufsiz} = '(PERLIO_FILE_cnt(fp) + PERLIO_FILE_ptr(fp) - PERLIO_FILE_base(fp))';
 	$opt{stdio_cnt} = 'PERLIO_FILE_cnt(fp)';
 	$opt{stdio_ptr} = 'PERLIO_FILE_ptr(fp)';
-	$opt{i_stdbool} = 'define';
+	$opt{i_stdbool} = 'define' unless $prebuilt;
     }
 }
 # find out which MSVC this ICC is using

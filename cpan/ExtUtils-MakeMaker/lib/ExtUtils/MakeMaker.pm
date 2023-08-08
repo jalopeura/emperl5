@@ -2,6 +2,7 @@
 package ExtUtils::MakeMaker;
 
 use strict;
+use warnings;
 
 BEGIN {require 5.006;}
 
@@ -24,8 +25,8 @@ my %Recognized_Att_Keys;
 our %macro_fsentity; # whether a macro is a filesystem name
 our %macro_dep; # whether a macro is a dependency
 
-our $VERSION = '7.34';
-$VERSION = eval $VERSION;  ## no critic [BuiltinFunctions::ProhibitStringyEval]
+our $VERSION = '7.70';
+$VERSION =~ tr/_//d;
 
 # Emulate something resembling CVS $Revision$
 (our $Revision = $VERSION) =~ s{_}{};
@@ -316,7 +317,7 @@ sub full_setup {
     PERLRUNINST PERL_CORE
     PERM_DIR PERM_RW PERM_RWX MAGICXS
     PL_FILES PM PM_FILTER PMLIBDIRS PMLIBPARENTDIRS POLLUTE
-    PREREQ_FATAL PREREQ_PM PREREQ_PRINT PRINT_PREREQ
+    PREREQ_FATAL PREREQ_PM PREREQ_PRINT PRINT_PREREQ PUREPERL_ONLY
     SIGN SKIP TEST_REQUIRES TYPEMAPS UNINST VERSION VERSION_FROM XS
     XSBUILD XSMULTI XSOPT XSPROTOARG XS_VERSION
     clean depend dist dynamic_lib linkext macro realclean tool_autosplit
@@ -392,13 +393,13 @@ sub full_setup {
     # we will use all these variables in the Makefile
     @Get_from_Config =
         qw(
-           ar cc cccdlflags ccdlflags dlext dlsrc exe_ext full_ar ld
+           ar cc cccdlflags ccdlflags cpprun dlext dlsrc exe_ext full_ar ld
            lddlflags ldflags libc lib_ext obj_ext osname osvers ranlib
            sitelibexp sitearchexp so
           );
 
     # 5.5.3 doesn't have any concept of vendor libs
-    push @Get_from_Config, qw( vendorarchexp vendorlibexp ) if $] >= 5.006;
+    push @Get_from_Config, qw( vendorarchexp vendorlibexp ) if "$]" >= 5.006;
 
     foreach my $item (@attrib_help){
         $Recognized_Att_Keys{$item} = 1;
@@ -425,7 +426,10 @@ sub _has_cpan_meta_requirements {
     return eval {
       require CPAN::Meta::Requirements;
       CPAN::Meta::Requirements->VERSION(2.130);
-      require B; # CMR requires this, for core we have to too.
+      # Make sure vstrings can be handled. Some versions of CMR require B to
+      # do this, which won't be available in miniperl.
+      CPAN::Meta::Requirements->new->add_string_requirement('Module' => v1.2);
+      1;
     };
 }
 
@@ -510,50 +514,46 @@ sub new {
 
     check_hints($self);
 
-    if ( defined $self->{MIN_PERL_VERSION}
-          && $self->{MIN_PERL_VERSION} !~ /^v?[\d_\.]+$/ ) {
-      require version;
-      my $normal = eval {
-        local $SIG{__WARN__} = sub {
-            # simulate "use warnings FATAL => 'all'" for vintage perls
-            die @_;
-        };
-        version->new( $self->{MIN_PERL_VERSION} )
-      };
-      $self->{MIN_PERL_VERSION} = $normal if defined $normal && !$@;
-    }
+    if ( $self->{MIN_PERL_VERSION}) {
+        my $perl_version = $self->{MIN_PERL_VERSION};
+        if (ref $perl_version) {
+            # assume a version object
+        }
+        else {
+            $perl_version = eval {
+                local $SIG{__WARN__} = sub {
+                    # simulate "use warnings FATAL => 'all'" for vintage perls
+                    die @_;
+                };
+                my $v = version->new($perl_version);
+                # we care about parse issues, not numify warnings
+                no warnings;
+                $v->numify;
+            };
+            $perl_version =~ tr/_//d
+                if defined $perl_version;
+        }
 
-    # Translate X.Y.Z to X.00Y00Z
-    if( defined $self->{MIN_PERL_VERSION} ) {
-        $self->{MIN_PERL_VERSION} =~ s{ ^v? (\d+) \. (\d+) \. (\d+) $ }
-                                      {sprintf "%d.%03d%03d", $1, $2, $3}ex;
-    }
-
-    my $perl_version_ok = eval {
-        local $SIG{__WARN__} = sub {
-            # simulate "use warnings FATAL => 'all'" for vintage perls
-            die @_;
-        };
-        !$self->{MIN_PERL_VERSION} or $self->{MIN_PERL_VERSION} <= $]
-    };
-    if (!$perl_version_ok) {
-        if (!defined $perl_version_ok) {
-            die <<'END';
-Warning: MIN_PERL_VERSION is not in a recognized format.
+        if (!defined $perl_version) {
+            # should this be a warning?
+            die sprintf <<'END', $self->{MIN_PERL_VERSION};
+MakeMaker FATAL: MIN_PERL_VERSION (%s) is not in a recognized format.
 Recommended is a quoted numerical value like '5.005' or '5.008001'.
 END
         }
-        elsif ($self->{PREREQ_FATAL}) {
-            die sprintf <<"END", $self->{MIN_PERL_VERSION}, $];
-MakeMaker FATAL: perl version too low for this distribution.
-Required is %s. We run %s.
+        elsif ($perl_version > "$]") {
+            my $message = sprintf <<'END', $perl_version, $];
+Perl version %s or higher required. We run %s.
 END
+            if ($self->{PREREQ_FATAL}) {
+                die "MakeMaker FATAL: $message";
+            }
+            else {
+                warn "Warning: $message";
+            }
         }
-        else {
-            warn sprintf
-                "Warning: Perl version %s or higher required. We run %s.\n",
-                $self->{MIN_PERL_VERSION}, $];
-        }
+
+        $self->{MIN_PERL_VERSION} = $perl_version;
     }
 
     my %configure_att;         # record &{$self->{CONFIGURE}} attributes
@@ -637,7 +637,7 @@ END
 
     if (%unsatisfied && $self->{PREREQ_FATAL}){
         my $failedprereqs = join "\n", map {"    $_ $unsatisfied{$_}"}
-                            sort { $a cmp $b } keys %unsatisfied;
+                            sort { lc $a cmp lc $b } keys %unsatisfied;
         die <<"END";
 MakeMaker FATAL: prerequisites not found.
 $failedprereqs
@@ -693,6 +693,7 @@ END
             } else {
                 my $value = $self->{$key};
                 # not going to test in FS so only stripping start
+                $value =~ s/"// if $key =~ /PERL$/ and $self->is_make_type('dmake');
                 $value =~ s/^"// if $key =~ /PERL$/;
                 $value = $self->catdir("..", $value)
                   unless $self->file_name_is_absolute($value);
@@ -702,7 +703,8 @@ END
         }
         if ($self->{PARENT}) {
             $self->{PARENT}->{CHILDREN}->{$newclass} = $self;
-            foreach my $opt (qw(POLLUTE PERL_CORE LINKTYPE LD OPTIMIZE)) {
+            foreach my $opt (qw(POLLUTE PERL_CORE LINKTYPE AR FULL_AR CC CCFLAGS
+                                OPTIMIZE LD LDDLFLAGS LDFLAGS PERL_ARCHLIB DESTDIR)) {
                 if (exists $self->{PARENT}->{$opt}
                     and not exists $self->{$opt})
                     {
@@ -721,7 +723,7 @@ END
     # RT#91540 PREREQ_FATAL not recognized on command line
     if (%unsatisfied && $self->{PREREQ_FATAL}){
         my $failedprereqs = join "\n", map {"    $_ $unsatisfied{$_}"}
-                            sort { $a cmp $b } keys %unsatisfied;
+                            sort { lc $a cmp lc $b } keys %unsatisfied;
         die <<"END";
 MakeMaker FATAL: prerequisites not found.
 $failedprereqs
@@ -1036,7 +1038,7 @@ sub _parse_line {
 }
 
 sub check_manifest {
-    print "Checking if your kit is complete...\n";
+    print STDOUT "Checking if your kit is complete...\n";
     require ExtUtils::Manifest;
     # avoid warning
     $ExtUtils::Manifest::Quiet = $ExtUtils::Manifest::Quiet = 1;
@@ -1235,15 +1237,15 @@ sub flush {
     my $self = shift;
 
     my $finalname = $self->{MAKEFILE};
-    printf "Generating a %s %s\n", $self->make_type, $finalname if $Verbose || !$self->{PARENT};
-    print "Writing $finalname for $self->{NAME}\n" if $Verbose || !$self->{PARENT};
+    printf STDOUT "Generating a %s %s\n", $self->make_type, $finalname if $Verbose || !$self->{PARENT};
+    print STDOUT "Writing $finalname for $self->{NAME}\n" if $Verbose || !$self->{PARENT};
 
     unlink($finalname, "MakeMaker.tmp", $Is_VMS ? 'Descrip.MMS' : ());
 
     write_file_via_tmp($finalname, $self->{RESULT});
 
     # Write MYMETA.yml to communicate metadata up to the CPAN clients
-    print "Writing MYMETA.yml and MYMETA.json\n"
+    print STDOUT "Writing MYMETA.yml and MYMETA.json\n"
       if !$self->{NO_MYMETA} and $self->write_mymeta( $self->mymeta );
 
     # save memory
@@ -1264,7 +1266,8 @@ sub write_file_via_tmp {
     die "write_file_via_tmp: 2nd arg must be ref" unless ref $contents;
     for my $chunk (@$contents) {
         my $to_write = $chunk;
-        utf8::encode $to_write if !$CAN_DECODE && $] > 5.008;
+        $to_write = '' unless defined $to_write;
+        utf8::encode $to_write if !$CAN_DECODE && "$]" > 5.008;
         print $fh "$to_write\n" or die "Can't write to MakeMaker.tmp: $!";
     }
     close $fh or die "Can't write to MakeMaker.tmp: $!";
@@ -1331,26 +1334,6 @@ sub neatvalue {
         push @m,"$key=>".neatvalue($v->{$key});
     }
     return "{ ".join(', ',@m)." }";
-}
-
-sub _find_magic_vstring {
-    my $value = shift;
-    return $value if $UNDER_CORE;
-    my $tvalue = '';
-    require B;
-    my $sv = B::svref_2object(\$value);
-    my $magic = ref($sv) eq 'B::PVMG' ? $sv->MAGIC : undef;
-    while ( $magic ) {
-        if ( $magic->TYPE eq 'V' ) {
-            $tvalue = $magic->PTR;
-            $tvalue =~ s/^v?(.+)$/v$1/;
-            last;
-        }
-        else {
-            $magic = $magic->MOREMAGIC;
-        }
-    }
-    return $tvalue;
 }
 
 sub selfdocument {
@@ -1426,6 +1409,8 @@ All inputs to WriteMakefile are Unicode characters, not just octets. EUMM
 seeks to handle all of these correctly. It is currently still not possible
 to portably use Unicode characters in module names, because this requires
 Perl to handle Unicode filenames, which is not yet the case on Windows.
+
+See L<ExtUtils::MakeMaker::FAQ> for details of the design and usage.
 
 =head2 How To Write A Makefile.PL
 
@@ -1836,7 +1821,11 @@ currently used by MakeMaker but may be handy in Makefile.PLs.
 =item CCFLAGS
 
 String that will be included in the compiler call command line between
-the arguments INC and OPTIMIZE.
+the arguments INC and OPTIMIZE. Note that setting this will overwrite its
+default value (C<$Config::Config{ccflags}>); to preserve that, include
+the default value directly, e.g.:
+
+    CCFLAGS => "$Config::Config{ccflags} ..."
 
 =item CONFIG
 
@@ -1846,6 +1835,7 @@ ar
 cc
 cccdlflags
 ccdlflags
+cpprun
 dlext
 dlsrc
 ld
@@ -2599,6 +2589,20 @@ In this case the program will be run multiple times using each target file.
     perl bin/foobar.PL bin/foobar1
     perl bin/foobar.PL bin/foobar2
 
+If an output file depends on extra input files beside the script itself,
+a hash ref can be used in version 7.36 and above:
+
+    PL_FILES => { 'foo.PL' => {
+        'foo.out' => 'foo.in',
+        'bar.out' => [qw(bar1.in bar2.in)],
+    }
+
+In this case the extra input files will be passed to the program after
+the target file:
+
+   perl foo.PL foo.out foo.in
+   perl foo.PL bar.out bar1.in bar2.in
+
 PL files are normally run B<after> pm_to_blib and include INST_LIB and
 INST_ARCH in their C<@INC>, so the just built modules can be
 accessed... unless the PL file is making a module (or anything else in
@@ -2657,10 +2661,9 @@ instead. See above, or the L<ExtUtils::MakeMaker::FAQ> entry.
 
 =item POLLUTE
 
-Release 5.005 grandfathered old global symbol names by providing preprocessor
-macros for extension source compatibility.  As of release 5.6, these
-preprocessor definitions are not available by default.  The POLLUTE flag
-specifies that the old names should still be defined:
+Prior to 5.6 various interpreter variables were available without a C<PL_>
+prefix, eg. C<PL_undef> was available as C<undef>. As of release 5.6, these
+are only defined if the POLLUTE flag is enabled:
 
   perl Makefile.PL POLLUTE=1
 
@@ -2958,7 +2961,7 @@ that purpose.
 
 =item XSPROTOARG
 
-May be set to C<-protoypes>, C<-noprototypes> or the empty string.  The
+May be set to C<-prototypes>, C<-noprototypes> or the empty string.  The
 empty string is equivalent to the xsubpp default, or C<-noprototypes>.
 See the xsubpp documentation for details.  MakeMaker
 defaults to the empty string.
@@ -3023,7 +3026,8 @@ be linked.
 
 =item postamble
 
-Anything put here will be passed to MY::postamble() if you have one.
+Anything put here will be passed to
+L<MY::postamble()|ExtUtils::MM_Any/postamble (o)> if you have one.
 
 =item realclean
 
@@ -3070,7 +3074,7 @@ or you can edit the default by saying something like:
 
 If you are running experiments with embedding perl as a library into
 other applications, you might find MakeMaker is not sufficient. You'd
-better have a look at ExtUtils::Embed which is a collection of utilities
+better have a look at L<ExtUtils::Embed> which is a collection of utilities
 for embedding.
 
 If you still need a different solution, try to develop another
@@ -3134,7 +3138,7 @@ override or create an attribute you would say something like
 =head2 Distribution Support
 
 For authors of extensions MakeMaker provides several Makefile
-targets. Most of the support comes from the ExtUtils::Manifest module,
+targets. Most of the support comes from the L<ExtUtils::Manifest> module,
 where additional documentation can be found.
 
 =over 4
@@ -3142,13 +3146,13 @@ where additional documentation can be found.
 =item    make distcheck
 
 reports which files are below the build directory but not in the
-MANIFEST file and vice versa. (See ExtUtils::Manifest::fullcheck() for
+MANIFEST file and vice versa. (See L<ExtUtils::Manifest/fullcheck> for
 details)
 
 =item    make skipcheck
 
 reports which files are skipped due to the entries in the
-C<MANIFEST.SKIP> file (See ExtUtils::Manifest::skipcheck() for
+C<MANIFEST.SKIP> file (See L<ExtUtils::Manifest/skipcheck> for
 details)
 
 =item    make distclean
@@ -3165,7 +3169,7 @@ C<*.bak>, C<*.old> and C<*.orig>
 =item    make manifest
 
 rewrites the MANIFEST file, adding all remaining files found (See
-ExtUtils::Manifest::mkmanifest() for details)
+L<ExtUtils::Manifest/mkmanifest> for details)
 
 =item    make distdir
 
@@ -3278,7 +3282,7 @@ are generated when F<Makefile.PL> generates a F<Makefile> (if L<CPAN::Meta>
 is installed).  Clients like L<CPAN> or L<CPANPLUS> will read these
 files to see what prerequisites must be fulfilled before building or testing
 the distribution.  If you wish to shut this feature off, set the C<NO_MYMETA>
-C<WriteMakeFile()> flag to true.
+C<WriteMakefile()> flag to true.
 
 =head2 Disabling an extension
 
@@ -3365,11 +3369,16 @@ Same as the PERL_CORE parameter.  The parameter overrides this.
 =head1 SEE ALSO
 
 L<Module::Build> is a pure-Perl alternative to MakeMaker which does
-not rely on make or any other external utility.  It is easier to
+not rely on make or any other external utility.  It may be easier to
 extend to suit your needs.
 
-L<Module::Install> is a wrapper around MakeMaker which adds features
-not normally available.
+L<Module::Build::Tiny> is a minimal pure-Perl alternative to MakeMaker
+that follows the Build.PL protocol of Module::Build but without its
+complexity and cruft, implementing only the installation of the module
+and leaving authoring to L<mbtiny> or other authoring tools.
+
+L<Module::Install> is a (now discouraged) wrapper around MakeMaker which
+adds features not normally available.
 
 L<ExtUtils::ModuleMaker> and L<Module::Starter> are both modules to
 help you setup your distribution.
@@ -3378,10 +3387,18 @@ L<CPAN::Meta> and L<CPAN::Meta::Spec> explain CPAN Meta files in detail.
 
 L<File::ShareDir::Install> makes it easy to install static, sometimes
 also referred to as 'shared' files. L<File::ShareDir> helps accessing
-the shared files after installation.
+the shared files after installation. L<Test::File::ShareDir> helps when
+writing tests to use the shared files both before and after installation.
 
-L<Dist::Zilla> makes it easy for the module author to create MakeMaker-based
-distributions with lots of bells and whistles.
+L<Dist::Zilla> is an authoring tool which allows great customization and
+extensibility of the author experience, relying on the existing install
+tools like ExtUtils::MakeMaker only for installation.
+
+L<Dist::Milla> is a Dist::Zilla bundle that greatly simplifies common
+usage.
+
+L<Minilla> is a minimal authoring tool that does the same things as
+Dist::Milla without the overhead of Dist::Zilla.
 
 =head1 AUTHORS
 

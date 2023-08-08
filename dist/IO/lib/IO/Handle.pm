@@ -8,20 +8,20 @@ IO::Handle - supply object methods for I/O handles
 
     use IO::Handle;
 
-    $io = IO::Handle->new();
+    my $io = IO::Handle->new();
     if ($io->fdopen(fileno(STDIN),"r")) {
         print $io->getline;
         $io->close;
     }
 
-    $io = IO::Handle->new();
+    my $io = IO::Handle->new();
     if ($io->fdopen(fileno(STDOUT),"w")) {
         $io->print("Some text\n");
     }
 
     # setvbuf is not available by default on Perls 5.8.0 and later.
     use IO::Handle '_IOLBF';
-    $io->setvbuf($buffer_var, _IOLBF, 1024);
+    $io->setvbuf(my $buffer_var, _IOLBF, 1024);
 
     undef $io;       # automatically closes the file if it's open
 
@@ -234,7 +234,7 @@ the taint-clean flag failed. (eg invalid handle)
 =head1 NOTE
 
 An C<IO::Handle> object is a reference to a symbol/GLOB reference (see
-the C<Symbol> package).  Some modules that
+the L<Symbol> package).  Some modules that
 inherit from C<IO::Handle> may want to keep object related variables
 in the hash table part of the GLOB. In an attempt to prevent modules
 trampling on each other I propose the that any such module should prefix
@@ -270,7 +270,7 @@ use IO ();	# Load the XS module
 require Exporter;
 our @ISA = qw(Exporter);
 
-our $VERSION = "1.40";
+our $VERSION = "1.52";
 
 our @EXPORT_OK = qw(
     autoflush
@@ -430,26 +430,6 @@ sub say {
     local $\ = "\n";
     print $this @_;
 }
-
-# Special XS wrapper to make them inherit lexical hints from the caller.
-_create_getline_subs( <<'END' ) or die $@;
-sub getline {
-    @_ == 1 or croak 'usage: $io->getline()';
-    my $this = shift;
-    return scalar <$this>;
-} 
-
-sub getlines {
-    @_ == 1 or croak 'usage: $io->getlines()';
-    wantarray or
-	croak 'Can\'t call $io->getlines in a scalar context, use $io->getline';
-    my $this = shift;
-    return <$this>;
-}
-1; # return true for error checking
-END
-
-*gets = \&getline;  # deprecated
 
 sub truncate {
     @_ == 2 or croak 'usage: $io->truncate(LEN)';

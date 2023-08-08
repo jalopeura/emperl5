@@ -16,9 +16,9 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    require Config; import Config;
     require './test.pl';
     set_up_inc('../lib','.','../ext/re');
+    require Config; import Config;
 }
 
 skip_all('no re module') unless defined &DynaLoader::boot_DynaLoader;
@@ -42,7 +42,7 @@ run_tests() unless caller;
 sub run_tests {
 
 
-    watchdog(($::running_as_thread && $::running_as_thread) ? 150 : 225);
+    watchdog((($::running_as_thread && $::running_as_thread) ? 150 : 225));
 
     {
         # [perl #120446]
@@ -153,7 +153,8 @@ PROG
         my $substr= substr( $str, 1 );
         1 while $substr=~m/0/g;
         $elapsed += time;
-        ok( $elapsed <= 1, "should not COW on long string with substr and m//g");
+        ok( $elapsed <= 2, "should not COW on long string with substr and m//g")
+            or diag "elapsed=$elapsed";
     }
 
     # [perl #133185] Infinite loop

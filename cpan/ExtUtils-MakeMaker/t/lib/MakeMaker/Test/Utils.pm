@@ -2,6 +2,7 @@ package MakeMaker::Test::Utils;
 
 use File::Spec;
 use strict;
+use warnings;
 use Config;
 use Cwd qw(getcwd);
 use Carp qw(croak);
@@ -358,12 +359,18 @@ Returns true if there is a compiler available for XS builds.
 =cut
 
 sub have_compiler {
+    return 1 if $ENV{PERL_CORE};
+
     my $have_compiler = 0;
-    eval {
-        require ExtUtils::CBuilder;
-        my $cb = ExtUtils::CBuilder->new(quiet=>1);
-        $have_compiler = $cb->have_compiler;
-    };
+
+    in_dir(sub {
+        eval {
+            require ExtUtils::CBuilder;
+            my $cb = ExtUtils::CBuilder->new(quiet=>1);
+            $have_compiler = $cb->have_compiler;
+        };
+    });
+
     return $have_compiler;
 }
 
@@ -407,7 +414,7 @@ sub hash2files {
         $file = File::Spec->catfile(File::Spec->curdir, $prefix, split m{\/}, $file);
         my $dir = dirname($file);
         mkpath $dir;
-        my $utf8 = ($] < 5.008 or !$Config{useperlio}) ? "" : ":utf8";
+        my $utf8 = ("$]" < 5.008 or !$Config{useperlio}) ? "" : ":utf8";
         open(FILE, ">$utf8", $file) || die "Can't create $file: $!";
         print FILE $text;
         close FILE;

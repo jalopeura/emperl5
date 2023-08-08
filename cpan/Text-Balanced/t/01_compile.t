@@ -1,10 +1,7 @@
-#!/usr/bin/perl
+use 5.008001;
 
 use strict;
-BEGIN {
-	$|  = 1;
-	$^W = 1;
-}
+use warnings;
 
 use Test::More tests => 1;
 

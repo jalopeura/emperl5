@@ -18,10 +18,10 @@ my $BZIP2_INCLUDE = defined($ENV{BZIP2_INCLUDE}) ? $ENV{BZIP2_INCLUDE} : '.';
 
 #ParseCONFIG() ;
 
-UpDowngrade(getPerlFiles('MANIFEST')) 
+UpDowngrade(getPerlFiles('MANIFEST'))
     unless $ENV{PERL_CORE};
 
-WriteMakefile( 
+WriteMakefile(
     NAME         => 'Compress::Raw::Bzip2',
     VERSION_FROM => 'lib/Compress/Raw/Bzip2.pm',
     INC          => "-I$BZIP2_INCLUDE" ,
@@ -29,7 +29,7 @@ WriteMakefile(
     XS           => { 'Bzip2.xs' => 'Bzip2.c'},
     'clean'      => { FILES      => '*.c bzip2.h bzlib.h bzlib_private.h constants.h constants.xs' },
    #'depend'     => { 'Makefile'   => 'config.in' },
-    'dist'       => { COMPRESS     => 'gzip', 
+    'dist'       => { COMPRESS     => 'gzip',
                       TARFLAGS     => '-chvf',
                       SUFFIX       => 'gz',
                       DIST_DEFAULT => 'MyTrebleCheck tardist',
@@ -40,7 +40,7 @@ WriteMakefile(
         ? bzip2_files($BZIP2_LIB)
         : (LIBS => [ "-L$BZIP2_LIB -lbz2 " ])
     ),
-      
+
     (
       $] >= 5.005
         ? (ABSTRACT_FROM => 'lib/Compress/Raw/Bzip2.pm',
@@ -50,14 +50,36 @@ WriteMakefile(
 
     INSTALLDIRS => ($] > 5.010  && $] < 5.011 ? 'perl' : 'site'),
 
-    META_MERGE => {
-        no_index => {
-            directory => [ 't', 'private' ],
-        },
-    },    
+     ( eval { ExtUtils::MakeMaker->VERSION(6.46) }
+        ? ( META_MERGE  => {
+
+                "meta-spec" => { version => 2 },
+
+                no_index => {
+                    directory => [ 't', 'private' ],
+                },
+
+                resources   => {
+
+                    bugtracker  => {
+                        web     => 'https://github.com/pmqs/Compress-Raw-Bzip2/issues'
+                    },
+
+                    homepage    => 'https://github.com/pmqs/Compress-Raw-Bzip2',
+
+                    repository  => {
+                        type    => 'git',
+                        url     => 'git://github.com/pmqs/Compress-Raw-Bzip2.git',
+                        web     => 'https://github.com/pmqs/Compress-Raw-Bzip2',
+                    },
+                },
+              }
+            )
+        : ()
+    ),
 
     ((ExtUtils::MakeMaker->VERSION() gt '6.30') ?
-        ('LICENSE'  => 'perl')         : ()),    
+        ('LICENSE'  => 'perl')         : ()),
 
 ) ;
 
@@ -105,7 +127,7 @@ if (eval {require ExtUtils::Constant; 1}) {
         die "The following names are missing from \@EXPORT in Bzip2.pm\n" .
             "\t$missing\n" ;
     }
-    
+
     #push @names, {name => 'BZ_VERSION', type => 'PV' };
 
     ExtUtils::Constant::WriteConstants(
@@ -113,9 +135,9 @@ if (eval {require ExtUtils::Constant; 1}) {
                                      NAMES    => \@names,
                                      C_FILE   => 'constants.h',
                                      XS_FILE  => 'constants.xs',
-                                                                       
+
                                     );
-} 
+}
 else {
     foreach my $name (qw( constants.h constants.xs ))
     {
@@ -144,8 +166,8 @@ sub bzip2_files
 
     foreach my $file (@c_files, @h_files)
       { copy(catfile($dir, $file), '.') }
-    
-    
+
+
     @h_files = map { catfile($dir, $_)  } @h_files ;
     my @o_files = map { "$_\$(OBJ_EXT)" } 'Bzip2', @c_files;
     push @c_files, 'Bzip2.c' ;
@@ -155,10 +177,7 @@ sub bzip2_files
     	'C'         =>  [ @c_files ] ,
         #'OBJECT'    => qq[ @o_files ],
         'OBJECT'    => q[ $(O_FILES) ],
-        
+
 
            ) ;
 }
-
-
-

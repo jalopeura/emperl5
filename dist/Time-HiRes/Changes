@@ -2,11 +2,38 @@ Revision history for the Perl extension Time::HiRes.
 
 {{NEXT}}
 
+ - Remove obsolete vms code
+ - Use core version compare
+ - Use GIMME_V instead of the deprecated GIMME
+ - t/utime.t: dragonflybsd has only microsecond precision
+ - t/utime.t: dragonflybsd is noatime by default
+ - t/stat.t: skip testing access times on HaikuOS, it doesn't support
+   atime
+ - darwin: make sure the compiler can find the system perl headers
+   https://github.com/Perl/perl5/issues/20362
+ - darwin: make sure PERL_DARWIN is defined on darwin.
+ - don't compare stat and lstat atime if PERL_FILE_ATIME_CHANGES is set in
+   the environment.
+   https://github.com/Perl/perl5/issues/19321
+ - don't use C++ guards around the perl header files, it caused C++
+   build failures with MSVC.
+
+1.9764 [2020-08-10]
+ - Fix a bunch of repeated-word typos
+ - Fix compilation with Visual C++ 2013 and older
+ - Implement clock_gettime() and clock_getres() for win32
+ - Remove workaround for an ancient Devel::PPPort bug
+ - Remove the remains of MacOS classic support
+ - Remove code for perls older than 5.6
+ - Remove vestiges of mpeix support (removed in 5.17.x)
+ - Remove trailing blanks
+ - Add links to pod
+
 1.9760 [2019-02-18]
  - make utime() available only if we have both fd and name setting
    [RT #133030]
  - Adjutst Makefile.PL for windows: the DEFINE() in Makefile.PL
-   can't be be in sub init() because that sub isn't called on windows
+   can't be in sub init() because that sub isn't called on windows
  - t/itimer.t: avoid race condition.
  - don't truncate nanosec utime
  - fallback/const-c.inc: Avoid compiler warning showing up on darwin.
@@ -985,7 +1012,7 @@ Revision history for the Perl extension Time::HiRes.
 	- backward compatibility (pre-5.6.1) tweaks:
 	  - define NV if no NVTYPE
 	  - define IVdf if needed (note: the Devel::PPPort
-	    in 5.8.0 does not try hard hard enough since
+	    in 5.8.0 does not try hard enough since
 	    the IVSIZE might not be defined)
 	  - define NVgf if needed
 	  - grab the typemap from 5.8.0 for the NV stuff

@@ -11,10 +11,10 @@ use strict;
 
 BEGIN {
     require '../../t/test.pl';
-    plan(527);
+    plan(538);
     use_ok('XS::APItest')
 };
-
+use Config;
 #########################
 
 # f(): general test sub to be called by call_sv() etc.
@@ -60,8 +60,8 @@ for my $test (
     [ G_VOID,    [ qw(a p q) ], [ 0 ],           '3 args, G_VOID' ],
     [ G_SCALAR,  [ ],           [ qw(y 1) ],     '0 args, G_SCALAR' ],
     [ G_SCALAR,  [ qw(a p q) ], [ qw(y 1) ],     '3 args, G_SCALAR' ],
-    [ G_ARRAY,   [ ],           [ qw(x 1) ],     '0 args, G_ARRAY' ],
-    [ G_ARRAY,   [ qw(a p q) ], [ qw(b p x 3) ], '3 args, G_ARRAY' ],
+    [ G_LIST,    [ ],           [ qw(x 1) ],     '0 args, G_LIST' ],
+    [ G_LIST,    [ qw(a p q) ], [ qw(b p x 3) ], '3 args, G_LIST' ],
     [ G_DISCARD, [ ],           [ qw(0) ],       '0 args, G_DISCARD' ],
     [ G_DISCARD, [ qw(a p q) ], [ qw(0) ],       '3 args, G_DISCARD' ],
 )
@@ -89,7 +89,7 @@ for my $test (
     ok(eq_array( [ call_method('meth', $flags, $obj, @$args) ], $expected),
 	"$description call_method('meth')");
 
-    my $returnval = ((($flags & G_WANT) == G_ARRAY) || ($flags & G_DISCARD))
+    my $returnval = ((($flags & G_WANT) == G_LIST) || ($flags & G_DISCARD))
 	? [0] : [ undef, 1 ];
     for my $keep (0, G_KEEPERR) {
 	my $desc = $description . ($keep ? ' G_KEEPERR' : '');
@@ -223,7 +223,34 @@ is(eval_pv('d()', 0), undef, "eval_pv('d()', 0)");
 is($@, "its_dead_jim\n", "eval_pv('d()', 0) - \$@");
 is(eval { eval_pv('d()', 1) } , undef, "eval { eval_pv('d()', 1) }");
 is($@, "its_dead_jim\n", "eval { eval_pv('d()', 1) } - \$@");
+is(eval { eval_pv(q/die $obj/, 1) }, undef,
+   "eval_pv die of an object");
+ok(ref $@, "object thrown");
+is($@, $obj, "check object rethrown");
 
+package False {
+    use overload
+      bool => sub { 0 },
+      '""' => sub { "Foo" };
+    sub new { bless {}, shift }
+};
+my $false = False->new;
+ok(!$false, "our false object is actually false");
+is(eval { eval_pv(q/die $false;/, 1); 1 }, undef,
+   "check false objects are rethrown");
+is(overload::StrVal($@), overload::StrVal($false),
+   "check we got the expected object");
+
+is(eval { eval_sv(q/die $false/, G_RETHROW); 1 }, undef,
+   "check G_RETHROW for thrown object");
+is(overload::StrVal($@), overload::StrVal($false),
+   "check we got the expected object");
+is(eval { eval_sv(q/"unterminated/, G_RETHROW); 1 }, undef,
+   "check G_RETHROW for syntax error");
+like($@, qr/Can't find string terminator/,
+     "check error rethrown");
+ok(eq_array([ eval { eval_sv(q/"working code"/, G_RETHROW) } ], [ "working code", 1 ]),
+   "check for spurious rethrow");
 
 # #3719 - check that the eval call variants handle exceptions correctly,
 # and do the right thing with $@, both with and without G_KEEPERR set.
@@ -286,12 +313,12 @@ for my $fn_type (qw(eval_pv eval_sv call_sv)) {
 		}
 	    }
 	    elsif ($fn_type eq 'eval_sv') {
-		$desc = "eval_sv('$code', G_ARRAY|$keep_desc)";
-		@ret = eval_sv($code, G_ARRAY|$keep);
+		$desc = "eval_sv('$code', G_LIST|$keep_desc)";
+		@ret = eval_sv($code, G_LIST|$keep);
 	    }
 	    elsif ($fn_type eq 'call_sv') {
-		$desc = "call_sv('$code', G_EVAL|G_ARRAY|$keep_desc)";
-		@ret = call_sv($code, G_EVAL|G_ARRAY|$keep);
+		$desc = "call_sv('$code', G_EVAL|G_LIST|$keep_desc)";
+		@ret = call_sv($code, G_EVAL|G_LIST|$keep);
 	    }
 	    is(scalar @ret, ($expect_success && $fn_type ne 'eval_pv') ? 2 : 1,
 			    "$desc - number of returned args");
@@ -316,8 +343,11 @@ for my $fn_type (qw(eval_pv eval_sv call_sv)) {
 # DAPM 9-Aug-04. A taint test in eval_sv() could die after setting up
 # a new jump level but before pushing an eval context, leading to
 # stack corruption
+SKIP: {
+    skip("Your perl was built without taint support", 1)
+        unless $Config{taint_support};
 
-fresh_perl_is(<<'EOF', "x=2", { switches => ['-T', '-I../../lib'] }, 'eval_sv() taint');
+    fresh_perl_is(<<'EOF', "x=2", { switches => ['-T', '-I../../lib'] }, 'eval_sv() taint');
 use XS::APItest;
 
 my $x = 0;
@@ -330,4 +360,4 @@ sub f {
 eval { my @a = sort f 2, 1;  $x++};
 print "x=$x\n";
 EOF
-
+}

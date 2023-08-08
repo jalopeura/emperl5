@@ -32,7 +32,7 @@ case "$CONFIG_H" in
 already-done) echo "Not re-extracting config.h" ;;
 *)
 echo "Extracting $CONFIG_H (with variable substitutions)"
-sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un-def!#undef!'
+sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un-def!#undef!' -e's!define\t!define !'
 /* This file was produced by running the config_h.SH script, which
  * gets its values from $CONFIG_SH, which is generally produced by
  * running Configure.
@@ -255,7 +255,7 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
 
 /* HAS_MBLEN:
  *	This symbol, if defined, indicates that the mblen routine is available
- *	to find the number of bytes in a multibye character.
+ *	to find the number of bytes in a multibyte character.
  */
 #$d_mblen HAS_MBLEN		/**/
 
@@ -381,7 +381,7 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
 
 /* HAS_REGCOMP:
  *	This symbol, if defined, indicates that the regcomp() routine is
- *	available to do some regular patern matching (usually on POSIX.2
+ *	available to do some regular pattern matching (usually on POSIX.2
  *	conforming systems).
  */
 #$d_regcomp HAS_REGCOMP		/* POSIX.2 */
@@ -1491,6 +1491,14 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
 /* HASATTRIBUTE_WARN_UNUSED_RESULT:
  *	Can we handle GCC attribute for warning on unused results
  */
+/* HASATTRIBUTE_ALWAYS_INLINE:
+ *	Can we handle GCC attribute for functions that should always be
+ *	inlined.
+ */
+/* HASATTRIBUTE_VISIBILITY:
+ *	Can we handle GCC attribute for functions that should have a
+ *	different visibility.
+ */
 #$d_attribute_deprecated HASATTRIBUTE_DEPRECATED	/**/
 #$d_attribute_format HASATTRIBUTE_FORMAT	/**/
 #$d_printf_format_null PRINTF_FORMAT_NULL_OK	/**/
@@ -1500,6 +1508,8 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
 #$d_attribute_pure HASATTRIBUTE_PURE	/**/
 #$d_attribute_unused HASATTRIBUTE_UNUSED	/**/
 #$d_attribute_warn_unused_result HASATTRIBUTE_WARN_UNUSED_RESULT	/**/
+#$d_attribute_always_inline HASATTRIBUTE_ALWAYS_INLINE	/**/
+#$d_attribute_visibility HASATTRIBUTE_VISIBILITY	/**/
 
 /* HAS_BACKTRACE:
  *	This symbol, if defined, indicates that the backtrace() routine is
@@ -1571,7 +1581,7 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
 #$d_endpent HAS_ENDPROTOENT		/**/
 
 /* HAS_ENDPWENT:
- *	This symbol, if defined, indicates that the getgrent routine is
+ *	This symbol, if defined, indicates that the endpwent routine is
  *	available for finalizing sequential access of the passwd database.
  */
 #$d_endpwent HAS_ENDPWENT		/**/
@@ -1762,6 +1772,8 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
  *	LONG_DOUBLE_IS_DOUBLEDOUBLE_128_BIT_BE_BE
  *	LONG_DOUBLE_IS_DOUBLEDOUBLE_128_BIT_LE_BE
  *	LONG_DOUBLE_IS_DOUBLEDOUBLE_128_BIT_BE_LE
+ *	LONG_DOUBLE_IS_DOUBLEDOUBLE_128_BIT_LITTLE_ENDIAN
+ *	LONG_DOUBLE_IS_DOUBLEDOUBLE_128_BIT_BIG_ENDIAN
  *	LONG_DOUBLE_IS_VAX_H_FLOAT
  *	LONG_DOUBLE_IS_UNKNOWN_FORMAT
  *	It is only defined if the system supports long doubles.
@@ -1939,6 +1951,10 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
  *	This symbol, if defined, indicates the availability of
  *	struct sockaddr_in6;
  */
+/* HAS_SOCKADDR_STORAGE:
+ *	This symbol, if defined, indicates the availability of
+ *	struct sockaddr_storage;
+ */
 /* HAS_SIN6_SCOPE_ID:
  *	This symbol, if defined, indicates that the struct sockaddr_in6
  *	structure has a member called sin6_scope_id.
@@ -1963,6 +1979,7 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
 #$d_sockpair	HAS_SOCKETPAIR	/**/
 #$d_sockaddr_sa_len	HAS_SOCKADDR_SA_LEN	/**/
 #$d_sockaddr_in6	HAS_SOCKADDR_IN6	/**/
+#$d_sockaddr_storage	HAS_SOCKADDR_STORAGE	/**/
 #$d_sin6_scope_id	HAS_SIN6_SCOPE_ID	/**/
 #$d_ip_mreq	HAS_IP_MREQ	/**/
 #$d_ip_mreq_source	HAS_IP_MREQ_SOURCE	/**/
@@ -1994,11 +2011,11 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
  *	This symbol, if defined, indicates that the union semun is
  *	defined by including <sys/sem.h>.  If not, the user code
  *	probably needs to define it as:
- *	union semun {
+ *	 union semun {
  *	    int val;
  *	    struct semid_ds *buf;
  *	    unsigned short *array;
- *	}
+ *	 }
  */
 /* USE_SEMCTL_SEMUN:
  *	This symbol, if defined, indicates that union semun is
@@ -2269,7 +2286,7 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
  */
 #ifndef USE_CROSS_COMPILE
 #$usecrosscompile	USE_CROSS_COMPILE	/**/
-#define	PERL_TARGETARCH	"$targetarch"	/**/
+#define PERL_TARGETARCH	"$targetarch"	/**/
 #endif
 
 /* PERL_USE_DEVEL:
@@ -2326,6 +2343,13 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
  *	available to do the inverse hyperbolic tangent function.
  */
 #$d_atanh HAS_ATANH		/**/
+
+/* HAS_NON_INT_BITFIELDS:
+ *	This symbol, if defined, indicates that the C compiler accepts, without
+ *	error or warning, struct bitfields that are declared with sizes other
+ *	than plain 'int'; for example 'unsigned char' is accepted.
+ */
+#$d_non_int_bitfields HAS_NON_INT_BITFIELDS	/**/
 
 /* HAS_BUILTIN_CHOOSE_EXPR:
  *	Can we handle GCC builtin for compile-time ternary-like expressions
@@ -2415,7 +2439,7 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
 #$d_dbminitproto	HAS_DBMINIT_PROTO	/**/
 
 /* HAS_DIR_DD_FD:
- *	This symbol, if defined, indicates that the the DIR* dirstream
+ *	This symbol, if defined, indicates that the DIR* dirstream
  *	structure contains a member variable named dd_fd.
  */
 #$d_dir_dd_fd HAS_DIR_DD_FD		/**/
@@ -2502,6 +2526,19 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
  *	mode.
  */
 #$d_fegetround HAS_FEGETROUND	/**/
+
+/* HAS_FFS:
+ *	This symbol, if defined, indicates that the ffs routine is available
+ *	to find the first bit set in its argument.  If it's not available,
+ *	roll your own.
+ */
+/* HAS_FFSL:
+ *	This symbol, if defined, indicates that the ffsl routine is available
+ *	to find the first bit set in its argument.  If it's not available,
+ *	roll your own.
+ */
+#$d_ffs HAS_FFS		/**/
+#$d_ffsl HAS_FFSL		/**/
 
 /* HAS_FINITE:
  *	This symbol, if defined, indicates that the finite routine is
@@ -3009,7 +3046,7 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
 
 /* HAS_MEMMEM:
  *	This symbol, if defined, indicates that the memmem routine is
- *	available to return a pointer to the start of the first occurance
+ *	available to return a pointer to the start of the first occurrence
  *	of a substring in a memory area (or NULL if not found).
  *	In glibc, memmem is a GNU extension.  The function is visible in
  *	libc, but the prototype is only visible if _GNU_SOURCE is #defined.
@@ -3110,14 +3147,19 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
  *	available to return the name of the locale for a category mask.
  */
 /* I_XLOCALE:
- *	This symbol, if defined, indicates to the C program that it should
- *	include <xlocale.h> to get uselocale() and its friends.
+ *	This symbol, if defined, indicates to the C program that the
+ *	header xlocale.h is available.  See also NEED_XLOCALE_H
+ */
+/* NEED_XLOCALE_H:
+ *	This symbol, if defined, indicates that the C program should
+ *	include <xlocale.h> to get newlocale() and its friends.
  */
 #$d_newlocale	HAS_NEWLOCALE	/**/
 #$d_freelocale	HAS_FREELOCALE	/**/
 #$d_uselocale	HAS_USELOCALE	/**/
 #$d_duplocale	HAS_DUPLOCALE	/**/
 #$d_querylocale	HAS_QUERYLOCALE	/**/
+#$xlocale_needed	NEED_XLOCALE_H	/**/
 #$i_xlocale	I_XLOCALE               /**/
 
 /* HAS_NEXTAFTER:
@@ -3256,6 +3298,12 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
  *	available to send structured socket messages.
  */
 #$d_sendmsg HAS_SENDMSG		/**/
+
+/* HAS_SETENV:
+ *	This symbol, if defined, indicates that the setenv routine is
+ *	available for use.
+ */
+#$d_setenv HAS_SETENV		/**/
 
 /* HAS_SETITIMER:
  *	This symbol, if defined, indicates that the setitimer routine is
@@ -3442,6 +3490,12 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
  */
 #$d_strtouq HAS_STRTOUQ		/**/
 
+/* HAS_STRXFRM_L:
+ *	This symbol, if defined, indicates that the strxfrm_l() routine is
+ *	available to transform strings.
+ */
+#$d_strxfrm_l HAS_STRXFRM_L	/**/
+
 /* HAS_SYSCALL_PROTO:
  *	This symbol, if defined, indicates that the system provides
  *	a prototype for the syscall() function.  Otherwise, it is up
@@ -3575,7 +3629,7 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
 
 /* HAS_WCSXFRM:
  *	This symbol, if defined, indicates that the wcsxfrm routine is
- *	available to tranform a wide character string for wcscmp().
+ *	available to transform a wide character string for wcscmp().
  */
 #$d_wcsxfrm HAS_WCSXFRM	/**/
 
@@ -3792,6 +3846,11 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
  */
 #$i_sysstatvfs	I_SYS_STATVFS		/**/
 
+/* I_SYS_SYSCALL:
+ *	This symbol, if defined, indicates that <sys/syscall.h> exists.
+ */
+#$i_syssyscall	I_SYS_SYSCALL		/**/
+
 /* I_SYSUTSNAME:
  *	This symbol, if defined, indicates that <sys/utsname.h> exists and
  *	should be included.
@@ -3972,6 +4031,32 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
  */
 #$need_va_copy	NEED_VA_COPY		/**/
 
+/* I32df:
+ *	This symbol defines the format string used for printing a Perl I32
+ *	as a signed decimal integer.
+ */
+/* U32uf:
+ *	This symbol defines the format string used for printing a Perl U32
+ *	as an unsigned decimal integer.
+ */
+/* U32of:
+ *	This symbol defines the format string used for printing a Perl U32
+ *	as an unsigned octal integer.
+ */
+/* U32xf:
+ *	This symbol defines the format string used for printing a Perl U32
+ *	as an unsigned hexadecimal integer in lowercase abcdef.
+ */
+/* U32Xf:
+ *	This symbol defines the format string used for printing a Perl U32
+ *	as an unsigned hexadecimal integer in uppercase ABCDEF.
+ */
+#define I32df		$i32dformat		/**/
+#define U32of		$u32oformat		/**/
+#define U32uf		$u32uformat		/**/
+#define U32xf		$u32xformat		/**/
+#define U32Xf		$u32XUformat		/**/
+
 /* IVTYPE:
  *	This symbol defines the C type used for Perl's IV.
  */
@@ -4061,35 +4146,35 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
  *	This symbol, if defined, indicates that a variable of type NVTYPE
  *	stores 0.0 in memory as all bits zero.
  */
-#define	IVTYPE		$ivtype		/**/
-#define	UVTYPE		$uvtype		/**/
-#define	I8TYPE		$i8type		/**/
-#define	U8TYPE		$u8type		/**/
-#define	I16TYPE		$i16type	/**/
-#define	U16TYPE		$u16type	/**/
-#define	I32TYPE		$i32type	/**/
-#define	U32TYPE		$u32type	/**/
+#define IVTYPE		$ivtype		/**/
+#define UVTYPE		$uvtype		/**/
+#define I8TYPE		$i8type		/**/
+#define U8TYPE		$u8type		/**/
+#define I16TYPE		$i16type	/**/
+#define U16TYPE		$u16type	/**/
+#define I32TYPE		$i32type	/**/
+#define U32TYPE		$u32type	/**/
 #ifdef HAS_QUAD
-#define	I64TYPE		$i64type	/**/
-#define	U64TYPE		$u64type	/**/
+#define I64TYPE		$i64type	/**/
+#define U64TYPE		$u64type	/**/
 #endif
-#define	NVTYPE		$nvtype		/**/
-#define	IVSIZE		$ivsize		/**/
-#define	UVSIZE		$uvsize		/**/
-#define	I8SIZE		$i8size		/**/
-#define	U8SIZE		$u8size		/**/
-#define	I16SIZE		$i16size	/**/
-#define	U16SIZE		$u16size	/**/
-#define	I32SIZE		$i32size	/**/
-#define	U32SIZE		$u32size	/**/
+#define NVTYPE		$nvtype		/**/
+#define IVSIZE		$ivsize		/**/
+#define UVSIZE		$uvsize		/**/
+#define I8SIZE		$i8size		/**/
+#define U8SIZE		$u8size		/**/
+#define I16SIZE		$i16size	/**/
+#define U16SIZE		$u16size	/**/
+#define I32SIZE		$i32size	/**/
+#define U32SIZE		$u32size	/**/
 #ifdef HAS_QUAD
-#define	I64SIZE		$i64size	/**/
-#define	U64SIZE		$u64size	/**/
+#define I64SIZE		$i64size	/**/
+#define U64SIZE		$u64size	/**/
 #endif
-#define	NVSIZE		$nvsize		/**/
+#define NVSIZE		$nvsize		/**/
 #$d_nv_preserves_uv	NV_PRESERVES_UV
-#define	NV_PRESERVES_UV_BITS	$nv_preserves_uv_bits
-#define	NV_OVERFLOWS_INTEGERS_AT	($nv_overflows_integers_at)
+#define NV_PRESERVES_UV_BITS	$nv_preserves_uv_bits
+#define NV_OVERFLOWS_INTEGERS_AT	($nv_overflows_integers_at)
 #$d_nv_zero_is_allbits_zero	NV_ZERO_IS_ALLBITS_ZERO
 #if UVSIZE == 8
 #   ifdef BYTEORDER
@@ -4137,14 +4222,14 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
  *	This symbol defines the format string used for printing a Perl NV
  *	using %g-ish floating point format.
  */
-#define	IVdf		$ivdformat		/**/
-#define	UVuf		$uvuformat		/**/
-#define	UVof		$uvoformat		/**/
-#define	UVxf		$uvxformat		/**/
-#define	UVXf		$uvXUformat		/**/
-#define	NVef		$nveformat		/**/
-#define	NVff		$nvfformat		/**/
-#define	NVgf		$nvgformat		/**/
+#define IVdf		$ivdformat		/**/
+#define UVuf		$uvuformat		/**/
+#define UVof		$uvoformat		/**/
+#define UVxf		$uvxformat		/**/
+#define UVXf		$uvXUformat		/**/
+#define NVef		$nveformat		/**/
+#define NVff		$nvfformat		/**/
+#define NVgf		$nvgformat		/**/
 
 /* SELECT_MIN_BITS:
  *	This symbol holds the minimum number of bits operated by select.
@@ -4154,6 +4239,16 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
  *	the latter.  This is only useful if you have select(), naturally.
  */
 #define SELECT_MIN_BITS	$selectminbits	/**/
+
+/* ST_DEV_SIZE:
+ *	This variable contains the size of struct stat's st_dev in bytes.
+ */
+/* ST_DEV_SIGN:
+ *	This symbol holds the signedness of struct stat's st_dev.
+ *	1 for unsigned, -1 for signed.
+ */
+#define ST_DEV_SIGN $st_dev_sign	/* st_dev sign */
+#define ST_DEV_SIZE $st_dev_size	/* st_dev size */
 
 /* ST_INO_SIZE:
  *	This variable contains the size of struct stat's st_ino in bytes.
@@ -4231,11 +4326,17 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
 #$use64bitall	USE_64_BIT_ALL		/**/
 #endif
 
-/* USE_CBACKTRACE:
+/* USE_C_BACKTRACE:
  *	This symbol, if defined, indicates that Perl should
  *	be built with support for backtrace.
  */
-#$usecbacktrace USE_CBACKTRACE		/**/
+#$usecbacktrace USE_C_BACKTRACE		/**/
+
+/* USE_STRICT_BY_DEFAULT:
+ *	This symbol, if defined, enables additional defaults.
+ *	At this time it only enables implicit strict by default.
+ */
+#$usedefaultstrict USE_STRICT_BY_DEFAULT	/* use strict by default */
 
 /* USE_DTRACE:
  *	This symbol, if defined, indicates that Perl should
@@ -4557,6 +4658,19 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
 #$d_endservent_r HAS_ENDSERVENT_R	/**/
 #define ENDSERVENT_R_PROTO $endservent_r_proto	/**/
 
+/* GETENV_PRESERVES_OTHER_THREAD:
+ *	This symbol, if defined, indicates that the getenv system call doesn't
+ *	zap the static buffer of getenv() in a different thread.
+ *
+ *	The typical getenv() implementation will return a pointer to the proper
+ *	position in **environ.  But some may instead copy them to a static
+ *	buffer in getenv().  If there is a per-thread instance of that buffer,
+ *	or the return points to **environ, then a many-reader/1-writer mutex
+ *	will work; otherwise an exclusive locking mutex is required to prevent
+ *	races.
+ */
+#$d_getenv_preserves_other_thread GETENV_PRESERVES_OTHER_THREAD	/**/
+
 /* HAS_GETGRENT_R:
  *	This symbol, if defined, indicates that the getgrent_r routine
  *	is available to getgrent re-entrantly.
@@ -4853,6 +4967,9 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
 #define L_R_TZSET
 #endif
 
+/* L_R_TZSET:
+ *	If localtime_r() needs tzset, it is defined in this define
+ */
 /* LOCALTIME_R_PROTO:
  *	This symbol encodes the prototype of localtime_r.
  *	It is zero if d_localtime_r is undef, and one of the
@@ -4874,10 +4991,15 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
  */
 #$d_mbrtowc HAS_MBRTOWC	/**/
 
+/* HAS_NL_LANGINFO_L:
+ *	This symbol, when defined, indicates presence of the nl_langinfo_l()
+ *	function
+ */
 /* HAS_THREAD_SAFE_NL_LANGINFO_L:
  *	This symbol, when defined, indicates presence of the nl_langinfo_l()
  *	function, and that it is thread-safe.
  */
+#$d_nl_langinfo_l HAS_NL_LANGINFO_L	/**/
 #$d_thread_safe_nl_langinfo_l HAS_THREAD_SAFE_NL_LANGINFO_L	/**/
 
 /* OLD_PTHREAD_CREATE_JOINABLE:
@@ -5096,6 +5218,18 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
  */
 #$d_strtold_l HAS_STRTOLD_L		/**/
 
+/* PERL_THREAD_LOCAL:
+ *	This symbol, if defined, gives a linkage specification for thread-local
+ *	storage. For example, for a C11 compiler this will be _Thread_local.
+ *	Beware, some compilers are sensitive to the C language standard they are
+ *	told to parse. For example, suncc defaults to C11, so our probe will
+ *	report that _Thread_local can be used. However, if the -std=c99 is later
+ *	added to the compiler flags, then _Thread_local will become a syntax
+ *	error. Hence it is important for these flags to be consistent between
+ *	probing and use.
+ */
+#$d_thread_local PERL_THREAD_LOCAL $perl_thread_local	/**/
+
 /* HAS_TMPNAM_R:
  *	This symbol, if defined, indicates that the tmpnam_r routine
  *	is available to tmpnam re-entrantly.
@@ -5122,6 +5256,12 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
 #$d_ttyname_r HAS_TTYNAME_R	/**/
 #define TTYNAME_R_PROTO $ttyname_r_proto	/**/
 
+/* HAS_WCRTOMB:
+ *	This symbol, if defined, indicates that the wcrtomb routine is
+ *	available to convert a wide character into a multi-byte character.
+ */
+#$d_wcrtomb HAS_WCRTOMB	/**/
+
 /* I_MACH_CTHREADS:
  *	This symbol, if defined, indicates to the C program that it should
  *	include <mach/cthreads.h>.
@@ -5138,10 +5278,11 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
  *	This symbol, if defined, indicates that Perl should be built to
  *	use the interpreter-based threading implementation.
  */
-/* USE_5005THREADS:
- *	This symbol, if defined, indicates that Perl should be built to
- *	use the 5.005-based threading implementation.
- *	Only valid up to 5.8.x.
+/* USE_THREADS:
+ *	This symbol, if defined, indicates that Perl should
+ *	be built to use threads.  At present, it is a synonym for
+ *	and USE_ITHREADS, but eventually the source ought to be
+ *	changed to use this to mean _any_ threading implementation.
  */
 /* OLD_PTHREADS_API:
  *	This symbol, if defined, indicates that Perl should
@@ -5152,11 +5293,8 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
  *	try to use the various _r versions of library functions.
  *	This is extremely experimental.
  */
-#$use5005threads	USE_5005THREADS		/**/
 #$useithreads	USE_ITHREADS		/**/
-#if defined(USE_5005THREADS) && !defined(USE_ITHREADS)
-#define		USE_THREADS		/* until src is revised*/
-#endif
+#$usethreads		USE_THREADS		/**/
 #$d_oldpthreads	OLD_PTHREADS_API		/**/
 #$usereentrant	USE_REENTRANT_API	/**/
 
@@ -5188,7 +5326,7 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
 /* Gid_t_f:
  *	This symbol defines the format string used for printing a Gid_t.
  */
-#define	Gid_t_f		$gidformat		/**/
+#define Gid_t_f		$gidformat		/**/
 
 /* Gid_t_sign:
  *	This symbol holds the signedness of a Gid_t.
@@ -5256,7 +5394,7 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
 /* Uid_t_f:
  *	This symbol defines the format string used for printing a Uid_t.
  */
-#define	Uid_t_f		$uidformat		/**/
+#define Uid_t_f		$uidformat		/**/
 
 /* Uid_t_sign:
  *	This symbol holds the signedness of a Uid_t.

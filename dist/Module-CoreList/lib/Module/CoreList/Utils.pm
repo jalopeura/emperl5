@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Module::CoreList;
 
-our $VERSION = '5.20190522';
+our $VERSION = '5.20230520';
 our %utilities;
 
 sub utilities {
@@ -1496,6 +1496,407 @@ my %delta = (
     },
     5.030000 => {
         delta_from => 5.029010,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.031000 => {
+        delta_from => 5.03,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.031001 => {
+        delta_from => 5.031,
+        changed => {
+        },
+        removed => {
+            'podselect'             => 1,
+        }
+    },
+    5.031002 => {
+        delta_from => 5.031001,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.031003 => {
+        delta_from => 5.031002,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.031004 => {
+        delta_from => 5.031003,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.031005 => {
+        delta_from => 5.031004,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.030001 => {
+        delta_from => 5.03,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.031006 => {
+        delta_from => 5.031005,
+        changed => {
+            'streamzip'             => '1',
+        },
+        removed => {
+        }
+    },
+    5.031007 => {
+        delta_from => 5.031006,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.031008 => {
+        delta_from => 5.031007,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.031009 => {
+        delta_from => 5.031008,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.030002 => {
+        delta_from => 5.030001,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.031010 => {
+        delta_from => 5.031009,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.031011 => {
+        delta_from => 5.031010,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.028003 => {
+        delta_from => 5.028002,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.030003 => {
+        delta_from => 5.030002,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.032000 => {
+        delta_from => 5.031011,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.033000 => {
+        delta_from => 5.032,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.033001 => {
+        delta_from => 5.033000,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.033002 => {
+        delta_from => 5.033001,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.033003 => {
+        delta_from => 5.033002,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.033004 => {
+        delta_from => 5.033003,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.033005 => {
+        delta_from => 5.033004,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.033006 => {
+        delta_from => 5.033005,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.032001 => {
+        delta_from => 5.032000,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.033007 => {
+        delta_from => 5.033006,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.033008 => {
+        delta_from => 5.033007,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.033009 => {
+        delta_from => 5.033008,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.034000 => {
+        delta_from => 5.033009,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.035000 => {
+        delta_from => 5.034000,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.035001 => {
+        delta_from => 5.035,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.035002 => {
+        delta_from => 5.035001,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.035003 => {
+        delta_from => 5.035002,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.035004 => {
+        delta_from => 5.035003,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.035005 => {
+        delta_from => 5.035004,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.035006 => {
+        delta_from => 5.035005,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.035007 => {
+        delta_from => 5.035006,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.035008 => {
+        delta_from => 5.035007,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.035009 => {
+        delta_from => 5.035008,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.034001 => {
+        delta_from => 5.034000,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.035010 => {
+        delta_from => 5.035009,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.035011 => {
+        delta_from => 5.035010,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.036000 => {
+        delta_from => 5.035011,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.037000 => {
+        delta_from => 5.036000,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.037001 => {
+        delta_from => 5.037,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.037002 => {
+        delta_from => 5.037001,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.037003 => {
+        delta_from => 5.037002,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.037004 => {
+        delta_from => 5.037003,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.037005 => {
+        delta_from => 5.037004,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.037006 => {
+        delta_from => 5.037005,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.037007 => {
+        delta_from => 5.037006,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.037008 => {
+        delta_from => 5.037007,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.037009 => {
+        delta_from => 5.037008,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.037010 => {
+        delta_from => 5.037009,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.037011 => {
+        delta_from => 5.03701,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.036001 => {
+        delta_from => 5.036000,
+        changed => {
+        },
+        removed => {
+        }
+    },
+    5.038000 => {
+        delta_from => 5.037011,
         changed => {
         },
         removed => {

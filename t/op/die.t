@@ -6,7 +6,9 @@ BEGIN {
     set_up_inc('../lib');
 }
 
-plan tests => 20;
+plan tests => 26;
+
+use utf8;   # Tell EBCDIC translator to make this UTF-8,
 
 eval {
     eval {
@@ -94,6 +96,27 @@ like($@, qr/\.{3}propagated at/, '... and appends a phrase');
     local $SIG{__WARN__} = sub { $ok = 0 };
     eval { undef $@; die };
     is( $ok, 1, 'no warnings if $@ is undef' );
+
+    eval { $@ = 100; die };
+    like($@."", qr/100\t\.{3}propagated at/,
+         'check non-PVs in $@ are propagated');
+}
+{
+    my @error;
+    local $SIG{__DIE__}= sub { push @error, @_ };
+    use strict;
+    my $ok= eval '$intentionally_missing+1';
+    my $eval_error= $@;
+    is($ok,undef,"eval should return undef");
+    is(0+@error,1,"we should have captured 1 error via __DIE__");
+    like( $error[0],
+          qr/Global symbol \"\$intentionally_missing\"/,
+          "The __DIE__ handler should have seen this message");
+    like( $eval_error,
+          qr/Global symbol \"\$intentionally_missing\"/,
+          "The eval error in '\$@' should contain this message");
+    is( $error[0], $eval_error,
+        "__DIE__ handler and \$@ should be the same");
 }
 
 TODO: {
@@ -101,4 +124,3 @@ TODO: {
     my $out = runperl(prog => 'die qr{x}', stderr => 1);
     like($out, qr/at -e line 1./, 'RT #4821: output from die qr{x}');
 }
-

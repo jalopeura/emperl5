@@ -6,8 +6,9 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    require "./test.pl"; require './charset_tools.pl';
+    require "./test.pl";
     set_up_inc( qw(. ../lib ../cpan/parent/lib) );
+	require './charset_tools.pl';
 }
 
 use strict;
@@ -112,6 +113,7 @@ is( ref Føø::Bær->new, 'Føø::Bær');
 my $new_ascii = "new";
 my $new_latin = "nèw";
 my $e_with_grave = byte_utf8a_to_utf8n("\303\250");
+my $e_with_grave_escaped= $e_with_grave=~s/\x{a8}/\\\\x\\{a8\\}/r;
 my $new_utf8  = "n${e_with_grave}w";
 my $newoct    = "n${e_with_grave}w";
 utf8::decode($new_utf8);
@@ -122,7 +124,8 @@ like( Føø::Bær->$new_utf8, qr/Føø::Bær=HASH/u, "Can access \$new_utf8, [$n
 {
     local $@;
     eval { Føø::Bær->$newoct };
-    like($@, qr/Can't locate object method "n${e_with_grave}w" via package "Føø::Bær"/u, "Can't access [$newoct], stored in a scalar, as a method through a UTF-8 package." );
+    like($@, qr/Can't locate object method "n${e_with_grave_escaped}w" via package "Føø::Bær"/u,
+        "Can't access [$newoct], stored in a scalar, as a method through a UTF-8 package." );
 }
 
 
@@ -138,8 +141,10 @@ like( $pkg_latin_1->$new_latin, qr/Føø::Bær=HASH/u, "Can access \$new_latin, 
 like( $pkg_latin_1->$new_utf8, qr/Føø::Bær=HASH/u, "Can access \$new_utf8, [$new_utf8], stored in a scalar, as a method, when the UTF-8 package name is also in a scalar." );
 {
     local $@;
+
     eval { $pkg_latin_1->$newoct };
-    like($@, qr/Can't locate object method "n${e_with_grave}w" via package "Føø::Bær"/u, "Can't access [$newoct], stored in a scalar, as a method, when the UTF-8 package name is also in a scalar.");
+    like($@, qr/Can't locate object method "n${e_with_grave_escaped}w" via package "Føø::Bær"/u,
+        "Can't access [$newoct], stored in a scalar, as a method, when the UTF-8 package name is also in a scalar.");
 }
 
 ok !!Føø::Bær->can($new_ascii), "->can works for [$new_ascii]";

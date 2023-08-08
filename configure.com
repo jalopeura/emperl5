@@ -36,7 +36,6 @@ $! VMS-isms we will need:
 $ echo = "write sys$output "
 $ cat  = "type"
 $ delete := delete ! local symbol overrides globals with qualifiers
-$ gcc_symbol = "gcc"
 $ ld = "Link/nodebug"
 $ ans = ""
 $ macros = ""
@@ -49,7 +48,7 @@ $ unlink_all_versions = "n"
 $ builder = "MMK"
 $ use_vmsdebug_perl = "n"
 $ use64bitall = "n"
-$ use64bitint = "n"
+$ use64bitint = "y"
 $ uselongdouble = "n"
 $ uselargefiles = "y"
 $ usestdstat = "n"
@@ -146,7 +145,6 @@ $ ccname="DECC"
 $ Dec_C_Version = ""
 $ cxxversion = ""
 $ use_threads = "F"
-$ use_5005_threads = "N"
 $ use_ithreads = "N"
 $!
 $!: option parsing
@@ -342,8 +340,8 @@ $   DECK
  "-r" : reuse C symbols value if possible (skips costly nm extraction).*
  "-s" : silent mode, only echoes questions and essential information.
  -"D" : define symbol to have some value:                              *
-         -"Dsymbol"         symbol gets the value 'define'
-         -"Dsymbol=value"   symbol gets the value 'value'
+         -"Dsymbol"             symbol gets the value 'define'
+         -"Dsymbol=some value"  symbol is set to "some value"
   -E  : stop at the end of questions, after having produced config.sh. *
   -K  : do not use unless you know what you are doing.
   -O  : let -D and -U override definitions from loaded configuration file. *
@@ -1161,8 +1159,7 @@ $! base name early because not all questions are worth asking on all
 $! platforms.
 $!
 $! Please use F$ELEMENT(0,"-",archname) .EQS. "VMS_AXP" (or
-$! "VMS_IA64") from here on to allow cross-platform configuration (e.g.
-$! configure a IA64 build on an Alpha).
+$! "VMS_IA64", "VMS_x86_64", etc.) from here on to query the current architecture.
 $!
 $ IF (F$GETSYI("HW_MODEL") .LT. 1024 .AND. F$GETSYI("HW_MODEL") .GT. 0)
 $ THEN 
@@ -1172,16 +1169,15 @@ $   exit 44
 $ ELSE
 $   IF (F$GETSYI("ARCH_TYPE") .EQ. 2)
 $   THEN
-$       archname = "VMS_AXP"
-$       otherarch = "IA64"
+$       archname = "VMS_AXP"  ! oops, F$GETSYI("ARCH_NAME") gives us 'Alpha' not 'AXP'
 $       arch_type = "ARCH-TYPE=__AXP__"
 $   ELSE
-$       archname = "VMS_IA64"
-$       otherarch = "Alpha"
-$       arch_type = "ARCH-TYPE=__IA64__"
+$!      This works for Itanium and x86_64 and hopefully whatever's next (AARCH64? RISC-V?)
+$       archname = "VMS_" + F$GETSYI("ARCH_NAME")
+$       arch_type = "ARCH-TYPE=__" + F$GETSYI("ARCH_NAME") + "__"
 $   ENDIF
-$   alignbytes="8"
 $ ENDIF
+$ alignbytes="8"
 $!
 $!: set the base revision
 $ baserev="5.0"
@@ -1291,7 +1287,6 @@ $!
 $ version = revision + "_" + patchlevel + "_" + subversion
 $!
 $!: see if we need a special compiler
-$! cc_list = "cc/decc|gcc" !%Config-I-VMS, compiler symbols/commands
 $!
 $ nocc = "f"
 $ vms_cc_dflt = ""
@@ -1305,8 +1300,6 @@ $ WRITE CONFIG "#include <stdio.h>"
 $ WRITE CONFIG "int main() {"
 $ WRITE CONFIG "#ifdef __DECC"
 $ WRITE CONFIG "        printf(""/DECC\n"");"
-$ WRITE CONFIG "#else"
-$ WRITE CONFIG "        printf(""/VAXC\n"");"
 $ WRITE CONFIG "#endif"
 $ WRITE CONFIG "        exit(0);"
 $ WRITE CONFIG "}"
@@ -1321,11 +1314,7 @@ $ SET ON
 $ IF (silent) THEN GOSUB Shut_up
 $ IF tmp.NE.%X10B90001
 $ THEN 
-$  IF tmp.NE.%X10000001
-$  THEN 
-$    nocc = "t"  !%X10000001 is return from gcc
-$    GOTO Gcc_initial_check
-$  ENDIF
+$   GOTO Cxx_initial_check
 $ ENDIF
 $!
 $ GOSUB List_Parse
@@ -1338,33 +1327,6 @@ $ THEN
 $   vms_cc_dflt = "/decc"
 $   vms_cc_available = vms_cc_available + "cc/decc "
 $ ENDIF
-$!
-$Gcc_initial_check:
-$ echo "Checking for gcc"
-$ OPEN/WRITE CONFIG gccvers.lis
-$ SET NOON
-$ DEFINE/USER_MODE SYS$ERROR CONFIG
-$ DEFINE/USER_MODE SYS$OUTPUT CONFIG
-$ 'gcc_symbol'/noobj/version _nla0:
-$ tmp = $status
-$ SET ON
-$ IF (silent) THEN GOSUB Shut_up
-$ CLOSE CONFIG
-$ IF (tmp.NE.%X10000001).and.(tmp.ne.%X00030001)
-$ THEN
-$   echo "Symbol ""''gcc_symbol'"" is not defined. I guess you do not have it."
-$   DELETE/NOLOG/NOCONFIRM gccvers.lis;
-$   GOTO Cxx_initial_check
-$ ENDIF
-$ OPEN/READ CONFIG gccvers.lis
-$GCC_List_Read:
-$ READ/END_OF_FILE=GCC_List_End CONFIG line
-$ GOTO GCC_List_Read
-$GCC_List_End:
-$ CLOSE CONFIG
-$ echo line
-$ vms_cc_available = vms_cc_available + "''gcc_symbol' "
-$ DELETE/NOLOG/NOCONFIRM gccvers.lis;
 $!
 $Cxx_initial_check:
 $!
@@ -1459,8 +1421,6 @@ $     dflt = "cxx"
 $   ELSE
 $     dflt = "cc''vms_cc_dflt'"  !-> "cc" in case first compile went OK
 $   ENDIF
-$ ELSE
-$   dflt = gcc_symbol
 $ ENDIF
 $ rp = "Use which C compiler? [''dflt'] "
 $ GOSUB myread
@@ -1507,11 +1467,6 @@ $   Mcc = dflt
 $   IF Mcc .EQS. "cc/decc"
 $   THEN
 $     ccname := DEC
-$     C_COMPILER_Replace = "CC=cc=''Mcc'"
-$   ENDIF
-$   IF Mcc .EQS. "gcc"
-$   THEN
-$     ccname := GCC
 $     C_COMPILER_Replace = "CC=cc=''Mcc'"
 $   ENDIF
 $ ENDIF
@@ -1565,121 +1520,7 @@ $   echo4 "adding /NOANSI_ALIAS qualifier to ccflags."
 $   ccflags = ccflags + "/NOANSI_ALIAS"
 $   DELETE/NOLOG/NOCONFIRM deccvers.*;
 $ ENDIF
-$Gcc_check:
-$ gccversion = ""
-$ IF ccname .EQS. "GCC"
-$ THEN
-$   vaxcrtl_olb = F$SEARCH("SYS$LIBRARY:VAXCRTL.OLB")
-$   vaxcrtl_exe = F$SEARCH("SYS$SHARE:VAXCRTL.EXE")
-$   gcclib_olb  = F$SEARCH("GNU_CC:[000000]GCCLIB.OLB")
-$   IF gcclib_olb .EQS. "" 
-$   THEN 
-$!    These objects/libs come w/ gcc 2.7.2 for AXP:
-$     tmp = F$SEARCH("GNU_CC:[000000]libgcc2.olb")
-$     IF tmp .NES. "" then gcclib_olb = tmp
-$     tmp = F$SEARCH("GNU_CC:[000000]libgcclib.olb")
-$     IF tmp .NES. "" 
-$     THEN 
-$       IF gcclib_olb .EQS. "" 
-$       THEN gcclib_olb = tmp
-$       ELSE gcclib_olb = gcclib_olb + "/lib," + tmp
-$       ENDIF
-$     ENDIF
-$     tmp = F$SEARCH("SYS$LIBRARY:VAXCRTL.OLB")
-$     IF tmp .NES. "" 
-$     THEN 
-$       IF gcclib_olb .EQS. "" 
-$       THEN gcclib_olb = tmp
-$       ELSE gcclib_olb = gcclib_olb + "/lib," + tmp
-$       ENDIF
-$     ENDIF
-$     tmp = F$SEARCH("GNU_CC:[000000]crt0.obj")
-$     IF tmp .NES. "" 
-$     THEN 
-$       IF gcclib_olb .EQS. "" 
-$       THEN gcclib_olb = tmp
-$       ELSE gcclib_olb = gcclib_olb + "/lib," + tmp
-$       ENDIF
-$     ENDIF
-$     IF gcclib_olb .EQS. vaxcrtl_olb THEN gcclib_olb = "" !goofy order of axplibs
-$   ELSE
-$     gcclib_olb = gcclib_olb + "/lib"
-$   ENDIF
-$   IF   gcclib_olb .NES. "" .AND. -
-     (vaxcrtl_olb .NES. "" .OR. -
-      vaxcrtl_exe .NES. "" )
-$   THEN
-$     echo ""
-$     echo4 "Checking for GNU cc in disguise and/or its version number..." !>&4
-$     OPEN/WRITE CONFIG gccvers.c
-$     WRITE CONFIG "#include <stdio.h>"
-$     WRITE CONFIG "int main() {"
-$     WRITE CONFIG "#ifdef __GNUC__"
-$     WRITE CONFIG "#ifdef __VERSION__"
-$     WRITE CONFIG "        printf(""%s\n"", __VERSION__);"
-$     WRITE CONFIG "#else"
-$     WRITE CONFIG "        printf(""%s\n"", ""1"");"
-$     WRITE CONFIG "#endif"
-$     WRITE CONFIG "#endif"
-$     WRITE CONFIG "        exit(0);"
-$     WRITE CONFIG "}"
-$     CLOSE CONFIG
-$     DEFINE SYS$ERROR _NLA0:
-$     DEFINE SYS$OUTPUT _NLA0:
-$     'Mcc' gccvers.c
-$     tmp = $status
-$     DEASSIGN SYS$ERROR _NLA0:
-$     DEASSIGN SYS$OUTPUT _NLA0:
-$     IF (silent) THEN GOSUB Shut_up
-$     DEFINE SYS$ERROR _NLA0:
-$     DEFINE SYS$OUTPUT _NLA0:
-$     IF vaxcrtl_exe .EQS. ""
-$     THEN 
-$       IF F$LOCATE("VAXCRTL",gcclib_olb).NE.F$LENGTH(gcclib_olb)
-$       THEN 
-$         link/nodebug gccvers.obj,'gcclib_olb',SYS$LIBRARY:VAXCRTL/Library
-$         tmp = $status
-$       ELSE
-$         link/nodebug gccvers.obj,'gcclib_olb'
-$         tmp = $status
-$       ENDIF
-$     ELSE
-$       OPEN/WRITE CONFIG GCCVERS.OPT
-$       WRITE CONFIG "SYS$SHARE:VAXCRTL/SHARE"
-$       CLOSE CONFIG
-$       link/nodebug gccvers.obj,GCCVERS.OPT/OPT,'gcclib_olb'
-$       tmp = $status
-$     ENDIF
-$     DEASSIGN SYS$ERROR
-$     DEASSIGN SYS$OUTPUT
-$     IF (silent) THEN GOSUB Shut_up
-$     OPEN/WRITE CONFIG gccvers.out
-$     DEFINE SYS$ERROR CONFIG
-$     DEFINE SYS$OUTPUT CONFIG
-$     mcr []gccvers.exe
-$     tmp = $status
-$     CLOSE CONFIG
-$     DEASSIGN SYS$OUTPUT
-$     DEASSIGN SYS$ERROR
-$     IF (silent) THEN GOSUB Shut_up
-$     OPEN/READ CONFIG gccvers.out
-$     READ/END_OF_FILE=Gcc_cleanup CONFIG line
-$Gcc_cleanup:
-$     CLOSE CONFIG
-$     DELETE/NOLOG/NOCONFIRM gccvers.*;
-$     IF F$LOCATE("GNU C version ",line).NE.F$LENGTH(line)
-$     THEN 
-$       echo "You are not using GNU cc."
-$       GOTO Host_name
-$     ELSE 
-$       echo "You are using GNU cc ''line'"
-$       gccversion = line
-$       ccname := "GCC"
-$       C_COMPILER_Replace = "CC=cc=''Mcc'"
-$       GOTO Include_dirs
-$     ENDIF
-$   ENDIF
-$ ENDIF
+$!
 $Cxx_Version_check:
 $ IF ccname .EQS. "CXX"
 $ THEN
@@ -1772,17 +1613,6 @@ $ line = F$EDIT(line,"TRIM")       !bit redundant but we're in no big hurry
 $ DELETE/NOLOG/NOCONFIRM ccvms.lis;
 $ RETURN
 $!
-$Include_dirs:
-$!: What should the include directory be ? (.TLB text libraries)
-$ dflt = gcclib_olb 
-$ rp = "Where are the include files you want to use? "
-$ IF f$length( rp + "[''dflt'] " ) .GT. 76
-$ THEN rp = F$FAO("!AS!/!AS",rp,"[''dflt'] ")
-$ ELSE rp = rp + "[''dflt'] "
-$ ENDIF
-$ GOSUB myread
-$ usrinc = ans
-$!
 $!: see if we have to deal with yellow pages, now NIS.
 $!: now get the host name
 $Host_name:
@@ -1871,9 +1701,7 @@ $   DECK
 
 If you or somebody else will be maintaining perl at your site, please
 fill in the correct e-mail address here so that they may be contacted
-if necessary. Currently, the "perlbug" program included with perl
-will send mail to this address in addition to perlbug@perl.org. You may
-enter "none" for no administrator.
+if necessary. You may enter "none" for no administrator.
 $   EOD
 $ ENDIF
 $ dflt = "''cf_email'"
@@ -2001,18 +1829,9 @@ $     if f$type(useithreads) .nes. ""
 $     then
 $         if useithreads .eqs. "undef" then bool_dflt="n"
 $     endif
-$     if f$type(use5005threads) .nes. ""
-$     then
-$         if use5005threads .or. use5005threads .eqs. "define"
-$         then
-$             echo "5.005 threads are no longer supported"
-$             exit 44
-$         endif
-$     endif
 $     rp = "Use the newer interpreter-based ithreads? [''bool_dflt'] "
 $     GOSUB myread
 $     use_ithreads=ans
-$     use_5005_threads="N"
 $     ! Are they on VMS 7.1 or greater?
 $     IF "''f$extract(1,3, f$getsyi(""version""))'" .GES. "7.1"
 $     THEN
@@ -2383,22 +2202,6 @@ $!
 $ bool_dflt = "n"
 $ vms_prefix = "perl_root"
 $ vms_prefixup = F$EDIT(vms_prefix,"UPCASE")
-$ rp = "Will you be sharing your ''vms_prefixup' with ''otherarch'? [''bool_dflt'] "
-$ GOSUB myread
-$ IF .NOT. ans
-$ THEN
-$   sharedperl = "N"
-$ ELSE
-$   sharedperl = "Y"
-$   IF (F$ELEMENT(0, "-", archname).EQS."VMS_AXP")
-$   THEN
-$     macros = macros + """AXE=1"","
-$   ENDIF
-$   IF (F$ELEMENT(0, "-", archname).EQS."VMS_IA64")
-$   THEN
-$     macros = macros + """IXE=1"","
-$   ENDIF
-$ ENDIF
 $!
 $!: is AFS running?                       !sfn
 $!: decide how portable to be.  Allow command line overrides. !sfn
@@ -3253,34 +3056,22 @@ $ ELSE
 $   uselargefiles = "undef"
 $ ENDIF
 $!
+$ i32dformat="""d"""
+$ u32uformat="""u"""
+$ u32oformat="""o"""
+$ u32xformat="""x"""
+$ u32XUformat="""X"""
+$!
 $ usemymalloc = "undef"
 $ if mymalloc then usemymalloc = "define"
 $!
 $ perl_cc=Mcc
 $!
-$ IF (sharedperl .AND. F$ELEMENT(0, "-", archname) .EQS. "VMS_AXP")
-$ THEN
-$   obj_ext=".abj"
-$   so="axe"
-$   dlext="axe"
-$   exe_ext=".axe"
-$   lib_ext=".alb"
-$ ELSE
-$   IF (sharedperl .AND. F$ELEMENT(0, "-", archname) .EQS. "VMS_IA64")
-$   THEN
-$     obj_ext=".ibj"
-$     so="ixe"
-$     dlext="ixe"
-$     exe_ext=".ixe"
-$     lib_ext=".ilb"
-$   ELSE
-$     obj_ext=".obj"
-$     so="exe"
-$     dlext="exe"
-$     exe_ext=".exe"
-$     lib_ext=".olb"
-$   ENDIF
-$ ENDIF
+$ obj_ext=".obj"
+$ so="exe"
+$ dlext="exe"
+$ exe_ext=".exe"
+$ lib_ext=".olb"
 $ dlobj="dl_vms''obj_ext'"
 $!
 $ cppstdin="''perl_cc'/noobj/comments=as_is/preprocess=sys$output sys$input"
@@ -3373,7 +3164,6 @@ $   d_fp_classify = "define"
 $   d_hypot = "define"
 $   d_ilogb = "define"
 $   d_isnan = "define"
-$   d_isnanl = "define"
 $   d_isnormal = "define"
 $   d_j0 = "define"
 $   d_lgamma = "define"
@@ -3384,7 +3174,6 @@ $   d_lrint = "define"
 $   d_lrintl = "define"
 $   d_lround = "define"
 $   d_lroundl = "define"
-$   d_nearbyint = "define"
 $   d_nextafter = "define"
 $   d_nexttoward = "define"
 $   d_remainder = "define"
@@ -3417,7 +3206,6 @@ $   d_fp_classify = "undef"
 $   d_hypot = "undef"
 $   d_ilogb = "undef"
 $   d_isnan = "undef"
-$   d_isnanl = "undef"
 $   d_isnormal = "undef"
 $   d_j0 = "undef"
 $   d_lgamma = "undef"
@@ -3428,7 +3216,6 @@ $   d_lrint = "undef"
 $   d_lrintl = "undef"
 $   d_lround = "undef"
 $   d_lroundl = "undef"
-$   d_nearbyint = "undef"
 $   d_nextafter = "undef"
 $   d_nexttoward = "undef"
 $   d_remainder = "undef"
@@ -3441,7 +3228,6 @@ $ ENDIF
 $!
 $! Now some that we build up
 $!
-$ use5005threads = "undef"
 $ d_old_pthread_create_joinable = "undef"
 $ old_pthread_create_joinable = " "
 $ IF use_threads
@@ -3453,24 +3239,13 @@ $ ENDIF
 $!
 $! Some that we need to invoke the compiler for
 $!
-$!
 $! handy construction aliases/symbols
 $!
 $ OS := "open/write CONFIG []try.c"
 $ WS := "write CONFIG"
 $ CS := "close CONFIG"
 $ DS := "delete/nolog/noconfirm []try.*;*"
-$ Needs_Opt := N
 $ good_compile = %X10B90001
-$ IF ccname .EQS. "GCC"
-$ THEN
-$   open/write OPTCHAN []try.opt
-$   write OPTCHAN "Gnu_CC:[000000]gcclib.olb/library"
-$   write OPTCHAN "Sys$Share:VAXCRTL/Share"
-$   Close OPTCHAN
-$   Needs_Opt := Y
-$   good_compile = %X10000001
-$ ENDIF
 $ IF ccname .EQS. "CXX"
 $ THEN
 $   good_compile = %X15F60001
@@ -3569,14 +3344,8 @@ $ GOSUB compile_ok
 $ DEFINE/USER_MODE SYS$ERROR _NLA0:
 $ DEFINE/USER_MODE SYS$OUTPUT _NLA0:
 $ SET NOON
-$ IF Needs_Opt
-$ THEN
-$   'ld' try.obj,try.opt/opt
-$   link_status = $status
-$ ELSE
-$   'ld' try.obj
-$   link_status = $status
-$ ENDIF
+$ 'ld' try.obj
+$ link_status = $status
 $ SET ON
 $ IF F$SEARCH("try.obj") .NES. "" THEN DELETE/NOLOG/NOCONFIRM try.obj;
 $ RETURN
@@ -3898,6 +3667,12 @@ $   d_fd_set="define"
 $   echo4 "Well, your system knows about the normal fd_set typedef..."
 $ ENDIF
 $!
+$! Check for stdint.h
+$!
+$ tmp = "stdint.h"
+$ GOSUB inhdr
+$ i_stdint = tmp
+$!
 $! Check for inttypes.h
 $!
 $ tmp = "inttypes.h"
@@ -3932,6 +3707,23 @@ $ ELSE
 $   d_off64_t = "undef"
 $   echo "You do not have off64_t."
 $ ENDIF
+$!
+$! Check to see if fpclassify exists
+$!
+$ OS
+$ WS "#if defined(__DECC) || defined(__DECCXX)"
+$ WS "#include <stdlib.h>"
+$ WS "#endif"
+$ WS "#include <math.h>"
+$ WS "int main()"
+$ WS "{"
+$ WS "if (fpclassify(0.0) == FP_ZERO) exit(0);"
+$ WS "exit(1);"
+$ WS "}"
+$ CS
+$ tmp = "fpclassify"
+$ GOSUB inlibc
+$ d_fpclassify = tmp
 $!
 $! Check to see if fpos64_t exists
 $!
@@ -4222,6 +4014,170 @@ $   echo4 "Nope, since you don't even have fcntl()."
 $ ENDIF
 $ d_fcntl_can_lock = tmp
 $!
+$! Check to see if isblank exists
+$!
+$ OS
+$ WS "#include <stdlib.h>"
+$ WS "#include <ctype.h>"
+$ WS "int main()"
+$ WS "{"
+$ WS "int c = ' ';"
+$ WS "if(isblank(c))"
+$ WS "    exit(EXIT_SUCCESS);"
+$ WS "else"
+$ WS "    exit(EXIT_FAILURE);"
+$ WS "}"
+$ CS
+$ tmp = "isblank"
+$ GOSUB inlibc
+$ d_isblank = tmp
+$!
+$! Check to see if isless exists
+$!
+$ OS
+$ WS "#include <stdlib.h>"
+$ WS "#include <math.h>"
+$ WS "int main() { return isless(1.0, 2.0) ? EXIT_SUCCESS : EXIT_FAILURE; }"
+$ CS
+$ tmp = "isless"
+$ GOSUB inlibc
+$ d_isless = tmp
+$!
+$! Check to see if pre-C99 isnanl exists
+$!
+$ OS
+$ WS "#include <stdlib.h>"
+$ WS "#include <math.h>"
+$ WS "int main()"
+$ WS "{"
+$ WS "  long double x = NaN;
+$ WS "  return isnanl(x) ? EXIT_SUCCESS : EXIT_FAILURE;
+$ WS "}"
+$ CS
+$ tmp = "isnanl"
+$ GOSUB inlibc
+$ d_isnanl = tmp
+$!
+$! Check to see if llrint exists
+$!
+$ OS
+$ WS "#include <stdlib.h>"
+$ WS "#include <math.h>"
+$ WS "int main()"
+$ WS "{"
+$ WS "  long long x = llrint(1.5);
+$ WS "  return x == 2 ? EXIT_SUCCESS : EXIT_FAILURE;
+$ WS "}"
+$ CS
+$ tmp = "llrint"
+$ GOSUB inlibc
+$ d_llrint = tmp
+$!
+$! Check to see if llrintl exists
+$!
+$ OS
+$ WS "#include <stdlib.h>"
+$ WS "#include <math.h>"
+$ WS "int main()"
+$ WS "{"
+$ WS "  long long x = llrintl(1.5);
+$ WS "  return x == 2 ? EXIT_SUCCESS : EXIT_FAILURE;
+$ WS "}"
+$ CS
+$ tmp = "llrintl"
+$ GOSUB inlibc
+$ d_llrintl = tmp
+$!
+$! Check to see if llround exists
+$!
+$ OS
+$ WS "#include <stdlib.h>"
+$ WS "#include <math.h>"
+$ WS "int main()"
+$ WS "{"
+$ WS "  long long x = llround(1.5);
+$ WS "  return x == 2 ? EXIT_SUCCESS : EXIT_FAILURE;
+$ WS "}"
+$ CS
+$ tmp = "llround"
+$ GOSUB inlibc
+$ d_llround = tmp
+$!
+$! Check to see if llroundl exists
+$!
+$ OS
+$ WS "#include <stdlib.h>"
+$ WS "#include <math.h>"
+$ WS "int main()"
+$ WS "{"
+$ WS "  long long x = llroundl(1.5);
+$ WS "  return x == 2 ? EXIT_SUCCESS : EXIT_FAILURE;
+$ WS "}"
+$ CS
+$ tmp = "llroundl"
+$ GOSUB inlibc
+$ d_llroundl = tmp
+$!
+$! Check to see if nearbyint exists
+$!
+$ OS
+$ WS "#include <stdlib.h>"
+$ WS "#include <math.h>"
+$ WS "int main()"
+$ WS "{"
+$ WS "  double x = llroundl(1.5);
+$ WS "  return x == 2.0 ? EXIT_SUCCESS : EXIT_FAILURE;
+$ WS "}"
+$ CS
+$ tmp = "nearbyint"
+$ GOSUB inlibc
+$ d_nearbyint = tmp
+$!
+$! Check to see if round exists
+$!
+$ OS
+$ WS "#include <stdlib.h>"
+$ WS "#include <math.h>"
+$ WS "int main()"
+$ WS "{"
+$ WS "  double x = round(1.5);
+$ WS "  return x == 2.0 ? EXIT_SUCCESS : EXIT_FAILURE;
+$ WS "}"
+$ CS
+$ tmp = "round"
+$ GOSUB inlibc
+$ d_round = tmp
+$!
+$! Check to see if scalbn exists
+$!
+$ OS
+$ WS "#include <stdlib.h>"
+$ WS "#include <math.h>"
+$ WS "int main()"
+$ WS "{"
+$ WS "  double x = scalbn(1.0, 3);
+$ WS "  return x == 8.0 ? EXIT_SUCCESS : EXIT_FAILURE;
+$ WS "}"
+$ CS
+$ tmp = "scalbn"
+$ GOSUB inlibc
+$ d_scalbn = tmp
+$!
+$! Check to see if scalbnl exists
+$!
+$ OS
+$ WS "#include <stdlib.h>"
+$ WS "#include <math.h>"
+$ WS "int main()"
+$ WS "{"
+$ WS "  long double x = scalbn(1.0, 3);
+$ WS "  return x == 8.0 ? EXIT_SUCCESS : EXIT_FAILURE;
+$ WS "}"
+$ CS
+$ tmp = "scalbnl"
+$ GOSUB inlibc
+$ d_scalbnl = tmp
+$!
 $! Check for memrchr
 $!
 $ OS
@@ -4340,7 +4296,7 @@ $ WS "#include <string.h>"
 $ WS "int main()"
 $ WS "{"
 $ WS "long double result;"
-$ WS "result = strtold(""123123"", NULL, 10);"
+$ WS "result = strtold(""123123"", NULL);"
 $ WS "exit(0);"
 $ WS "}"
 $ CS
@@ -4400,6 +4356,23 @@ $ CS
 $ tmp = "acess"
 $ GOSUB inlibc
 $ d_access = tmp
+$!
+$! Check for mkostemp
+$!
+$ OS
+$ WS "#if defined(__DECC) || defined(__DECCXX)"
+$ WS "#include <stdlib.h>"
+$ WS "#endif"
+$ WS "#include <stdio.h>"
+$ WS "int main()"
+$ WS "{"
+$ WS "mkostemp(""foo"", 0);"
+$ WS "exit(0);"
+$ WS "}"
+$ CS
+$ tmp = "mkostemp"
+$ GOSUB inlibc
+$ d_mkostemp = tmp
 $!
 $! Check for mkstemp
 $!
@@ -5321,21 +5294,14 @@ $ ENDIF
 $!
 $! Some that are compiler or VMS version sensitive
 $!
-$! Gnu C stuff
-$ IF ccname .EQS. "GCC"
+$ IF ccname .EQS. "CXX"
 $ THEN
-$   d_attribut="define"
-$   vms_cc_type="gcc"
+$   vms_cc_type="cxx"
 $ ELSE
-$   IF ccname .EQS. "CXX"
-$   THEN
-$      vms_cc_type="cxx"
-$   ELSE
-$      vms_cc_type="cc"
-$   ENDIF
-$   d_attribut="undef"
+$   vms_cc_type="cc"
 $ ENDIF
 $!
+$ d_attribut="undef"
 $ d_getitimer="define"
 $ d_gettimeod="define"
 $ d_mmap="define"
@@ -5431,12 +5397,16 @@ $ THEN
 $   vms_cc_type="decc"
 $ ENDIF
 $ d_faststdio="define"
+$ d_ffs="undef"
+$ d_ffsl="undef"
+$ d_getenv_preserves_other_thread="define"
 $ d_locconv="define"
 $ d_mblen="define"
 $ d_mbstowcs="define"
 $ d_mbtowc="define"
 $ d_mktime="define"
 $ d_nl_langinfo="define"
+$ d_non_int_bitfields="define"
 $ d_setlocale="define"
 $ d_setlocale_accepts_any_locale_name="undef"
 $ d_stdiobase="define"
@@ -5445,6 +5415,7 @@ $ d_stdio_ptr_lval="define"
 $ d_stdstdio="define"
 $ d_strcoll="define"
 $ d_strxfrm="define"
+$ d_strxfrm_l="undef"
 $ i_langinfo="define"
 $ i_locale="define"
 $ d_stdio_ptr_lval_sets_cnt="undef"
@@ -5941,6 +5912,7 @@ $ WC "d_asinh='" + d_asinh + "'"
 $ WC "d_atanh='" + d_atanh + "'"
 $ WC "d_atolf='" + d_atolf + "'"
 $ WC "d_atoll='" + d_atoll + "'"
+$ WC "d_attribute_always_inline='undef'"
 $ WC "d_attribute_format='" + d_attribut + "'"
 $ WC "d_attribute_deprecated='undef'"
 $ WC "d_attribute_malloc='undef'"
@@ -5948,6 +5920,7 @@ $ WC "d_attribute_nonnull='undef'"
 $ WC "d_attribute_noreturn='undef'"
 $ WC "d_attribute_pure='undef'"
 $ WC "d_attribute_unused='undef'"
+$ WC "d_attribute_visibility='undef'"
 $ WC "d_attribute_warn_unused_result='undef'"
 $ WC "d_prctl='undef'"
 $ WC "d_prctl_set_name='undef'"
@@ -6039,6 +6012,8 @@ $ WC "d_fdclose='undef'"
 $ WC "d_fdim='" + d_fdim + "'"
 $ WC "d_fds_bits='define'"
 $ WC "d_fegetround='undef'"
+$ WC "d_ffs='undef'"
+$ WC "d_ffsl='undef'"
 $ WC "d_fgetpos='define'"
 $ IF use_ieee_math
 $ THEN
@@ -6061,7 +6036,7 @@ $ WC "d_fp_classify='undef'"
 $ WC "d_fp_classl='undef'"
 $ WC "d_fpathconf='" + d_fpathconf + "'"
 $ WC "d_fpclass='undef'"
-$ WC "d_fpclassify='undef'"
+$ WC "d_fpclassify='" + d_fpclassify + "'"
 $ WC "d_fpclassl='undef'"
 $ WC "d_fpgetround='undef'"
 $ WC "d_fpos64_t='" + d_fpos64_t + "'"
@@ -6134,12 +6109,12 @@ $ WC "d_ip_mreq_source='undef'"
 $ WC "d_ipv6_mreq='define'"
 $ WC "d_ipv6_mreq_source='undef'"
 $ WC "d_isascii='define'"
-$ WC "d_isblank='undef'"
+$ WC "d_isblank='" + d_isblank + "'"
 $ WC "d_isfinite='undef'"
 $ WC "d_isfinitel='undef'"
 $ WC "d_isinf='undef'"
 $ WC "d_isinfl='undef'"
-$ WC "d_isless='undef'"
+$ WC "d_isless='" + d_isless + "'"
 $ WC "d_isnan='" + d_isnan + "'"
 $ WC "d_isnanl='" + d_isnanl + "'"
 $ WC "d_isnormal='" + d_isnormal + "'"
@@ -6152,10 +6127,10 @@ $ WC "d_ldexpl='" + d_ldexpl + "'"
 $ WC "d_lgamma='" + d_lgamma + "'"
 $ WC "d_libm_lib_version='undef'"
 $ WC "d_link='" + d_link + "'"
-$ WC "d_llrint='undef'"
-$ WC "d_llrintl='undef'"
-$ WC "d_llround='undef'"
-$ WC "d_llroundl='undef'"
+$ WC "d_llrint='" + d_llrint + "'"
+$ WC "d_llrintl='" + d_llrintl + "'"
+$ WC "d_llround='" + d_llround + "'"
+$ WC "d_llroundl='" + d_llroundl + "'"
 $ WC "d_llseek='undef'"
 $ WC "d_localeconv_l='undef'"
 $ WC "d_localtime64='undef'"
@@ -6193,6 +6168,7 @@ $ WC "d_mkdtemp='" + d_mkdtemp + "'"
 $ WC "d_mkfifo='undef'"
 $ WC "d_mknod='undef'"
 $ WC "d_mkostemp='undef'"
+$ WC "d_mkostemp='" + d_mkostemp + "'"
 $ WC "d_mkstemp='" + d_mkstemp + "'"
 $ WC "d_mkstemps='" + d_mkstemps + "'"
 $ WC "d_mktime='" + d_mktime + "'"
@@ -6220,11 +6196,14 @@ $ WC "d_nan='undef'"
 $ WC "d_nanosleep='" + d_nanosleep + "'"
 $ WC "d_ndbm='undef'"
 $ WC "d_ndbm_h_uses_prototypes='undef'"
-$ WC "d_nearbyint='undef'"
+$ WC "d_nearbyint='" + d_nearbyint + "'"
 $ WC "d_nextafter='" + d_nextafter + "'"
 $ WC "d_nexttoward='" + d_nexttoward + "'"
 $ WC "d_nice='define'"
 $ WC "d_nl_langinfo='" + d_nl_langinfo + "'"
+$ WC "d_nl_langinfo_l='undef'"
+$ WC "d_non_int_bitfields='define'"
+$ WC "d_getenv_preserves_other_thread='" + d_getenv_preserves_other_thread + "'"
 $ WC "d_nv_preserves_uv='" + d_nv_preserves_uv + "'"
 $ WC "nv_overflows_integers_at='" + nv_overflows_integers_at + "'"
 $ WC "nv_preserves_uv_bits='" + nv_preserves_uv_bits + "'"
@@ -6279,10 +6258,10 @@ $ WC "d_rename='define'"
 $ WC "d_rewinddir='define'"
 $ WC "d_rint='" + d_rint + "'"
 $ WC "d_rmdir='define'"
-$ WC "d_round='undef'"
+$ WC "d_round='" + d_round + "'"
 $ WC "d_sbrkproto='define'"
-$ WC "d_scalbn='undef'"
-$ WC "d_scalbnl='undef'"
+$ WC "d_scalbn='" + d_scalbn + "'"
+$ WC "d_scalbnl='" + d_scalbnl + "'"
 $ WC "d_sched_yield='" + d_sched_yield + "'"
 $ WC "d_scm_rights='undef'"
 $ WC "d_seekdir='define'"
@@ -6353,6 +6332,7 @@ $ WC "d_sin6_scope_id='" + d_sin6_scope_id + "'"
 $ WC "d_sitearch='define'"
 $ WC "d_sockaddr_in6='define'"
 $ WC "d_sockaddr_sa_len='" + d_sockaddr_sa_len + "'"
+$ WC "d_sockaddr_storage='undef'"
 $ WC "d_sockatmark='undef'"
 $ WC "d_sockatmarkproto='undef'"
 $ WC "d_socket='" + d_socket + "'"
@@ -6370,6 +6350,7 @@ $ WC "d_statfs_f_flags='undef'"
 $ WC "d_statfs_s='undef'"
 $ WC "d_statfsflags='undef'"
 $ WC "d_static_inline='define'"
+$ WC "d_thread_local='undef'" ! see perl_thread_local
 $ WC "d_stdio_cnt_lval='" + d_stdio_cnt_lval + "'"
 $ WC "d_stdio_ptr_lval='" + d_stdio_ptr_lval + "'"
 $ WC "d_stdio_ptr_lval_nochange_cnt='" + d_stdio_ptr_lval_nochange_cnt + "'"
@@ -6395,6 +6376,7 @@ $ WC "d_strtoul='define'"
 $ WC "d_strtoull='" + d_strtoull + "'"
 $ WC "d_strtouq='" + d_strtouq + "'"
 $ WC "d_strxfrm='" + d_strxfrm  + "'"
+$ WC "d_strxfrm_l='" + d_strxfrm_l  + "'"
 $ WC "d_suidsafe='undef'"
 $ WC "d_symlink='" + d_symlink + "'"
 $ WC "d_syscall='undef'"
@@ -6450,6 +6432,7 @@ $ WC "d_voidtty='" + "'"
 $ WC "d_vsnprintf='" + d_vsnprintf + "'"
 $ WC "d_wait4='" + d_wait4 + "'"
 $ WC "d_waitpid='define'"
+$ WC "d_wcrtomb='define'"
 $ WC "d_wcscmp='define'"
 $ WC "d_wcstombs='define'"
 $ WC "d_wcsxfrm='define'"
@@ -6497,7 +6480,6 @@ $ WC "freetype='void'"
 $ WC "full_ar='" + "'"
 $ WC "full_csh='" + " '"
 $ WC "full_sed='_NLA0:'"
-$ WC "gccversion='" + gccversion + "'"
 $ WC "gidformat='lu'"
 $ WC "gidsign='1'"
 $ WC "gidsize='4'"
@@ -6509,6 +6491,7 @@ $ WC "hint='none'"
 $ WC "hintfile='" + "'"
 $ WC "i16size='" + i16size + "'"
 $ WC "i16type='" + i16type + "'"
+$ WC "i32dformat='" + i32dformat + "'"
 $ WC "i32size='" + i32size + "'"
 $ WC "i32type='" + i32type + "'"
 $ WC "i64size='" + i64size + "'"
@@ -6562,7 +6545,7 @@ $   WC "i_stdbool='define'"
 $ ELSE
 $   WC "i_stdbool='undef'"
 $ ENDIF
-$ WC "i_stdint='undef'"
+$ WC "i_stdint='" + i_stdint + "'"
 $ WC "i_stdlib='define'"
 $ WC "i_sunmath='undef'"
 $ WC "i_sysaccess='" + i_sysaccess + "'"
@@ -6585,6 +6568,7 @@ $ WC "i_syssockio='undef'"
 $ WC "i_sysstat='define'"
 $ WC "i_sysstatfs='undef'"
 $ WC "i_sysstatvfs='" + i_sysstatvfs + "'"
+$ WC "i_syssyscall='undef'"
 $ WC "i_systime='undef'"
 $ WC "i_systimek='undef'"
 $ WC "i_systimes='undef'"
@@ -6604,6 +6588,7 @@ $ WC "i_vfork='undef'"
 $ WC "i_wchar='define'"
 $ WC "i_wctype='define'"
 $ WC "i_xlocale='undef'"
+$ WC "xlocale_needed='undef'"
 $ WC "inc_version_list='0'"
 $ WC "inc_version_list_init='0'"
 $ WC "installarchlib='" + installarchlib + "'"
@@ -6700,6 +6685,7 @@ $ WC "perllibs='" + perllibs + "'"
 $ WC "perlpath='" + "''vms_prefix':[000000]Perl''exe_ext'" + "'"
 $ WC "perl_static_inline='static inline'"
 $ WC "perl_symbol='" + perl_symbol + "'"  ! VMS specific
+$ WC "perl_thread_local=''" ! FIXME - as this is ia64 ABI, it may well be supported
 $ WC "perl_verb='" + perl_verb + "'"      ! VMS specific
 $ WC "pgflquota='" + pgflquota + "'"
 $ WC "pidtype='" + pidtype + "'"
@@ -6784,6 +6770,8 @@ $ WC "src='" + src + "'"
 $ WC "ssizetype='int'"
 $ WC "startperl=" + startperl ! This one's special--no enclosing single quotes
 $ WC "static_ext='" + static_ext + "'"
+$ WC "st_dev_size='"4"'"
+$ WC "st_dev_sign='1'"
 $ WC "st_ino_size='" + st_ino_size + "'"
 $ WC "st_ino_sign='1'"
 $ WC "stdchar='" + stdchar + "'"
@@ -6798,8 +6786,12 @@ $ WC "targetsh='MCR'"
 $ WC "timetype='" + timetype + "'"
 $ WC "u16size='" + u16size + "'"
 $ WC "u16type='" + u16type + "'"
+$ WC "u32oformat='" + u32oformat + "'"
+$ WC "u32uformat='" + u32uformat + "'"
 $ WC "u32size='" + u32size + "'"
 $ WC "u32type='" + u32type + "'"
+$ WC "u32xformat='" + u32xformat + "'"
+$ WC "u32XUformat='" + u32XUformat + "'"
 $ WC "u64size='" + u64size + "'"
 $ WC "u64type='" + u64type + "'"
 $ WC "u8size='" + u8size + "'"
@@ -6809,11 +6801,11 @@ $ WC "uidsign='1'"
 $ WC "uidsize='4'"
 $ WC "uidtype='" + uidtype + "'"
 $ WC "uquadtype='" + uquadtype + "'" 
-$ WC "use5005threads='" + use5005threads + "'"
 $ WC "use64bitall='" + use64bitall + "'"
 $ WC "use64bitint='" + use64bitint + "'"
 $ WC "usecasesensitive='" + be_case_sensitive + "'"    ! VMS-specific
 $ WC "usedebugging_perl='"+use_debugging_perl+"'"
+$ WC "usedefaultstrict='undef'"
 $ WC "usedefaulttypes='" + usedefaulttypes + "'"    ! VMS-specific
 $ WC "usecbacktrace='undef'"
 $ WC "usecrosscompile='undef'"
@@ -7001,20 +6993,7 @@ $! Okay, we've gotten here. Build munchconfig.exe
 $ COPY/NOLOG [-.vms]munchconfig.c []
 $ COPY/NOLOG [-.vms]'Makefile_SH' []
 $ 'Perl_CC' 'ccflags' munchconfig.c
-$ IF Needs_Opt
-$ THEN
-$   OPEN/WRITE CONFIG []munchconfig.opt
-$   IF ccname .EQS. "GCC"
-$   THEN
-$     WRITE CONFIG "Gnu_CC:[000000]gcclib.olb/library"
-$   ENDIF
-$   WRITE CONFIG "Sys$Share:VAXCRTL/Share"
-$   CLOSE CONFIG
-$   'ld'/EXE='exe_ext' munchconfig'obj_ext',munchconfig.opt/opt
-$   DELETE/NOLOG/NOCONFIRM munchconfig.opt;
-$ ELSE
-$   'ld'/EXE='exe_ext' munchconfig'obj_ext'
-$ ENDIF
+$ 'ld'/EXE='exe_ext' munchconfig'obj_ext'
 $ IF F$SEARCH("munchconfig''obj_ext'") .NES. "" THEN DELETE/NOLOG/NOCONFIRM munchconfig'obj_ext';
 $ IF F$SEARCH("munchconfig.c") .NES. "" THEN DELETE/NOLOG/NOCONFIRM munchconfig.c;
 $ IF ccname .EQS. "CXX"
@@ -7066,7 +7045,6 @@ $ IF use_two_pot_malloc THEN WC "#define TWO_POT_OPTIMIZE"
 $ IF mymalloc THEN WC "#define EMBEDMYMALLOC"
 $ IF use_pack_malloc THEN WC "#define PACK_MALLOC"
 $ IF use_debugmalloc THEN WC "#define DEBUGGING_MSTATS"
-$ IF ccname .EQS. "GCC" THEN WC "#define GNUC_ATTRIBUTE_CHECK"
 $ IF (Has_Dec_C_Sockets)
 $ THEN
 $    WC "#define VMS_DO_SOCKETS"
@@ -7098,6 +7076,7 @@ $ IF unlink_all_versions .OR. unlink_all_versions .EQS. "define" THEN -
 $ IF d_sockaddr_sa_len .EQS. "define" then WC "#define _SOCKADDR_LEN 1"
 $ IF ccname .EQS. "CXX" then WC "#define NO_ENVIRON_ARRAY"
 $ IF ccname .EQS. "CXX" then WC "#define VMS" ! only has __VMS by default
+$ WC "#define _PTHREAD_EXC_INCL_CLEAN" ! avoid conflict between DECthreads TRY/CATCH and Perl TRY/CATCH
 $ CLOSE CONFIG
 $!
 $ echo4 "Doing variable substitutions on .SH files..."
@@ -7124,12 +7103,6 @@ $ THEN
 $   DECCXX_REPLACE = "DECCXX=DECCXX=1"
 $ ELSE
 $   DECCXX_REPLACE = "DECCXX="
-$ ENDIF
-$ IF ccname .EQS. "GCC"
-$ THEN
-$   GNUC_REPLACE = "GNUC=gnuc=1"
-$ ELSE
-$   GNUC_REPLACE = "GNUC=" 
 $ ENDIF
 $ IF Has_Dec_C_Sockets
 $ THEN
@@ -7177,7 +7150,6 @@ $ WC := write CONFIG
 $ WC "''DECC_REPLACE'"
 $ WC "''DECCXX_REPLACE'"
 $ WC "''ARCH_TYPE'"
-$ WC "''GNUC_REPLACE'"
 $ WC "''SOCKET_REPLACE'"
 $ WC "''THREAD_REPLACE'"
 $ WC "''C_Compiler_Replace'"
@@ -7316,8 +7288,6 @@ $   echo ""
 $   echo4 "The perl.cld file is now being written..."
 $   OPEN/WRITE CONFIG 'file_2_find'
 $   ext = ".exe"
-$   IF (sharedperl .AND. F$ELEMENT(0, "-", archname) .EQS. "VMS_AXP") THEN ext := .AXE
-$   IF (sharedperl .AND. F$ELEMENT(0, "-", archname) .EQS. "VMS_IA64") THEN ext := .IXE
 $   IF (use_vmsdebug_perl)
 $   THEN
 $     WRITE CONFIG "define verb dbgperl"
@@ -7373,11 +7343,6 @@ $ WRITE CONFIG "$   root_spec = P1"
 $ WRITE CONFIG "$ endif"
 $ WRITE CONFIG "$ define/translation=concealed ''vms_prefix' 'root_spec'"
 $ WRITE CONFIG "$ ext = "".exe"""
-$ IF sharedperl
-$ THEN
-$ WRITE CONFIG "$ if f$getsyi(""ARCH_TYPE"") .eq. 2 then ext = "".AXE"""
-$ WRITE CONFIG "$ if f$getsyi(""ARCH_TYPE"") .eq. 3 then ext = "".IXE"""
-$ ENDIF
 $ IF (perl_symbol)
 $ THEN
 $   perl_setup_perl = "'" + "'perl'" ! triple quoted foreign command symbol

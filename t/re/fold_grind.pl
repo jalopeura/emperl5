@@ -17,10 +17,8 @@ BEGIN {
     if ($^O eq 'dec_osf') {
       skip_all("$^O cannot handle this test");
     }
-    my $time_out_factor = $ENV{PERL_TEST_TIME_OUT_FACTOR} || 1;
-    $time_out_factor = 1 if $time_out_factor < 1;
 
-    watchdog(5 * 60 * $time_out_factor);
+    watchdog(5 * 60);
     require './loc_tools.pl';
 }
 
@@ -42,14 +40,38 @@ if ($charset eq 'T') {
     $use_turkic_rules = 1;
 }
 
+my $has_LC_CTYPE = is_category_valid('LC_CTYPE');
+
 # Special-cased characters in the .c's that we want to make sure get tested.
 my %be_sure_to_test = (
         chr utf8::unicode_to_native(0xDF) => 1, # LATIN_SMALL_LETTER_SHARP_S
-        "\x{1E9E}" => 1, # LATIN_CAPITAL_LETTER_SHARP_S
+
+        # This is included because the uppercase occupies more bytes, but the
+        # first two bytes of their representations differ only in one bit,
+        # that could lead the code looking for shortcuts astray; you can't do
+        # certain shortcuts if the lengths differ
+        "\x{29E}" => 1, # LATIN SMALL LETTER TURNED K
+
         "\x{390}" => 1, # GREEK_SMALL_LETTER_IOTA_WITH_DIALYTIKA_AND_TONOS
         "\x{3B0}" => 1, # GREEK_SMALL_LETTER_UPSILON_WITH_DIALYTIKA_AND_TONOS
+
+        # This is included because the uppercase and lowercase differ by only
+        # a single bit and it is in the first of the two byte representations.
+        # This showed that a previous way was erroneous of calculating if
+        # initial substrings were closely-related bit-wise.
+        "\x{3CC}" => 1, # GREEK SMALL LETTER OMICRON WITH TONOS
+
+        "\x{1E9E}" => 1, # LATIN_CAPITAL_LETTER_SHARP_S
         "\x{1FD3}" => 1, # GREEK SMALL LETTER IOTA WITH DIALYTIKA AND OXIA
         "\x{1FE3}" => 1, # GREEK SMALL LETTER UPSILON WITH DIALYTIKA AND OXIA
+
+        # These are included because they are adjacent and fold to the same
+        # result, U+01C6.  This has tripped up the code in the past that
+        # wrongly thought that sequential code points must fold to sequential
+        # code points
+        "\x{01C4}" => 1, # LATIN CAPITAL LETTER DZ WITH CARON
+        "\x{01C5}" => 1, # LATIN CAPITAL LETTER D WITH SMALL LETTER Z WITH CARON
+
         "I" => 1,
 );
 
@@ -569,7 +591,9 @@ foreach my $test (sort { numerically } keys %{$tests_ref}) {
     # Now grind out tests, using various combinations.
     {
       my $charset_mod = lc $charset;
-      my $current_locale = setlocale(&POSIX::LC_CTYPE);
+      my $current_locale = ($has_LC_CTYPE)
+                           ? setlocale(&POSIX::LC_CTYPE)
+                           : 'C';
       $current_locale = 'C locale' if $current_locale eq 'C';
       $okays = 0;
       $this_iteration = 0;
@@ -746,7 +770,8 @@ foreach my $test (sort { numerically } keys %{$tests_ref}) {
                                                   || ($charset eq 'd' && $utf8_pattern)
                                                   ||  $charset =~ /a/);
           my $upgrade_pattern = "";
-          $upgrade_pattern = ' utf8::upgrade($p);' if ! $pattern_above_latin1 && $utf8_pattern;
+          $upgrade_pattern = ' utf8::upgrade($rhs);'
+            if ! $pattern_above_latin1 && $utf8_pattern;
 
           my $lhs = join "", @x_target;
           my $lhs_str = eval qq{"$lhs"}; fail($@) if $@;
@@ -816,17 +841,29 @@ foreach my $test (sort { numerically } keys %{$tests_ref}) {
           $op = '!~' if $should_fail;
 
           my $todo = 0;  # No longer any todo's
-          my $eval = "my \$c = \"$lhs$rhs\"; my \$p = qr/(?$charset_mod:^($rhs)\\1\$)/i;$upgrade_target$upgrade_pattern \$c $op \$p";
+          my $eval = "my \$c = \"$lhs$rhs\"; my \$rhs = \"$rhs\"; "
+                   . $upgrade_pattern
+                   . " my \$p = qr/(?$charset_mod:^(\$rhs)\\1\$)/i;"
+                   . "$upgrade_target \$c $op \$p";
           run_test($eval, $todo, ($charset_mod eq 'l'), "");
 
-          $eval = "my \$c = \"$lhs$rhs\"; my \$p = qr/(?$charset_mod:^(?<grind>$rhs)\\k<grind>\$)/i;$upgrade_target$upgrade_pattern \$c $op \$p";
+          $eval = "my \$c = \"$lhs$rhs\"; my \$rhs = \"$rhs\"; "
+                . $upgrade_pattern
+                . " my \$p = qr/(?$charset_mod:^(?<grind>\$rhs)\\k<grind>\$)/i;"
+                . "$upgrade_target \$c $op \$p";
           run_test($eval, $todo, ($charset_mod eq 'l'), "");
 
           if ($lhs ne $rhs) {
-            $eval = "my \$c = \"$rhs$lhs\"; my \$p = qr/(?$charset_mod:^($rhs)\\1\$)/i;$upgrade_target$upgrade_pattern \$c $op \$p";
+            $eval = "my \$c = \"$rhs$lhs\"; my \$rhs = \"$rhs\"; "
+                  . $upgrade_pattern
+                  . " my \$p = qr/(?$charset_mod:^(\$rhs)\\1\$)/i;"
+                  . "$upgrade_target \$c $op \$p";
             run_test($eval, "", ($charset_mod eq 'l'), "");
 
-            $eval = "my \$c = \"$rhs$lhs\"; my \$p = qr/(?$charset_mod:^(?<grind>$rhs)\\k<grind>\$)/i;$upgrade_target$upgrade_pattern \$c $op \$p";
+            $eval = "my \$c = \"$rhs$lhs\"; my \$rhs = \"$rhs\"; "
+                  . $upgrade_pattern
+                  . " my \$p = qr/(?$charset_mod:^(?<grind>\$rhs)\\k<grind>\$)/i;"
+                  . "$upgrade_target \$c $op \$p";
             run_test($eval, "", ($charset_mod eq 'l'), "");
           }
 
@@ -840,7 +877,10 @@ foreach my $test (sort { numerically } keys %{$tests_ref}) {
             use bytes;
             $alternate = 'q' x length $evaled;
           }
-          $eval = "my \$c = \"$lhs\"; my \$p = qr/$rhs|$alternate/i$charset_mod;$upgrade_target$upgrade_pattern \$c $op \$p";
+          $eval = "my \$c = \"$lhs\"; my \$rhs = \"$rhs\"; "
+                . $upgrade_pattern
+                . " my \$p = qr/\$rhs|$alternate/i$charset_mod;"
+                . "$upgrade_target \$c $op \$p";
           run_test($eval, "", ($charset_mod eq 'l'), "");
 
           # Check that works when the folded character follows something that
@@ -856,11 +896,17 @@ foreach my $test (sort { numerically } keys %{$tests_ref}) {
           # quick, and this insulates these tests from changes in the
           # implementation.)
           for my $quantifier ('?', '??', '*', '*?', '+', '+?', '{1,2}', '{1,2}?') {
-            $eval = "my \$c = \"_$lhs\"; my \$p = qr/(?$charset_mod:.$quantifier$rhs)/i;$upgrade_target$upgrade_pattern \$c $op \$p";
+            $eval = "my \$c = \"_$lhs\"; my \$rhs = \"$rhs\"; $upgrade_pattern "
+                  . "my \$p = qr/(?$charset_mod:.$quantifier\$rhs)/i;"
+                  . "$upgrade_target \$c $op \$p";
             run_test($eval, "", ($charset_mod eq 'l'), "");
-            $eval = "my \$c = \"__$lhs\"; my \$p = qr/(?$charset_mod:(?:..)$quantifier$rhs)/i;$upgrade_target$upgrade_pattern \$c $op \$p";
+            $eval = "my \$c = \"__$lhs\"; my \$rhs = \"$rhs\"; $upgrade_pattern "
+                  . "my \$p = qr/(?$charset_mod:(?:..)$quantifier\$rhs)/i;"
+                  . "$upgrade_target \$c $op \$p";
             run_test($eval, "", ($charset_mod eq 'l'), "");
-            $eval = "my \$c = \"__$lhs\"; my \$p = qr/(?$charset_mod:(?:.|\\R)$quantifier$rhs)/i;$upgrade_target$upgrade_pattern \$c $op \$p";
+            $eval = "my \$c = \"__$lhs\"; my \$rhs = \"$rhs\"; $upgrade_pattern "
+                  . "my \$p = qr/(?$charset_mod:(?:.|\\R)$quantifier\$rhs)/i;"
+                  . "$upgrade_target \$c $op \$p";
             run_test($eval, "", ($charset_mod eq 'l'), "");
           }
 
@@ -938,7 +984,8 @@ foreach my $test (sort { numerically } keys %{$tests_ref}) {
                             my $must_match = ! $can_match_null || $both_sides;
                             # for performance, but doing this missed many failures
                             #next unless $must_match;
-                            my $quantified = "(?$charset_mod:$l_anchor$prepend$interior${quantifier}$append$r_anchor)";
+                            my $quantified = "(?$charset_mod:$l_anchor$prepend"
+                                           . "$interior${quantifier}$append$r_anchor)";
                             my $op;
                             if ($must_match && $should_fail)  {
                                 $op = 0;
@@ -995,8 +1042,9 @@ foreach my $test (sort { numerically } keys %{$tests_ref}) {
                                         . '"); '
                             }
                             $desc .= "my \$c = \"$prepend$lhs$append\"; "
-                                    . "my \$p = qr/$quantified/i;"
-                                    . "$upgrade_target$upgrade_pattern "
+                                    . "my \$rhs = \"\"; $upgrade_pattern"
+                                    . "my \$p = qr/$quantified\$rhs/i;"
+                                    . "$upgrade_target "
                                     . "\$c " . ($op ? "=~" : "!~") . " \$p; ";
                             if ($DEBUG) {
                               $desc .= (
@@ -1015,9 +1063,10 @@ foreach my $test (sort { numerically } keys %{$tests_ref}) {
                             }
 
                             my $c = "$prepend$lhs_str$append";
-                            my $p = qr/$quantified/i;
+                            my $p = "$quantified"; # string copy deliberate
                             utf8::upgrade($c) if length($upgrade_target);
                             utf8::upgrade($p) if length($upgrade_pattern);
+                            $p = qr/$p/i;
                             my $res = $op ? ($c =~ $p): ($c !~ $p);
 
                             if (!$res || $list_all_tests) {

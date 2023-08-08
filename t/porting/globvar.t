@@ -13,7 +13,7 @@ skip_all("Code to read symbols not ported to $^O")
 # received any bug reports about it causing problems:
 my %skip = map { ("PL_$_", 1) }
     qw(
-	  DBcv bitcount cshname force_link_funcs generation lastgotoprobe
+	  DBcv bitcount cshname generation lastgotoprobe
 	  mod_latin1_uc modcount no_symref_sv uudmap
 	  watchaddr watchok warn_uninit_sv hash_chars
      );
@@ -22,12 +22,12 @@ $skip{PL_hash_rand_bits}= $skip{PL_hash_rand_bits_enabled}= 1; # we can be compi
 $skip{PL_warn_locale}= 1; # we can be compiled without locales, so skip testing them
 
 
-my $trial = "nm globals$Config{_o} 2>&1";
+my $trial = "$Config{nm} globals$Config{_o} 2>&1";
 my $yes = `$trial`;
 
 skip_all("Could not run `$trial`") if $?;
 
-my $defined = qr/^[0-9a-fA-F]{8,16}\s+[^Uu]\s+_?/m;
+my $defined = $^O eq "hpux" ? qr/\|/ : qr/^[0-9a-fA-F]{8,16}\s+[^Uu]\s+_?/m;
 
 skip_all("Could not spot definition of PL_Yes in output of `$trial`")
     unless $yes =~ /${defined}PL_Yes/m;
@@ -47,7 +47,7 @@ close $fh or die "Problem running makedef.pl";
 my %unexported;
 
 foreach my $file (map {$_ . $Config{_o}} qw(globals regcomp)) {
-    open $fh, '-|', 'nm', $file
+    open $fh, '-|', $Config{nm}, $file
 	or die "Can't run nm $file";
 
     while (<$fh>) {
@@ -75,10 +75,14 @@ foreach (sort keys %exported) {
  }
 }
 
+$::TODO = $::TODO; # silence uninitialized warnings
 foreach (sort keys %unexported) {
  SKIP: {
         skip("We don't export '$_'", 1) if $skip{$_};
-        fail("'$_' is defined, but we do not export it");
+        TODO: {
+            local $::TODO = "HPUX exports everything" if $^O eq "hpux";
+            fail("'$_' is defined, but we do not export it");
+        }
     }
 }
 

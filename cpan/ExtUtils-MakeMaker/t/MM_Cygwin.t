@@ -6,6 +6,7 @@ BEGIN {
 chdir 't';
 
 use strict;
+use warnings;
 use Test::More;
 
 BEGIN {
@@ -80,7 +81,7 @@ like( $res, qr/manifypods.*foo.*foo.1/s, '... should add MAN3PODS targets' );
 # init_linker
 {
     my $libperl = $Config{libperl} || 'libperl.a';
-    $libperl =~ s/\.a/.dll.a/ if $] >= 5.006002;
+    $libperl =~ s/\.a/.dll.a/ if "$]" >= 5.006002;
     $libperl = "\$(PERL_INC)/$libperl";
 
     my $export  = '';
@@ -116,7 +117,7 @@ SKIP: {
 
 # Our copy of Perl (with a unix-path) should always be executable.
 SKIP: {
-  skip "The Perl may not be installed yet when in core" if $ENV{PERL_CORE};
+  skip "The Perl may not be installed yet when in core", 1 if $ENV{PERL_CORE};
   ok(MM->maybe_command($Config{perlpath}), qq{'$Config{perlpath}' should be executable});
 }
 

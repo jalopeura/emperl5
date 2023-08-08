@@ -242,7 +242,7 @@ L<C<chroot>|/chroot FILENAME>,
 L<C<fcntl>|/fcntl FILEHANDLE,FUNCTION,SCALAR>, L<C<glob>|/glob EXPR>,
 L<C<ioctl>|/ioctl FILEHANDLE,FUNCTION,SCALAR>,
 L<C<link>|/link OLDFILE,NEWFILE>, L<C<lstat>|/lstat FILEHANDLE>,
-L<C<mkdir>|/mkdir FILENAME,MODE>, L<C<open>|/open FILEHANDLE,EXPR>,
+L<C<mkdir>|/mkdir FILENAME,MODE>, L<C<open>|/open FILEHANDLE,MODE,EXPR>,
 L<C<opendir>|/opendir DIRHANDLE,EXPR>, L<C<readlink>|/readlink EXPR>,
 L<C<rename>|/rename OLDNAME,NEWNAME>, L<C<rmdir>|/rmdir FILENAME>,
 L<C<select>|/select FILEHANDLE>, L<C<stat>|/stat FILEHANDLE>,
@@ -262,6 +262,7 @@ L<C<dump>|/dump LABEL>, L<C<eval>|/eval EXPR>,
 L<C<evalbytes>|/evalbytes EXPR>, L<C<exit>|/exit EXPR>,
 L<C<__FILE__>|/__FILE__>, L<C<goto>|/goto LABEL>,
 L<C<last>|/last LABEL>, L<C<__LINE__>|/__LINE__>,
+L<C<method>|/method NAME BLOCK>,
 L<C<next>|/next LABEL>, L<C<__PACKAGE__>|/__PACKAGE__>,
 L<C<redo>|/redo LABEL>, L<C<return>|/return EXPR>,
 L<C<sub>|/sub NAME BLOCK>, L<C<__SUB__>|/__SUB__>,
@@ -293,9 +294,15 @@ current scope.
 
 =for Pod::Functions =Namespace
 
-L<C<caller>|/caller EXPR>, L<C<import>|/import LIST>,
-L<C<local>|/local EXPR>, L<C<my>|/my VARLIST>, L<C<our>|/our VARLIST>,
-L<C<package>|/package NAMESPACE>, L<C<state>|/state VARLIST>,
+L<C<caller>|/caller EXPR>,
+L<C<class>|/class NAMESPACE>, 
+L<C<field>|/field VARNAME>,
+L<C<import>|/import LIST>,
+L<C<local>|/local EXPR>,
+L<C<my>|/my VARLIST>,
+L<C<our>|/our VARLIST>,
+L<C<package>|/package NAMESPACE>,
+L<C<state>|/state VARLIST>,
 L<C<use>|/use Module VERSION LIST>
 
 L<C<state>|/state VARLIST> is available only if the
@@ -343,11 +350,18 @@ X<object> X<class> X<package>
 
 =for Pod::Functions =Objects
 
-L<C<bless>|/bless REF,CLASSNAME>, L<C<dbmclose>|/dbmclose HASH>,
+L<C<bless>|/bless REF,CLASSNAME>,
+L<C<class>|/class NAMESPACE>,
+L<C<dbmclose>|/dbmclose HASH>,
 L<C<dbmopen>|/dbmopen HASH,DBNAME,MASK>,
-L<C<package>|/package NAMESPACE>, L<C<ref>|/ref EXPR>,
-L<C<tie>|/tie VARIABLE,CLASSNAME,LIST>, L<C<tied>|/tied VARIABLE>,
-L<C<untie>|/untie VARIABLE>, L<C<use>|/use Module VERSION LIST>
+L<C<field>|/field VARNAME>,
+L<C<method>|/method NAME BLOCK>,
+L<C<package>|/package NAMESPACE>,
+L<C<ref>|/ref EXPR>,
+L<C<tie>|/tie VARIABLE,CLASSNAME,LIST>,
+L<C<tied>|/tied VARIABLE>,
+L<C<untie>|/untie VARIABLE>,
+L<C<use>|/use Module VERSION LIST>
 
 =item Low-level socket functions
 X<socket> X<sock>
@@ -426,11 +440,46 @@ L<C<time>|/time>, L<C<times>|/times>
 
 =for Pod::Functions =!Non-functions
 
-C<and>, C<AUTOLOAD>, C<BEGIN>, C<CHECK>, C<cmp>, C<CORE>, C<__DATA__>,
-C<default>, C<DESTROY>, C<else>, C<elseif>, C<elsif>, C<END>, C<__END__>,
-C<eq>, C<for>, C<foreach>, C<ge>, C<given>, C<gt>, C<if>, C<INIT>, C<le>,
-C<lt>, C<ne>, C<not>, C<or>, C<UNITCHECK>, C<unless>, C<until>, C<when>,
-C<while>, C<x>, C<xor>
+C<ADJUST>,
+C<and>,
+C<AUTOLOAD>,
+C<BEGIN>,
+C<catch>,
+C<CHECK>,
+C<cmp>,
+C<CORE>,
+C<__DATA__>,
+C<default>,
+C<defer>,
+C<DESTROY>,
+C<else>,
+C<elseif>,
+C<elsif>,
+C<END>,
+C<__END__>,
+C<eq>,
+C<finally>,
+C<for>,
+C<foreach>,
+C<ge>,
+C<given>,
+C<gt>,
+C<if>,
+C<INIT>,
+C<isa>,
+C<le>,
+C<lt>,
+C<ne>,
+C<not>,
+C<or>,
+C<try>,
+C<UNITCHECK>,
+C<unless>,
+C<until>,
+C<when>,
+C<while>,
+C<x>,
+C<xor>
 
 =back
 
@@ -471,7 +520,7 @@ L<C<kill>|/kill SIGNAL, LIST>, L<C<link>|/link OLDFILE,NEWFILE>,
 L<C<lstat>|/lstat FILEHANDLE>, L<C<msgctl>|/msgctl ID,CMD,ARG>,
 L<C<msgget>|/msgget KEY,FLAGS>,
 L<C<msgrcv>|/msgrcv ID,VAR,SIZE,TYPE,FLAGS>,
-L<C<msgsnd>|/msgsnd ID,MSG,FLAGS>, L<C<open>|/open FILEHANDLE,EXPR>,
+L<C<msgsnd>|/msgsnd ID,MSG,FLAGS>, L<C<open>|/open FILEHANDLE,MODE,EXPR>,
 L<C<pipe>|/pipe READHANDLE,WRITEHANDLE>, L<C<readlink>|/readlink EXPR>,
 L<C<rename>|/rename OLDNAME,NEWNAME>,
 L<C<select>|/select RBITS,WBITS,EBITS,TIMEOUT>,
@@ -669,7 +718,7 @@ Portability issues: L<perlport/-X>.
 To avoid confusing would-be users of your code with mysterious
 syntax errors, put something like this at the top of your script:
 
-    use 5.010;  # so filetest ops can stack
+    use v5.10;  # so filetest ops can stack
 
 =item abs VALUE
 X<abs> X<absolute>
@@ -818,8 +867,8 @@ translation and marking it as bytes (as opposed to Unicode characters).
 Note that, despite what may be implied in I<"Programming Perl"> (the
 Camel, 3rd edition) or elsewhere, C<:raw> is I<not> simply the inverse of C<:crlf>.
 Other layers that would affect the binary nature of the stream are
-I<also> disabled.  See L<PerlIO>, L<perlrun>, and the discussion about the
-PERLIO environment variable.
+I<also> disabled.  See L<PerlIO>, and the discussion about the PERLIO
+environment variable in L<perlrun|perlrun/PERLIO>.
 
 The C<:bytes>, C<:crlf>, C<:utf8>, and any other directives of the
 form C<:...>, are called I/O I<layers>.  The L<open> pragma can be used to
@@ -839,7 +888,7 @@ while C<:encoding(UTF-8)> checks the data for actually being valid
 UTF-8.  More details can be found in L<PerlIO::encoding>.
 
 In general, L<C<binmode>|/binmode FILEHANDLE, LAYER> should be called
-after L<C<open>|/open FILEHANDLE,EXPR> but before any I/O is done on the
+after L<C<open>|/open FILEHANDLE,MODE,EXPR> but before any I/O is done on the
 filehandle.  Calling L<C<binmode>|/binmode FILEHANDLE, LAYER> normally
 flushes any pending buffered output data (and perhaps pending input
 data) on the handle.  An exception to this is the C<:encoding> layer
@@ -897,24 +946,63 @@ X<bless>
 
 =for Pod::Functions create an object
 
-This function tells the thingy referenced by REF that it is now an object
-in the CLASSNAME package.  If CLASSNAME is an empty string, it is
-interpreted as referring to the C<main> package.
-If CLASSNAME is omitted, the current package
-is used.  Because a L<C<bless>|/bless REF,CLASSNAME> is often the last
-thing in a constructor, it returns the reference for convenience.
-Always use the two-argument version if a derived class might inherit the
-method doing the blessing.  See L<perlobj> for more about the blessing
-(and blessings) of objects.
+C<bless> tells Perl to mark the item referred to by C<REF> as an
+object in a package.  The two-argument version of C<bless> is
+always preferable unless there is a specific reason to I<not>
+use it.
 
-Consider always blessing objects in CLASSNAMEs that are mixed case.
-Namespaces with all lowercase names are considered reserved for
-Perl pragmas.  Builtin types have all uppercase names.  To prevent
-confusion, you may wish to avoid such package names as well.
-It is advised to avoid the class name C<0>, because much code erroneously
-uses the result of L<C<ref>|/ref EXPR> as a truth value.
+=over
 
-See L<perlmod/"Perl Modules">.
+=item * Bless the referred-to item into a specific package
+(recommended form):
+
+    bless $ref, $package;
+
+The two-argument form adds the object to the package specified
+as the second argument.
+
+=item * Bless the referred-to item into package C<main>:
+
+    bless $ref, "";
+
+If the second argument is an empty string, C<bless> adds the
+object to package C<main>.
+
+=item * Bless the referred-to item into the current package (not
+inheritable):
+
+    bless $ref;
+
+If C<bless> is used without its second argument, the object is
+created in the current package. The second argument should
+always be supplied if a derived class might inherit a method
+executing C<bless>. Because it is a potential source of bugs,
+one-argument C<bless> is discouraged.
+
+=back
+
+See L<perlobj> for more about the blessing (and blessings) of
+objects.
+
+L<C<bless>|/bless REF,CLASSNAME> returns its first argument, the
+supplied reference, as the value of the function; since C<bless>
+is commonly the last thing executed in constructors, this means
+that the reference to the object is returned as the
+constructor's value and allows the caller to immediately use
+this returned object in method calls.
+
+C<CLASSNAME> should always be a mixed-case name, as
+all-uppercase and all-lowercase names are meant to be used only
+for Perl builtin types and pragmas, respectively. Avoid creating
+all-uppercase or all-lowercase package names to prevent
+confusion.
+
+Also avoid <Cbless>ing things into the class name C<0>; this
+will cause code which (erroneously) checks the result of
+L<C<ref>|/ref EXPR> to see if a reference is C<bless>ed to fail,
+as "0", a falsy value, is returned.
+
+See L<perlmod/"Perl Modules"> for more details.
 
 =item break
 
@@ -946,6 +1034,10 @@ list context, caller returns
 
        # 0         1          2
     my ($package, $filename, $line) = caller;
+
+Like L<C<__FILE__>|/__FILE__> and L<C<__LINE__>|/__LINE__>, the filename and
+line number returned here may be altered by the mechanism described at
+L<perlsyn/"Plain Old Comments (Not!)">.
 
 With EXPR, it returns some extra information that the debugger uses to
 print a stack trace.  The value of EXPR indicates how many call frames
@@ -984,6 +1076,11 @@ L<C<%^H>|perlvar/%^H> when the caller was compiled, or
 L<C<undef>|/undef EXPR> if L<C<%^H>|perlvar/%^H> was empty.  Do not
 modify the values of this hash, as they are the actual values stored in
 the optree.
+
+Note that the only types of call frames that are visible are subroutine
+calls and C<eval>. Other forms of context, such as C<while> or C<foreach>
+loops or C<try> blocks are not considered interesting to C<caller>, as they
+do not alter the behaviour of the C<return> expression.
 
 Furthermore, when called from within the DB package in
 list context, and with an argument, caller returns more
@@ -1228,11 +1325,27 @@ change your current working directory, which is unaffected.)  For security
 reasons, this call is restricted to the superuser.  If FILENAME is
 omitted, does a L<C<chroot>|/chroot FILENAME> to L<C<$_>|perlvar/$_>.
 
-B<NOTE:>  It is good security practice to do C<chdir("/")>
+B<NOTE:>  It is mandatory for security to C<chdir("/")>
 (L<C<chdir>|/chdir EXPR> to the root directory) immediately after a
-L<C<chroot>|/chroot FILENAME>.
+L<C<chroot>|/chroot FILENAME>, otherwise the current working directory
+may be outside of the new root.
 
 Portability issues: L<perlport/chroot>.
+
+=item class NAMESPACE
+
+=item class NAMESPACE VERSION
+
+=item class NAMESPACE BLOCK
+
+=item class NAMESPACE VERSION BLOCK
+
+=for Pod::Functions declare a separate global namespace that is an object class
+
+Declares the BLOCK or the rest of the compilation unit as being in the given
+namespace, which implements an object class.  This behaves similarly to
+L<C<package>|/package NAMESPACE>, except that the newly-created package behaves
+as a class.
 
 =item close FILEHANDLE
 X<close>
@@ -1248,12 +1361,12 @@ layer.  Closes the currently selected filehandle if the argument is
 omitted.
 
 You don't have to close FILEHANDLE if you are immediately going to do
-another L<C<open>|/open FILEHANDLE,EXPR> on it, because
-L<C<open>|/open FILEHANDLE,EXPR> closes it for you.  (See
-L<C<open>|/open FILEHANDLE,EXPR>.) However, an explicit
+another L<C<open>|/open FILEHANDLE,MODE,EXPR> on it, because
+L<C<open>|/open FILEHANDLE,MODE,EXPR> closes it for you.  (See
+L<C<open>|/open FILEHANDLE,MODE,EXPR>.) However, an explicit
 L<C<close>|/close FILEHANDLE> on an input file resets the line counter
 (L<C<$.>|perlvar/$.>), while the implicit close done by
-L<C<open>|/open FILEHANDLE,EXPR> does not.
+L<C<open>|/open FILEHANDLE,MODE,EXPR> does not.
 
 If the filehandle came from a piped open, L<C<close>|/close FILEHANDLE>
 returns false if one of the other syscalls involved fails or if its
@@ -1476,12 +1589,12 @@ L<C<tie>|/tie VARIABLE,CLASSNAME,LIST> function.]
 
 This binds a L<dbm(3)>, L<ndbm(3)>, L<sdbm(3)>, L<gdbm(3)>, or Berkeley
 DB file to a hash.  HASH is the name of the hash.  (Unlike normal
-L<C<open>|/open FILEHANDLE,EXPR>, the first argument is I<not> a
+L<C<open>|/open FILEHANDLE,MODE,EXPR>, the first argument is I<not> a
 filehandle, even though it looks like one).  DBNAME is the name of the
 database (without the F<.dir> or F<.pag> extension if any).  If the
 database does not exist, it is created with protection specified by MASK
 (as modified by the L<C<umask>|/umask EXPR>).  To prevent creation of
-the database if it doesn't exist, you may specify a MODE of 0, and the
+the database if it doesn't exist, you may specify a MASK of 0, and the
 function will return a false value if it can't find an existing
 database.  If your system supports only the older DBM functions, you may
 make only one L<C<dbmopen>|/dbmopen HASH,DBNAME,MASK> call in your
@@ -1602,10 +1715,10 @@ key, but deleting it does; see L<C<exists>|/exists EXPR>.
 In list context, usually returns the value or values deleted, or the last such
 element in scalar context.  The return list's length corresponds to that of
 the argument list: deleting non-existent elements returns the undefined value
-in their corresponding positions. When a
-L<keyE<sol>value hash slice|perldata/KeyE<sol>Value Hash Slices> is passed to
-C<delete>, the return value is a list of key/value pairs (two elements for each
-item deleted from the hash).
+in their corresponding positions. Since Perl 5.28, a
+L<keyE<sol>value hash slice|perldata/KeyE<sol>Value Hash Slices> can be passed
+to C<delete>, and the return value is a list of key/value pairs (two elements
+for each item deleted from the hash).
 
 L<C<delete>|/delete EXPR> may also be used on arrays and array slices,
 but its behavior is less straightforward.  Although
@@ -1670,10 +1783,10 @@ The EXPR can be arbitrarily complicated provided its
 final operation is an element or slice of an aggregate:
 
     delete $ref->[$x][$y]{$key};
-    delete @{$ref->[$x][$y]}{$key1, $key2, @morekeys};
+    delete $ref->[$x][$y]->@{$key1, $key2, @morekeys};
 
     delete $ref->[$x][$y][$index];
-    delete @{$ref->[$x][$y]}[$index1, $index2, @moreindices];
+    delete $ref->[$x][$y]->@[$index1, $index2, @moreindices];
 
 =item die LIST
 X<die> X<throw> X<exception> X<raise> X<$@> X<abort>
@@ -1908,7 +2021,7 @@ X<dump> X<core> X<undump>
 =for Pod::Functions create an immediate core dump
 
 This function causes an immediate core dump.  See also the B<-u>
-command-line switch in L<perlrun>, which does the same thing.
+command-line switch in L<perlrun|perlrun/-u>, which does the same thing.
 Primarily this is so that you can use the B<undump> program (not
 supplied) to turn your core dump into an executable binary after
 having initialized all your variables at the beginning of the
@@ -2002,6 +2115,15 @@ the iterator state used by anything else that might execute during the
 loop body.  To avoid these problems, use a C<foreach> loop rather than
 C<while>-C<each>.
 
+This extends to using C<each> on the result of an anonymous hash or
+array constructor.  A new underlying array or hash is created each
+time so each will always start iterating from scratch, eg:
+
+  # loops forever
+  while (my ($key, $value) = each @{ +{ a => 1 } }) {
+      print "$key=$value\n";
+  }
+
 This prints out your environment like the L<printenv(1)> program,
 but in a different order:
 
@@ -2029,8 +2151,8 @@ versions of Perl with mysterious syntax errors, put this sort of thing at
 the top of your file to signal that your code will work I<only> on Perls of
 a recent vintage:
 
-    use 5.012;	# so keys/values/each work on arrays
-    use 5.018;	# so each assigns to $_ in a lone while test
+    use v5.12;	# so keys/values/each work on arrays
+    use v5.18;	# so each assigns to $_ in a lone while test
 
 See also L<C<keys>|/keys HASH>, L<C<values>|/values HASH>, and
 L<C<sort>|/sort SUBNAME LIST>.
@@ -2184,34 +2306,28 @@ context of the current Perl program, any outer lexical variables are
 visible to it, and any package variable settings or subroutine and
 format definitions remain afterwards.
 
+Note that when C<BEGIN {}> blocks are embedded inside of an eval block
+the contents of the block will be executed immediately and before the rest
+of the eval code is executed. You can disable this entirely by
+
+   local ${^MAX_NESTED_EVAL_BEGIN_BLOCKS} = 0;
+   eval $string;
+
+which will cause any embedded C<BEGIN> blocks in C<$string> to throw an
+exception.
+
 =over 4
 
 =item Under the L<C<"unicode_eval"> feature|feature/The 'unicode_eval' and 'evalbytes' features>
 
 If this feature is enabled (which is the default under a C<use 5.16> or
-higher declaration), EXPR is considered to be
-in the same encoding as the surrounding program.  Thus if
-S<L<C<use utf8>|utf8>> is in effect, the string will be treated as being
-UTF-8 encoded.  Otherwise, the string is considered to be a sequence of
-independent bytes.  Bytes that correspond to ASCII-range code points
-will have their normal meanings for operators in the string.  The
-treatment of the other bytes depends on if the
-L<C<'unicode_strings"> feature|feature/The 'unicode_strings' feature> is
-in effect.
+higher declaration), Perl assumes that EXPR is a character string.
+Any S<C<use utf8>> or S<C<no utf8>> declarations within
+the string thus have no effect. Source filters are forbidden as well.
+(C<unicode_strings>, however, can appear within the string.)
 
-In a plain C<eval> without an EXPR argument, being in S<C<use utf8>> or
-not is irrelevant; the UTF-8ness of C<$_> itself determines the
-behavior.
-
-Any S<C<use utf8>> or S<C<no utf8>> declarations within the string have
-no effect, and source filters are forbidden.  (C<unicode_strings>,
-however, can appear within the string.)  See also the
-L<C<evalbytes>|/evalbytes EXPR> operator, which works properly with
-source filters.
-
-Variables defined outside the C<eval> and used inside it retain their
-original UTF-8ness.  Everything inside the string follows the normal
-rules for a Perl program with the given state of S<C<use utf8>>.
+See also the L<C<evalbytes>|/evalbytes EXPR> operator, which works properly
+with source filters.
 
 =item Outside the C<"unicode_eval"> feature
 
@@ -2223,8 +2339,26 @@ breaking existing programs:
 
 =item *
 
-It can lose track of whether something should be encoded as UTF-8 or
-not.
+Perl's internal storage of EXPR affects the behavior of the executed code.
+For example:
+
+    my $v = eval "use utf8; '$expr'";
+
+If $expr is C<"\xc4\x80"> (U+0100 in UTF-8), then the value stored in C<$v>
+will depend on whether Perl stores $expr "upgraded" (cf. L<utf8>) or
+not:
+
+=over
+
+=item * If upgraded, C<$v> will be C<"\xc4\x80"> (i.e., the
+C<use utf8> has no effect.)
+
+=item * If non-upgraded, C<$v> will be C<"\x{100}">.
+
+=back
+
+This is undesirable since being
+upgraded or not should not affect a string's behavior.
 
 =item *
 
@@ -2306,7 +2440,7 @@ Examples:
 If you want to trap errors when loading an XS module, some problems with
 the binary interface (such as Perl version skew) may be fatal even with
 C<eval> unless C<$ENV{PERL_DL_NONLAZY}> is set.  See
-L<perlrun>.
+L<perlrun|perlrun/PERL_DL_NONLAZY>.
 
 Using the C<eval {}> form as an exception trap in libraries does have some
 issues.  Due to the current arguably broken state of C<__DIE__> hooks, you
@@ -2350,30 +2484,11 @@ X<evalbytes>
 
 This function is similar to a L<string eval|/eval EXPR>, except it
 always parses its argument (or L<C<$_>|perlvar/$_> if EXPR is omitted)
-as a string of independent bytes.
+as a byte string. If the string contains any code points above 255, then
+it cannot be a byte string, and the C<evalbytes> will fail with the error
+stored in C<$@>.
 
-If called when S<C<use utf8>> is in effect, the string will be assumed
-to be encoded in UTF-8, and C<evalbytes> will make a temporary copy to
-work from, downgraded to non-UTF-8.  If this is not possible
-(because one or more characters in it require UTF-8), the C<evalbytes>
-will fail with the error stored in C<$@>.
-
-Bytes that correspond to ASCII-range code points will have their normal
-meanings for operators in the string.  The treatment of the other bytes
-depends on if the L<C<'unicode_strings"> feature|feature/The
-'unicode_strings' feature> is in effect.
-
-Of course, variables that are UTF-8 and are referred to in the string
-retain that:
-
- my $a = "\x{100}";
- evalbytes 'print ord $a, "\n"';
-
-prints
-
- 256
-
-and C<$@> is empty.
+C<use utf8> and C<no utf8> within the string have their usual effect.
 
 Source filters activated within the evaluated code apply to the code
 itself.
@@ -2620,8 +2735,8 @@ L<Unicode::UCD/B<prop_invmap()>>.
 For further information on casefolding, refer to
 the Unicode Standard, specifically sections 3.13 C<Default Case Operations>,
 4.2 C<Case-Normative>, and 5.18 C<Case Mappings>,
-available at L<http://www.unicode.org/versions/latest/>, as well as the
-Case Charts available at L<http://www.unicode.org/charts/case/>.
+available at L<https://www.unicode.org/versions/latest/>, as well as the
+Case Charts available at L<https://www.unicode.org/charts/case/>.
 
 If EXPR is omitted, uses L<C<$_>|perlvar/$_>.
 
@@ -2700,6 +2815,17 @@ X<__FILE__>
 =for Pod::Functions the name of the current source file
 
 A special token that returns the name of the file in which it occurs.
+It can be altered by the mechanism described at
+L<perlsyn/"Plain Old Comments (Not!)">.
+
+=item field VARNAME
+X<field>
+
+=for Pod::Functions declare a field variable of the current class
+
+Declares a new field variable within the current class.  Methods and
+C<ADJUST> blocks of the class will have access to this variable as if it
+was a lexical in scope at that point.
 
 =item fileno FILEHANDLE
 X<fileno>
@@ -2712,7 +2838,7 @@ Returns the file descriptor for a filehandle or directory handle,
 or undefined if the
 filehandle is not open.  If there is no real file descriptor at the OS
 level, as can happen with filehandles connected to memory objects via
-L<C<open>|/open FILEHANDLE,EXPR> with a reference for the third
+L<C<open>|/open FILEHANDLE,MODE,EXPR> with a reference for the third
 argument, -1 is returned.
 
 This is mainly useful for constructing bitmaps for
@@ -3358,12 +3484,32 @@ X<glob> X<wildcard> X<filename, expansion> X<expand>
 =for Pod::Functions expand filenames using wildcards
 
 In list context, returns a (possibly empty) list of filename expansions on
-the value of EXPR such as the standard Unix shell F</bin/csh> would do.  In
+the value of EXPR such as the Unix shell Bash would do. In
 scalar context, glob iterates through such filename expansions, returning
-undef when the list is exhausted.  This is the internal function
-implementing the C<< <*.c> >> operator, but you can use it directly.  If
-EXPR is omitted, L<C<$_>|perlvar/$_> is used.  The C<< <*.c> >> operator
-is discussed in more detail in L<perlop/"I/O Operators">.
+L<C<undef>|/undef EXPR> when the list is exhausted. If EXPR is omitted,
+L<C<$_>|perlvar/$_> is used.
+
+    # List context
+    my @txt_files  = glob("*.txt");
+    my @perl_files = glob("*.pl *.pm");
+
+    # Scalar context
+    while (my $file = glob("*.mp3")) {
+        # Do stuff
+    }
+
+Glob also supports an alternate syntax using C<< < >> C<< > >> as
+delimiters. While this syntax is supported, it is recommended that you
+use C<glob> instead as it is more readable and searchable.
+
+    my @txt_files  = <"*.txt">;
+
+If you need case insensitive file globbing that can be achieved using the
+C<:nocase> parameter of the L<C<bsd_glob>|File::Glob/C<bsd_glob>> module.
+
+    use File::Glob qw(:globally :nocase);
+
+	my @txt = glob("readme*"); # README readme.txt Readme.md
 
 Note that L<C<glob>|/glob EXPR> splits its arguments on whitespace and
 treats
@@ -3376,23 +3522,23 @@ For example, to glob filenames that have an C<e> followed by a space
 followed by an C<f>, use one of:
 
     my @spacies = <"*e f*">;
-    my @spacies = glob '"*e f*"';
-    my @spacies = glob q("*e f*");
+    my @spacies = glob('"*e f*"');
+    my @spacies = glob(q("*e f*"));
 
 If you had to get a variable through, you could do this:
 
-    my @spacies = glob "'*${var}e f*'";
-    my @spacies = glob qq("*${var}e f*");
+    my @spacies = glob("'*${var}e f*'");
+    my @spacies = glob(qq("*${var}e f*"));
 
 If non-empty braces are the only wildcard characters used in the
 L<C<glob>|/glob EXPR>, no filenames are matched, but potentially many
 strings are returned.  For example, this produces nine strings, one for
 each pairing of fruits and colors:
 
-    my @many = glob "{apple,tomato,cherry}={green,yellow,red}";
+    my @many = glob("{apple,tomato,cherry}={green,yellow,red}");
 
 This operator is implemented using the standard C<File::Glob> extension.
-See L<File::Glob> for details, including
+See L<C<bsd_glob>|File::Glob/C<bsd_glob>> for details, including
 L<C<bsd_glob>|File::Glob/C<bsd_glob>>, which does not treat whitespace
 as a pattern separator.
 
@@ -3403,6 +3549,12 @@ is used as a C<while>/C<for> condition, then the condition actually
 tests for definedness of the expression's value, not for its regular
 truth value.
 
+Internal implemenation details:
+
+This is the internal function implementing the C<< <*.c> >> operator,
+but you can use it directly. The C<< <*.c> >> operator is discussed in
+more detail in L<perlop/"I/O Operators">.
+
 Portability issues: L<perlport/glob>.
 
 =item gmtime EXPR
@@ -3412,7 +3564,7 @@ X<gmtime> X<UTC> X<Greenwich>
 
 =for Pod::Functions convert UNIX time into record or string using Greenwich time
 
-Works just like L<C<localtime>|/localtime EXPR> but the returned values
+Works just like L<C<localtime>|/localtime EXPR>, but the returned values
 are localized for the standard Greenwich time zone.
 
 Note: When called in list context, $isdst, the last value
@@ -3577,6 +3729,20 @@ or after its end is treated as if it were the beginning or the end,
 respectively.  POSITION and the return value are based at zero.
 If the substring is not found, L<C<index>|/index STR,SUBSTR,POSITION>
 returns -1.
+
+Find characters or strings:
+
+    index("Perl is great", "P");     # Returns 0
+    index("Perl is great", "g");     # Returns 8
+    index("Perl is great", "great"); # Also returns 8
+
+Attempting to find something not there:
+
+    index("Perl is great", "Z");     # Returns -1 (not found)
+
+Using an offset to find the I<second> occurrence:
+
+    index("Perl is great", "e", 5);  # Returns 10
 
 =item int EXPR
 X<int> X<integer> X<truncate> X<trunc> X<floor>
@@ -3743,7 +3909,7 @@ versions of Perl with mysterious syntax errors, put this sort of thing at
 the top of your file to signal that your code will work I<only> on Perls of
 a recent vintage:
 
-    use 5.012;	# so keys/values/each work on arrays
+    use v5.12;	# so keys/values/each work on arrays
 
 See also L<C<each>|/each HASH>, L<C<values>|/values HASH>, and
 L<C<sort>|/sort SUBNAME LIST>.
@@ -3807,7 +3973,7 @@ See L<perlfork> for more details.
 
 If there is no I<LIST> of processes, no signal is sent, and the return
 value is 0.  This form is sometimes used, however, because it causes
-tainting checks to be run.  But see
+tainting checks to be run, if your perl support taint checks.  But see
 L<perlsec/Laundering and Detecting Tainted Data>.
 
 Portability issues: L<perlport/kill>.
@@ -3861,10 +4027,10 @@ X<lc> X<lowercase>
 
 =for Pod::Functions return lower-case version of a string
 
-Returns a lowercased version of EXPR.  This is the internal function
-implementing the C<\L> escape in double-quoted strings.
+Returns a lowercased version of EXPR.  If EXPR is omitted, uses
+L<C<$_>|perlvar/$_>.
 
-If EXPR is omitted, uses L<C<$_>|perlvar/$_>.
+    my $str = lc("Perl is GREAT"); # "perl is great"
 
 What gets returned depends on several factors:
 
@@ -3911,6 +4077,12 @@ outside the ASCII range is the character itself.
 
 =back
 
+B<Note:> This is the internal function implementing the
+L<C<\L>|perlop/"Quote and Quote-like Operators"> escape in double-quoted
+strings.
+
+    my $str = "Perl is \LGREAT\E"; # "Perl is great"
+
 =item lcfirst EXPR
 X<lcfirst> X<lowercase>
 
@@ -3954,6 +4126,8 @@ X<__LINE__>
 =for Pod::Functions the current source line number
 
 A special token that compiles to the current line number.
+It can be altered by the mechanism described at
+L<perlsyn/"Plain Old Comments (Not!)">.
 
 =item link OLDFILE,NEWFILE
 X<link>
@@ -4019,7 +4193,7 @@ This makes it easy to get a month name from a list:
     print "$abbr[$mon] $mday";
     # $mon=9, $mday=18 gives "Oct 18"
 
-C<$year> contains the number of years since 1900.  To get a 4-digit
+C<$year> contains the number of years since 1900.  To get the full
 year write:
 
     $year += 1900;
@@ -4032,8 +4206,8 @@ C<$wday> is the day of the week, with 0 indicating Sunday and 3 indicating
 Wednesday.  C<$yday> is the day of the year, in the range C<0..364>
 (or C<0..365> in leap years.)
 
-C<$isdst> is true if the specified time occurs during Daylight Saving
-Time, false otherwise.
+C<$isdst> is true if the specified time occurs when Daylight Saving
+Time is in effect, false otherwise.
 
 If EXPR is omitted, L<C<localtime>|/localtime EXPR> uses the current
 time (as returned by L<C<time>|/time>).
@@ -4041,27 +4215,21 @@ time (as returned by L<C<time>|/time>).
 In scalar context, L<C<localtime>|/localtime EXPR> returns the
 L<ctime(3)> value:
 
-    my $now_string = localtime;  # e.g., "Thu Oct 13 04:54:34 1994"
+ my $now_string = localtime;  # e.g., "Thu Oct 13 04:54:34 1994"
 
-The format of this scalar value is B<not> locale-dependent but built
-into Perl.  For GMT instead of local time use the
-L<C<gmtime>|/gmtime EXPR> builtin.  See also the
-L<C<Time::Local>|Time::Local> module (for converting seconds, minutes,
-hours, and such back to the integer value returned by L<C<time>|/time>),
-and the L<POSIX> module's L<C<strftime>|POSIX/C<strftime>> and
-L<C<mktime>|POSIX/C<mktime>> functions.
+This scalar value is always in English, and is B<not> locale-dependent.
+To get similar but locale-dependent date strings, try for example:
 
-To get somewhat similar but locale-dependent date strings, set up your
-locale environment variables appropriately (please see L<perllocale>) and
-try for example:
+ use POSIX qw(strftime);
+ my $now_string = strftime "%a %b %e %H:%M:%S %Y", localtime;
+ # or for GMT formatted appropriately for your locale:
+ my $now_string = strftime "%a %b %e %H:%M:%S %Y", gmtime;
 
-    use POSIX qw(strftime);
-    my $now_string = strftime "%a %b %e %H:%M:%S %Y", localtime;
-    # or for GMT formatted appropriately for your locale:
-    my $now_string = strftime "%a %b %e %H:%M:%S %Y", gmtime;
-
-Note that C<%a> and C<%b>, the short forms of the day of the week
-and the month of the year, may not necessarily be three characters wide.
+C$now_string> will be formatted according to the current LC_TIME locale
+the program or thread is running in.  See L<perllocale> for how to set
+up and change that locale.  Note that C<%a> and C<%b>, the short forms
+of the day of the week and the month of the year, may not necessarily be
+three characters wide.
 
 The L<Time::gmtime> and L<Time::localtime> modules provide a convenient,
 by-name access mechanism to the L<C<gmtime>|/gmtime EXPR> and
@@ -4069,6 +4237,13 @@ L<C<localtime>|/localtime EXPR> functions, respectively.
 
 For a comprehensive date and time representation look at the
 L<DateTime> module on CPAN.
+
+For GMT instead of local time use the L<C<gmtime>|/gmtime EXPR> builtin.
+
+See also the L<C<Time::Local>|Time::Local> module (for converting
+seconds, minutes, hours, and such back to the integer value returned by
+L<C<time>|/time>), and the L<POSIX> module's
+L<C<mktime>|POSIX/C<mktime>> function.
 
 Portability issues: L<perlport/localtime>.
 
@@ -4216,6 +4391,16 @@ or to force an anon hash constructor use C<+{>:
 
 to get a list of anonymous hashes each with only one entry apiece.
 
+=item method NAME BLOCK
+X<method>
+
+=item method NAME : ATTRS BLOCK
+
+=for Pod::Functions declare a method of a class
+
+Creates a new named method in the scope of the class that it appears within.
+This is only valid inside a L<C<class>|/class NAMESPACE> declaration.
+
 =item mkdir FILENAME,MODE
 X<mkdir> X<md> X<directory, create>
 
@@ -4239,6 +4424,8 @@ a restrictive MODE and give the user no way to be more permissive.
 The exceptions to this rule are when the file or directory should be
 kept private (mail files, for instance).  The documentation for
 L<C<umask>|/umask EXPR> discusses the choice of MODE in more detail.
+If bits in MODE other than the permission bits are set, the result may
+be implementation defined, per POSIX 1003.1-2008.
 
 Note that according to the POSIX 1003.1-1996 the FILENAME may have any
 number of trailing slashes.  Some operating and filesystems do not get
@@ -4303,9 +4490,8 @@ X<msgsnd>
 
 Calls the System V IPC function msgsnd to send the message MSG to the
 message queue ID.  MSG must begin with the native long integer message
-type, be followed by the length of the actual message, and then finally
-the message itself.  This kind of packing can be achieved with
-C<pack("l! a*", $type, $message)>.  Returns true if successful,
+type, followed by the message itself.  This kind of packing can be achieved
+with C<pack("l! a*", $type, $message)>.  Returns true if successful,
 false on error.  See also L<perlipc/"SysV IPC"> and the documentation
 for L<C<IPC::SysV>|IPC::SysV> and L<C<IPC::Msg>|IPC::Msg>.
 
@@ -4327,6 +4513,17 @@ A L<C<my>|/my VARLIST> declares the listed variables to be local
 more than one variable is listed, the list must be placed in
 parentheses.
 
+Note that with a parenthesised list, L<C<undef>|/undef EXPR> can be used
+as a dummy placeholder, for example to skip assignment of initial
+values:
+
+    my ( undef, $min, $hour ) = localtime;
+
+Redeclaring a variable in the same scope or statement will "shadow" the
+previous declaration, creating a new instance and preventing access to
+the previous one. This is usually undesired and, if warnings are enabled,
+will result in a warning in the C<shadow> category.
+
 The exact semantics and interface of TYPE and ATTRS are still
 evolving.  TYPE may be a bareword, a constant declared
 with L<C<use constant>|constant>, or L<C<__PACKAGE__>|/__PACKAGE__>.  It
@@ -4335,12 +4532,6 @@ currently bound to the use of the L<fields> pragma,
 and attributes are handled using the L<attributes> pragma, or starting
 from Perl 5.8.0 also via the L<Attribute::Handlers> module.  See
 L<perlsub/"Private Variables via my()"> for details.
-
-Note that with a parenthesised list, L<C<undef>|/undef EXPR> can be used
-as a dummy placeholder, for example to skip assignment of initial
-values:
-
-    my ( undef, $min, $hour ) = localtime;
 
 =item next LABEL
 X<next> X<continue>
@@ -4410,8 +4601,11 @@ X<oct> X<octal> X<hex> X<hexadecimal> X<binary> X<bin>
 =for Pod::Functions convert a string to an octal number
 
 Interprets EXPR as an octal string and returns the corresponding
-value.  (If EXPR happens to start off with C<0x>, interprets it as a
-hex string.  If EXPR starts off with C<0b>, it is interpreted as a
+value.  An octal string consists of octal digits and, as of Perl 5.33.5,
+an optional C<0o> or C<o> prefix.  Each octal digit may be preceded by
+a single underscore, which will be ignored.
+(If EXPR happens to start off with C<0x> or C<x>, interprets it as a
+hex string.  If EXPR starts off with C<0b> or C<b>, it is interpreted as a
 binary string.  Leading whitespace is ignored in all three cases.)
 The following will handle decimal, binary, octal, and hex in standard
 Perl notation:
@@ -4435,46 +4629,84 @@ Leading white space is ignored without warning, as too are any trailing
 non-digits, such as a decimal point (L<C<oct>|/oct EXPR> only handles
 non-negative integers, not negative integers or floating point).
 
-=item open FILEHANDLE,EXPR
-X<open> X<pipe> X<file, open> X<fopen>
-
 =item open FILEHANDLE,MODE,EXPR
+X<open> X<pipe> X<file, open> X<fopen>
 
 =item open FILEHANDLE,MODE,EXPR,LIST
 
 =item open FILEHANDLE,MODE,REFERENCE
 
+=item open FILEHANDLE,EXPR
+
 =item open FILEHANDLE
 
 =for Pod::Functions open a file, pipe, or descriptor
 
-Opens the file whose filename is given by EXPR, and associates it with
-FILEHANDLE.
+Associates an internal FILEHANDLE with the external file specified by
+EXPR. That filehandle will subsequently allow you to perform
+I/O operations on that file, such as reading from it or writing to it.
 
-Simple examples to open a file for reading:
+Instead of a filename, you may specify an external command
+(plus an optional argument list) or a scalar reference, in order to open
+filehandles on commands or in-memory scalars, respectively.
+
+A thorough reference to C<open> follows. For a gentler introduction to
+the basics of C<open>, see also the L<perlopentut> manual page.
+
+=over
+
+=item Working with files
+
+Most often, C<open> gets invoked with three arguments: the required
+FILEHANDLE (usually an empty scalar variable), followed by MODE (usually
+a literal describing the I/O mode the filehandle will use), and then the
+filename  that the new filehandle will refer to.
+
+=over
+
+=item Simple examples
+
+Reading from a file:
 
     open(my $fh, "<", "input.txt")
-	or die "Can't open < input.txt: $!";
+        or die "Can't open < input.txt: $!";
 
-and for writing:
+    # Process every line in input.txt
+    while (my $line = readline($fh)) {
+        #
+        # ... do something interesting with $line here ...
+        #
+    }
+
+or writing to one:
 
     open(my $fh, ">", "output.txt")
-	or die "Can't open > output.txt: $!";
+        or die "Can't open > output.txt: $!";
 
-(The following is a comprehensive reference to
-L<C<open>|/open FILEHANDLE,EXPR>: for a gentler introduction you may
-consider L<perlopentut>.)
+    print $fh "This line gets printed into output.txt.\n";
 
-If FILEHANDLE is an undefined scalar variable (or array or hash element), a
-new filehandle is autovivified, meaning that the variable is assigned a
-reference to a newly allocated anonymous filehandle.  Otherwise if
-FILEHANDLE is an expression, its value is the real filehandle.  (This is
-considered a symbolic reference, so C<use strict "refs"> should I<not> be
-in effect.)
+For a summary of common filehandle operations such as these, see
+L<perlintro/Files and I/O>.
 
-If three (or more) arguments are specified, the open mode (including
-optional encoding) in the second argument are distinct from the filename in
-the third.  If MODE is C<< < >> or nothing, the file is opened for input.
+=item About filehandles
+
+The first argument to C<open>, labeled FILEHANDLE in this reference, is
+usually a scalar variable. (Exceptions exist, described in "Other
+considerations", below.) If the call to C<open> succeeds, then the
+expression provided as FILEHANDLE will get assigned an open
+I<filehandle>. That filehandle provides an internal reference to the
+specified external file, conveniently stored in a Perl variable, and
+ready for I/O operations such as reading and writing.
+
+=item About modes
+
+When calling C<open> with three or more arguments, the second argument
+-- labeled MODE here -- defines the I<open mode>. MODE is usually a
+literal string comprising special characters that define the intended
+I/O role of the filehandle being created: whether it's read-only, or
+read-and-write, and so on.
+
+If MODE is C<< < >>, the file is opened for input (read-only).
 If MODE is C<< > >>, the file is opened for output, with existing files
 first being truncated ("clobbered") and nonexisting files newly created.
 If MODE is C<<< >> >>>, the file is opened for appending, again being
@@ -4485,59 +4717,57 @@ indicate that you want both read and write access to the file; thus
 C<< +< >> is almost always preferred for read/write updates--the
 C<< +> >> mode would clobber the file first.  You can't usually use
 either read-write mode for updating textfiles, since they have
-variable-length records.  See the B<-i> switch in L<perlrun> for a
-better approach.  The file is created with permissions of C<0666>
-modified by the process's L<C<umask>|/umask EXPR> value.
+variable-length records.  See the B<-i> switch in
+L<perlrun|perlrun/-i[extension]> for a better approach.  The file is
+created with permissions of C<0666> modified by the process's
+L<C<umask>|/umask EXPR> value.
 
 These various prefixes correspond to the L<fopen(3)> modes of C<r>,
 C<r+>, C<w>, C<w+>, C<a>, and C<a+>.
 
-In the one- and two-argument forms of the call, the mode and filename
-should be concatenated (in that order), preferably separated by white
-space.  You can--but shouldn't--omit the mode in these forms when that mode
-is C<< < >>.  It is safe to use the two-argument form of
-L<C<open>|/open FILEHANDLE,EXPR> if the filename argument is a known literal.
+More examples of different modes in action:
 
-For three or more arguments if MODE is C<|->, the filename is
-interpreted as a command to which output is to be piped, and if MODE
-is C<-|>, the filename is interpreted as a command that pipes
-output to us.  In the two-argument (and one-argument) form, one should
-replace dash (C<->) with the command.
-See L<perlipc/"Using open() for IPC"> for more examples of this.
-(You are not allowed to L<C<open>|/open FILEHANDLE,EXPR> to a command
-that pipes both in I<and> out, but see L<IPC::Open2>, L<IPC::Open3>, and
-L<perlipc/"Bidirectional Communication with Another Process"> for
-alternatives.)
+ # Open a file for concatenation
+ open(my $log, ">>", "/usr/spool/news/twitlog")
+     or warn "Couldn't open log file; discarding input";
 
-In the form of pipe opens taking three or more arguments, if LIST is specified
-(extra arguments after the command name) then LIST becomes arguments
-to the command invoked if the platform supports it.  The meaning of
-L<C<open>|/open FILEHANDLE,EXPR> with more than three arguments for
-non-pipe modes is not yet defined, but experimental "layers" may give
-extra LIST arguments meaning.
+ # Open a file for reading and writing
+ open(my $dbase, "+<", "dbase.mine")
+     or die "Can't open 'dbase.mine' for update: $!";
 
-In the two-argument (and one-argument) form, opening C<< <- >>
-or C<-> opens STDIN and opening C<< >- >> opens STDOUT.
+=item Checking the return value
 
-You may (and usually should) use the three-argument form of open to specify
-I/O layers (sometimes referred to as "disciplines") to apply to the handle
-that affect how the input and output are processed (see L<open> and
+Open returns nonzero on success, the undefined value otherwise.  If the
+C<open> involved a pipe, the return value happens to be the pid of the
+subprocess.
+
+When opening a file, it's seldom a good idea to continue if the request
+failed, so C<open> is frequently used with L<C<die>|/die LIST>. Even if
+you want your code to do something other than C<die> on a failed open,
+you should still always check the return value from opening a file.
+
+=back
+
+=item Specifying I/O layers in MODE
+
+You can use the three-argument form of open to specify
+I/O layers (sometimes referred to as "disciplines") to apply to the new
+filehandle. These affect how the input and output are processed (see
+L<open> and
 L<PerlIO> for more details).  For example:
 
-  open(my $fh, "<:encoding(UTF-8)", $filename)
-    || die "Can't open UTF-8 encoded $filename: $!";
+    # loads PerlIO::encoding automatically
+    open(my $fh, "<:encoding(UTF-8)", $filename)
+        || die "Can't open UTF-8 encoded $filename: $!";
 
-opens the UTF8-encoded file containing Unicode characters;
+This opens the UTF8-encoded file containing Unicode characters;
 see L<perluniintro>.  Note that if layers are specified in the
-three-argument form, then default layers stored in ${^OPEN} (see L<perlvar>;
-usually set by the L<open> pragma or the switch C<-CioD>) are ignored.
+three-argument form, then default layers stored in
+L<C<${^OPEN}>|perlvar/${^OPEN}>
+(usually set by the L<open> pragma or the switch C<-CioD>) are ignored.
 Those layers will also be ignored if you specify a colon with no name
 following it.  In that case the default layer for the operating system
 (:raw on Unix, :crlf on Windows) is used.
-
-Open returns nonzero on success, the undefined value otherwise.  If
-the L<C<open>|/open FILEHANDLE,EXPR> involved a pipe, the return value
-happens to be the pid of the subprocess.
 
 On some systems (in general, DOS- and Windows-based systems)
 L<C<binmode>|/binmode FILEHANDLE, LAYER> is necessary when you're not
@@ -4546,41 +4776,7 @@ always to use it when appropriate, and never to use it when it isn't
 appropriate.  Also, people can set their I/O to be by default
 UTF8-encoded Unicode, not bytes.
 
-When opening a file, it's seldom a good idea to continue
-if the request failed, so L<C<open>|/open FILEHANDLE,EXPR> is frequently
-used with L<C<die>|/die LIST>.  Even if L<C<die>|/die LIST> won't do
-what you want (say, in a CGI script,
-where you want to format a suitable error message (but there are
-modules that can help with that problem)) always check
-the return value from opening a file.
-
-The filehandle will be closed when its reference count reaches zero.
-If it is a lexically scoped variable declared with L<C<my>|/my VARLIST>,
-that usually
-means the end of the enclosing scope.  However, this automatic close
-does not check for errors, so it is better to explicitly close
-filehandles, especially those used for writing:
-
-    close($handle)
-       || warn "close failed: $!";
-
-An older style is to use a bareword as the filehandle, as
-
-    open(FH, "<", "input.txt")
-       or die "Can't open < input.txt: $!";
-
-Then you can use C<FH> as the filehandle, in C<< close FH >> and C<<
-<FH> >> and so on.  Note that it's a global variable, so this form is
-not recommended in new code.
-
-As a shortcut a one-argument call takes the filename from the global
-scalar variable of the same name as the filehandle:
-
-    $ARTICLE = 100;
-    open(ARTICLE) or die "Can't find article $ARTICLE: $!\n";
-
-Here C<$ARTICLE> must be a global (package) scalar variable - not one
-declared with L<C<my>|/my VARLIST> or L<C<state>|/state VARLIST>.
+=item Using C<undef> for temporary files
 
 As a special case the three-argument form with a read/write mode and the third
 argument being L<C<undef>|/undef EXPR>:
@@ -4592,11 +4788,16 @@ opens a filehandle to a newly created empty anonymous temporary file.
 sensible mode to use.)  You will need to
 L<C<seek>|/seek FILEHANDLE,POSITION,WHENCE> to do the reading.
 
-Perl is built using PerlIO by default.  Unless you've
-changed this (such as building Perl with C<Configure -Uuseperlio>), you can
-open filehandles directly to Perl scalars via:
 
-    open(my $fh, ">", \$variable) || ..
+=item Opening a filehandle into an in-memory scalar
+
+You can open filehandles directly to Perl scalars instead of a file or
+other resource external to the program. To do so, provide a reference to
+that scalar as the third argument to C<open>, like so:
+
+ open(my $memory, ">", \$var)
+     or die "Can't open memory file: $!";
+ print $memory "foo!\n";    # output will appear in $var
 
 To (re)open C<STDOUT> or C<STDERR> as an in-memory file, close it first:
 
@@ -4611,18 +4812,28 @@ any code points over 0xFF.
 Opening in-memory files I<can> fail for a variety of reasons.  As with
 any other C<open>, check the return value for success.
 
+I<Technical note>: This feature works only when Perl is built with
+PerlIO -- the default, except with older (pre-5.16) Perl installations
+that were configured to not include it (e.g. via C<Configure
+-Uuseperlio>). You can see whether your Perl was built with PerlIO by
+running C<perl -V:useperlio>.  If it says C<'define'>, you have PerlIO;
+otherwise you don't.
+
 See L<perliol> for detailed info on PerlIO.
 
-General examples:
+=item Opening a filehandle into a command
 
- open(my $log, ">>", "/usr/spool/news/twitlog");
- # if the open fails, output is discarded
+If MODE is C<|->, then the filename is
+interpreted as a command to which output is to be piped, and if MODE
+is C<-|>, the filename is interpreted as a command that pipes
+output to us.  In the two-argument (and one-argument) form, one should
+replace dash (C<->) with the command.
+See L<perlipc/"Using open() for IPC"> for more examples of this.
+(You are not allowed to L<C<open>|/open FILEHANDLE,MODE,EXPR> to a command
+that pipes both in I<and> out, but see L<IPC::Open2>, L<IPC::Open3>, and
+L<perlipc/"Bidirectional Communication with Another Process"> for
+alternatives.)
 
- open(my $dbase, "+<", "dbase.mine")      # open for update
-     or die "Can't open 'dbase.mine' for update: $!";
-
- open(my $dbase, "+<dbase.mine")          # ditto
-     or die "Can't open 'dbase.mine' for update: $!";
 
  open(my $article_fh, "-|", "caesar <$article")  # decrypt
                                                  # article
@@ -4634,10 +4845,80 @@ General examples:
  open(my $out_fh, "|-", "sort >Tmp$$")    # $$ is our process id
      or die "Can't start sort: $!";
 
- # in-memory files
- open(my $memory, ">", \$var)
-     or die "Can't open memory file: $!";
- print $memory "foo!\n";              # output will appear in $var
+
+In the form of pipe opens taking three or more arguments, if LIST is specified
+(extra arguments after the command name) then LIST becomes arguments
+to the command invoked if the platform supports it.  The meaning of
+L<C<open>|/open FILEHANDLE,MODE,EXPR> with more than three arguments for
+non-pipe modes is not yet defined, but experimental "layers" may give
+extra LIST arguments meaning.
+
+If you open a pipe on the command C<-> (that is, specify either C<|-> or C<-|>
+with the one- or two-argument forms of
+L<C<open>|/open FILEHANDLE,MODE,EXPR>), an implicit L<C<fork>|/fork> is done,
+so L<C<open>|/open FILEHANDLE,MODE,EXPR> returns twice: in the parent process
+it returns the pid
+of the child process, and in the child process it returns (a defined) C<0>.
+Use C<defined($pid)> or C<//> to determine whether the open was successful.
+
+For example, use either
+
+   my $child_pid = open(my $from_kid, "-|")
+        // die "Can't fork: $!";
+
+or
+
+   my $child_pid = open(my $to_kid,   "|-")
+        // die "Can't fork: $!";
+
+followed by
+
+    if ($child_pid) {
+	# am the parent:
+	# either write $to_kid or else read $from_kid
+	...
+       waitpid $child_pid, 0;
+    } else {
+	# am the child; use STDIN/STDOUT normally
+	...
+	exit;
+    }
+
+The filehandle behaves normally for the parent, but I/O to that
+filehandle is piped from/to the STDOUT/STDIN of the child process.
+In the child process, the filehandle isn't opened--I/O happens from/to
+the new STDOUT/STDIN.  Typically this is used like the normal
+piped open when you want to exercise more control over just how the
+pipe command gets executed, such as when running setuid and
+you don't want to have to scan shell commands for metacharacters.
+
+The following blocks are more or less equivalent:
+
+    open(my $fh, "|tr '[a-z]' '[A-Z]'");
+    open(my $fh, "|-", "tr '[a-z]' '[A-Z]'");
+    open(my $fh, "|-") || exec 'tr', '[a-z]', '[A-Z]';
+    open(my $fh, "|-", "tr", '[a-z]', '[A-Z]');
+
+    open(my $fh, "cat -n '$file'|");
+    open(my $fh, "-|", "cat -n '$file'");
+    open(my $fh, "-|") || exec "cat", "-n", $file;
+    open(my $fh, "-|", "cat", "-n", $file);
+
+The last two examples in each block show the pipe as "list form", which
+is not yet supported on all platforms. (If your platform has a real
+L<C<fork>|/fork>, such as Linux and macOS, you can use the list form; it
+also works on Windows with Perl 5.22 or later.) You would want to use
+the list form of the pipe so you can pass literal arguments to the
+command without risk of the shell interpreting any shell metacharacters
+in them. However, this also bars you from opening pipes to commands that
+intentionally contain shell metacharacters, such as:
+
+    open(my $fh, "|cat -n | expand -4 | lpr")
+    	|| die "Can't open pipeline to lpr: $!";
+
+See L<perlipc/"Safe Pipe Opens"> for more examples of this.
+
+=item Duping filehandles
 
 You may also, in the Bourne shell tradition, specify an EXPR beginning
 with C<< >& >>, in which case the rest of the string is interpreted
@@ -4654,11 +4935,15 @@ Here is a script that saves, redirects, and restores C<STDOUT> and
 C<STDERR> using various methods:
 
     #!/usr/bin/perl
-    open(my $oldout, ">&STDOUT")     or die "Can't dup STDOUT: $!";
-    open(OLDERR,     ">&", \*STDERR) or die "Can't dup STDERR: $!";
+    open(my $oldout, ">&STDOUT")
+        or die "Can't dup STDOUT: $!";
+    open(OLDERR,     ">&", \*STDERR)
+        or die "Can't dup STDERR: $!";
 
-    open(STDOUT, '>', "foo.out") or die "Can't redirect STDOUT: $!";
-    open(STDERR, ">&STDOUT")     or die "Can't dup STDOUT: $!";
+    open(STDOUT, '>', "foo.out")
+        or die "Can't redirect STDOUT: $!";
+    open(STDERR, ">&STDOUT")
+        or die "Can't dup STDOUT: $!";
 
     select STDERR; $| = 1;  # make unbuffered
     select STDOUT; $| = 1;  # make unbuffered
@@ -4666,8 +4951,10 @@ C<STDERR> using various methods:
     print STDOUT "stdout 1\n";  # this works for
     print STDERR "stderr 1\n";  # subprocesses too
 
-    open(STDOUT, ">&", $oldout) or die "Can't dup \$oldout: $!";
-    open(STDERR, ">&OLDERR")    or die "Can't dup OLDERR: $!";
+    open(STDOUT, ">&", $oldout)
+        or die "Can't dup \$oldout: $!";
+    open(STDERR, ">&OLDERR")
+        or die "Can't dup OLDERR: $!";
 
     print STDOUT "stdout 2\n";
     print STDERR "stderr 2\n";
@@ -4703,72 +4990,78 @@ L<fdopen(3)> to implement the C<=> functionality.  On many Unix systems,
 L<fdopen(3)> fails when file descriptors exceed a certain value, typically 255.
 For Perls 5.8.0 and later, PerlIO is (most often) the default.
 
-You can see whether your Perl was built with PerlIO by running
-C<perl -V:useperlio>.  If it says C<'define'>, you have PerlIO;
-otherwise you don't.
+=item Legacy usage
 
-If you open a pipe on the command C<-> (that is, specify either C<|-> or C<-|>
-with the one- or two-argument forms of
-L<C<open>|/open FILEHANDLE,EXPR>), an implicit L<C<fork>|/fork> is done,
-so L<C<open>|/open FILEHANDLE,EXPR> returns twice: in the parent process
-it returns the pid
-of the child process, and in the child process it returns (a defined) C<0>.
-Use C<defined($pid)> or C<//> to determine whether the open was successful.
+This section describes ways to call C<open> outside of best practices;
+you may encounter these uses in older code. Perl does not consider their
+use deprecated, exactly, but neither is it recommended in new code, for
+the sake of clarity and readability.
 
-For example, use either
+=over
 
-   my $child_pid = open(my $from_kid, "-|") // die "Can't fork: $!";
+=item Specifying mode and filename as a single argument
 
-or
+In the one- and two-argument forms of the call, the mode and filename
+should be concatenated (in that order), preferably separated by white
+space.  You can--but shouldn't--omit the mode in these forms when that mode
+is C<< < >>.  It is safe to use the two-argument form of
+L<C<open>|/open FILEHANDLE,MODE,EXPR> if the filename argument is a known literal.
 
-   my $child_pid = open(my $to_kid,   "|-") // die "Can't fork: $!";
+ open(my $dbase, "+<dbase.mine")          # ditto
+     or die "Can't open 'dbase.mine' for update: $!";
 
-followed by
+In the two-argument (and one-argument) form, opening C<< <- >>
+or C<-> opens STDIN and opening C<< >- >> opens STDOUT.
 
-    if ($child_pid) {
-	# am the parent:
-	# either write $to_kid or else read $from_kid
-	...
-       waitpid $child_pid, 0;
-    } else {
-	# am the child; use STDIN/STDOUT normally
-	...
-	exit;
-    }
+New code should favor the three-argument form of C<open> over this older
+form. Declaring the mode and the filename as two distinct arguments
+avoids any confusion between the two.
 
-The filehandle behaves normally for the parent, but I/O to that
-filehandle is piped from/to the STDOUT/STDIN of the child process.
-In the child process, the filehandle isn't opened--I/O happens from/to
-the new STDOUT/STDIN.  Typically this is used like the normal
-piped open when you want to exercise more control over just how the
-pipe command gets executed, such as when running setuid and
-you don't want to have to scan shell commands for metacharacters.
+=item Calling C<open> with one argument via global variables
 
-The following blocks are more or less equivalent:
+As a shortcut, a one-argument call takes the filename from the global
+scalar variable of the same name as the filehandle:
 
-    open(my $fh, "|tr '[a-z]' '[A-Z]'");
-    open(my $fh, "|-", "tr '[a-z]' '[A-Z]'");
-    open(my $fh, "|-") || exec 'tr', '[a-z]', '[A-Z]';
-    open(my $fh, "|-", "tr", '[a-z]', '[A-Z]');
+    $ARTICLE = 100;
+    open(ARTICLE)
+        or die "Can't find article $ARTICLE: $!\n";
 
-    open(my $fh, "cat -n '$file'|");
-    open(my $fh, "-|", "cat -n '$file'");
-    open(my $fh, "-|") || exec "cat", "-n", $file;
-    open(my $fh, "-|", "cat", "-n", $file);
+Here C<$ARTICLE> must be a global (package) scalar variable - not one
+declared with L<C<my>|/my VARLIST> or L<C<state>|/state VARLIST>.
 
-The last two examples in each block show the pipe as "list form", which is
-not yet supported on all platforms.  A good rule of thumb is that if
-your platform has a real L<C<fork>|/fork> (in other words, if your platform is
-Unix, including Linux and MacOS X), you can use the list form.  You would
-want to use the list form of the pipe so you can pass literal arguments
-to the command without risk of the shell interpreting any shell metacharacters
-in them.  However, this also bars you from opening pipes to commands
-that intentionally contain shell metacharacters, such as:
+=item Assigning a filehandle to a bareword
 
-    open(my $fh, "|cat -n | expand -4 | lpr")
-	|| die "Can't open pipeline to lpr: $!";
+An older style is to use a bareword as the filehandle, as
 
-See L<perlipc/"Safe Pipe Opens"> for more examples of this.
+    open(FH, "<", "input.txt")
+       or die "Can't open < input.txt: $!";
+
+Then you can use C<FH> as the filehandle, in C<< close FH >> and C<<
+<FH> >> and so on.  Note that it's a global variable, so this form is
+not recommended when dealing with filehandles other than Perl's built-in ones
+(e.g. STDOUT and STDIN).  In fact, using a bareword for the filehandle is
+an error when the C<bareword_filehandles> feature has been disabled.  This
+feature is disabled by default when in the scope of C<use v5.36.0> or later.
+
+
+=back
+
+=item Other considerations
+
+=over
+
+=item Automatic filehandle closure
+
+The filehandle will be closed when its reference count reaches zero. If
+it is a lexically scoped variable declared with L<C<my>|/my VARLIST>,
+that usually means the end of the enclosing scope.  However, this
+automatic close does not check for errors, so it is better to explicitly
+close filehandles, especially those used for writing:
+
+    close($handle)
+       || warn "close failed: $!";
+
+=item Automatic pipe flushing
 
 Perl will attempt to flush all files opened for
 output before any operation that may do a fork, but this may not be
@@ -4785,30 +5078,42 @@ Closing any piped filehandle causes the parent process to wait for the
 child to finish, then returns the status value in L<C<$?>|perlvar/$?> and
 L<C<${^CHILD_ERROR_NATIVE}>|perlvar/${^CHILD_ERROR_NATIVE}>.
 
+=item Direct versus by-reference assignment of filehandles
+
+If FILEHANDLE -- the first argument in a call to C<open> -- is an
+undefined scalar variable (or array or hash element), a new filehandle
+is autovivified, meaning that the variable is assigned a reference to a
+newly allocated anonymous filehandle.  Otherwise if FILEHANDLE is an
+expression, its value is the real filehandle.  (This is considered a
+symbolic reference, so C<use strict "refs"> should I<not> be in effect.)
+
+=item Whitespace and special characters in the filename argument
+
 The filename passed to the one- and two-argument forms of
-L<C<open>|/open FILEHANDLE,EXPR> will
+L<C<open>|/open FILEHANDLE,MODE,EXPR> will
 have leading and trailing whitespace deleted and normal
 redirection characters honored.  This property, known as "magic open",
 can often be used to good effect.  A user could specify a filename of
 F<"rsh cat file |">, or you could change certain filenames as needed:
 
     $filename =~ s/(.*\.gz)\s*$/gzip -dc < $1|/;
-    open(my $fh, $filename) or die "Can't open $filename: $!";
+    open(my $fh, $filename)
+        or die "Can't open $filename: $!";
 
 Use the three-argument form to open a file with arbitrary weird characters in it,
 
     open(my $fh, "<", $file)
-	|| die "Can't open $file: $!";
+    	|| die "Can't open $file: $!";
 
 otherwise it's necessary to protect any leading and trailing whitespace:
 
     $file =~ s#^(\s)#./$1#;
     open(my $fh, "< $file\0")
-	|| die "Can't open $file: $!";
+    	|| die "Can't open $file: $!";
 
 (this may not work on some bizarre filesystems).  One should
 conscientiously choose between the I<magic> and I<three-argument> form
-of L<C<open>|/open FILEHANDLE,EXPR>:
+of L<C<open>|/open FILEHANDLE,MODE,EXPR>:
 
     open(my $in, $ARGV[0]) || die "Can't open $ARGV[0]: $!";
 
@@ -4816,16 +5121,18 @@ will allow the user to specify an argument of the form C<"rsh cat file |">,
 but will not work on a filename that happens to have a trailing space, while
 
     open(my $in, "<", $ARGV[0])
-	|| die "Can't open $ARGV[0]: $!";
+    	|| die "Can't open $ARGV[0]: $!";
 
 will have exactly the opposite restrictions. (However, some shells
 support the syntax C<< perl your_program.pl <( rsh cat file ) >>, which
 produces a filename that can be opened normally.)
 
+=item Invoking C-style C<open>
+
 If you want a "real" C L<open(2)>, then you should use the
 L<C<sysopen>|/sysopen FILEHANDLE,FILENAME,MODE> function, which involves
 no such magic (but uses different filemodes than Perl
-L<C<open>|/open FILEHANDLE,EXPR>, which corresponds to C L<fopen(3)>).
+L<C<open>|/open FILEHANDLE,MODE,EXPR>, which corresponds to C L<fopen(3)>).
 This is another way to protect your filenames from interpretation.  For
 example:
 
@@ -4840,7 +5147,14 @@ example:
 See L<C<seek>|/seek FILEHANDLE,POSITION,WHENCE> for some details about
 mixing reading and writing.
 
-Portability issues: L<perlport/open>.
+=item Portability issues
+
+See L<perlport/open>.
+
+=back
+
+=back
+
 
 =item opendir DIRHANDLE,EXPR
 X<opendir>
@@ -4905,7 +5219,7 @@ L<C<our>|/our VARLIST> declaration.  This applies immediately--even
 within the same statement.
 
     package Foo;
-    use strict;
+    use v5.36;  # which implies "use strict;"
 
     $Foo::foo = 23;
 
@@ -4922,7 +5236,7 @@ This works even if the package variable has not been used before, as
 package variables spring into existence when first used.
 
     package Foo;
-    use strict;
+    use v5.36;
 
     our $foo = 23;   # just like $Foo::foo = 23
 
@@ -4933,7 +5247,7 @@ long as there is no variable with that name is already in scope, you can then
 reference the package variable again even within the same statement.
 
     package Foo;
-    use strict;
+    use v5.36;
 
     my  $foo = $foo; # error, undeclared $foo on right-hand side
     our $foo = $foo; # no errors
@@ -5059,8 +5373,7 @@ of values, as follows:
     F  A Perl internal floating-point value (NV) in native format
     D  A float of long-double precision in native format.
          (Long doubles are available only if your system supports
-          long double values _and_ if Perl has been compiled to
-          support those.  Raises an exception otherwise.
+          long double values. Raises an exception otherwise.
           Note that there are different long double formats.)
 
     p  A pointer to a null-terminated string.
@@ -5069,7 +5382,10 @@ of values, as follows:
     u  A uuencoded string.
     U  A Unicode character number.  Encodes to a character in char-
        acter mode and UTF-8 (or UTF-EBCDIC in EBCDIC platforms) in
-       byte mode.
+       byte mode.  Also on EBCDIC platforms, the character number will
+       be the native EBCDIC value for character numbers below 256.
+       This allows most programs using this feature to not have to
+       care which type of platform they are running on.
 
     w  A BER compressed integer (not an ASN.1 BER, see perlpacktut
        for details).  Its bytes represent an unsigned integer in
@@ -5718,7 +6034,7 @@ symbol table the compiler uses for the rest of that block.  You can refer to
 identifiers in other packages than the current one by prefixing the identifier
 with the package name and a double colon, as in C<$SomePack::var>
 or C<ThatPack::INPUT_HANDLE>.  If package name is omitted, the C<main>
-package as assumed.  That is, C<$::sail> is equivalent to
+package is assumed.  That is, C<$::sail> is equivalent to
 C<$main::sail> (as well as to C<$main'sail>, still seen in ancient
 code, mostly from Perl 4).
 
@@ -5770,14 +6086,26 @@ X<pop> X<stack>
 
 =for Pod::Functions remove the last element from an array and return it
 
-Pops and returns the last value of the array, shortening the array by
+Removes and returns the B<last> element of the array, shortening the array by
 one element.
 
-Returns the undefined value if the array is empty, although this may
-also happen at other times.  If ARRAY is omitted, pops the
-L<C<@ARGV>|perlvar/@ARGV> array in the main program, but the
-L<C<@_>|perlvar/@_> array in subroutines, just like
-L<C<shift>|/shift ARRAY>.
+    my @arr  = ('cat', 'dog', 'mouse');
+    my $item = pop(@arr); # 'mouse'
+
+    # @arr is now ('cat', 'dog')
+
+Returns C<undef> if the array is empty.
+
+B<Note:> C<pop> may also return C<undef> if the last element in the array
+is C<undef>.
+
+    my @arr  = ('one', 'two', undef);
+    my $item = pop(@arr); # undef
+
+If ARRAY is omitted, C<pop> operates on the L<C<@ARGV>|perlvar/@ARGV> array
+in the main program, but the L<C<@_>|perlvar/@_> array in subroutines. C<pop>
+will operate on the C<@ARGV> array in C<eval STRING>, C<BEGIN {}>, C<INIT {}>,
+C<CHECK {}> blocks.
 
 Starting with Perl 5.14, an experimental feature allowed
 L<C<pop>|/pop ARRAY> to take a
@@ -5928,16 +6256,20 @@ X<push> X<stack>
 
 =for Pod::Functions append one or more elements to an array
 
-Treats ARRAY as a stack by appending the values of LIST to the end of
-ARRAY.  The length of ARRAY increases by the length of LIST.  Has the same
-effect as
+Adds one or more items to the B<end> of an array.
 
-    for my $value (LIST) {
-        $ARRAY[++$#ARRAY] = $value;
-    }
+	my @animals = ("cat");
+	push(@animals, "mouse"); # ("cat", "mouse")
 
-but is more efficient.  Returns the number of elements in the array following
-the completed L<C<push>|/push ARRAY,LIST>.
+	my @colors = ("red");
+	push(@colors, ("blue", "green")); # ("red", "blue", "green")
+
+Returns the number of elements in the array following the completed
+L<C<push>|/push ARRAY,LIST>.
+
+	my $color_count = push(@colors, ("yellow", "purple"));
+
+	say "There are $color_count colors in the updated array";
 
 Starting with Perl 5.14, an experimental feature allowed
 L<C<push>|/push ARRAY,LIST> to take a
@@ -6012,6 +6344,18 @@ Will both leave the sentence as is.
 Normally, when accepting literal string input from the user,
 L<C<quotemeta>|/quotemeta EXPR> or C<\Q> must be used.
 
+Beware that if you put literal backslashes (those not inside
+interpolated variables) between C<\Q> and C<\E>, double-quotish
+backslash interpolation may lead to confusing results.  If you
+I<need> to use literal backslashes within C<\Q...\E>,
+consult L<perlop/"Gory details of parsing quoted constructs">.
+
+Because the result of S<C<"\Q I<STRING> \E">> has all metacharacters
+quoted, there is no way to insert a literal C<$> or C<@> inside a
+C<\Q\E> pair.  If protected by C<\>, C<$> will be quoted to become
+C<"\\\$">; if not, it is interpreted as the start of an interpolated
+scalar.
+
 In Perl v5.14, all non-ASCII characters are quoted in non-UTF-8-encoded
 strings, but not quoted in UTF-8 strings.
 
@@ -6036,7 +6380,7 @@ This protects against those locales where characters such as C<"|"> are
 considered to be word characters.
 
 Otherwise, Perl quotes non-ASCII characters using an adaptation from
-Unicode (see L<http://www.unicode.org/reports/tr31/>).
+Unicode (see L<https://www.unicode.org/reports/tr31/>).
 The only code points that are quoted are those that have any of the
 Unicode properties:  Pattern_Syntax, Pattern_White_Space, White_Space,
 Default_Ignorable_Code_Point, or General_Category=Control.
@@ -6127,14 +6471,15 @@ results in the string being padded to the required size with C<"\0">
 bytes before the result of the read is appended.
 
 The call is implemented in terms of either Perl's or your system's native
-L<fread(3)> library function.  To get a true L<read(2)> system call, see
+L<fread(3)> library function, via the L<PerlIO> layers applied to the
+handle.  To get a true L<read(2)> system call, see
 L<sysread|/sysread FILEHANDLE,SCALAR,LENGTH,OFFSET>.
 
 Note the I<characters>: depending on the status of the filehandle,
 either (8-bit) bytes or characters are read.  By default, all
 filehandles operate on bytes, but for example if the filehandle has
 been opened with the C<:utf8> I/O layer (see
-L<C<open>|/open FILEHANDLE,EXPR>, and the L<open>
+L<C<open>|/open FILEHANDLE,MODE,EXPR>, and the L<open>
 pragma), the I/O will operate on UTF8-encoded Unicode
 characters, not bytes.  Similarly for the C<:encoding> layer:
 in that case pretty much any characters can be read.
@@ -6177,7 +6522,7 @@ versions of Perl with mysterious failures, put this sort of thing at the
 top of your file to signal that your code will work I<only> on Perls of a
 recent vintage:
 
-    use 5.012; # so readdir assigns to $_ in a lone while test
+    use v5.12; # so readdir assigns to $_ in a lone while test
 
 =item readline EXPR
 
@@ -6219,7 +6564,7 @@ if the result is not defined.
         ...
     }
 
-Note that you have can't handle L<C<readline>|/readline EXPR> errors
+Note that you can't handle L<C<readline>|/readline EXPR> errors
 that way with the C<ARGV> filehandle.  In that case, you have to open
 each element of L<C<@ARGV>|perlvar/@ARGV> yourself since
 L<C<eof>|/eof FILEHANDLE> handles C<ARGV> differently.
@@ -6270,7 +6615,7 @@ multi-line) string.  In list context, returns a list of lines
 C<$INPUT_RECORD_SEPARATOR> in L<English>)).
 This is the internal function implementing the C<qx/EXPR/>
 operator, but you can use it directly.  The C<qx/EXPR/>
-operator is discussed in more detail in L<perlop/"I/O Operators">.
+operator is discussed in more detail in L<perlop/"C<qx/I<STRING>/>">.
 If EXPR is omitted, uses L<C<$_>|perlvar/$_>.
 
 =item recv SOCKET,SCALAR,LENGTH,FLAGS
@@ -6391,7 +6736,9 @@ L<C<Scalar::Util::blessed()>|Scalar::Util/blessed> for information about
 blessing, and L<C<Scalar::Util::reftype()>|Scalar::Util/reftype> for
 information about physical types.  Use L<the C<isa> method|UNIVERSAL/C<<
 $obj->isa( TYPE ) >>> for class membership tests, though one must be
-sure of blessedness before attempting a method call.
+sure of blessedness before attempting a method call.  Alternatively, the
+L<C<isa> operator|perlop/"Class Instance Operator"> can test class
+membership without checking blessedness first.
 
 See also L<perlref> and L<perlobj>.
 
@@ -6401,7 +6748,8 @@ X<rename> X<move> X<mv> X<ren>
 =for Pod::Functions change a filename
 
 Changes the name of a file; an existing file NEWNAME will be
-clobbered.  Returns true for success, false otherwise.
+clobbered.  Returns true for success; on failure returns false and sets
+L<C<$!>|perlvar/$!>.
 
 Behavior of this function varies wildly depending on your system
 implementation.  For example, it will usually not work across file system
@@ -6472,8 +6820,14 @@ would have semantics similar to the following:
             croak "Compilation failed in require";
         }
 
-        foreach $prefix (@INC) {
-            if (ref($prefix)) {
+        local $INC;
+        # this type of loop lets a hook overwrite $INC if they wish
+        for($INC = 0; $INC < @INC; $INC++) {
+            my $prefix = $INC[$INC];
+            if (!defined $prefix) {
+                next;
+            }
+            if (ref $prefix) {
                 #... do other stuff - see text below ....
             }
             # (see text below about possible appending of .pmc
@@ -6502,11 +6856,17 @@ would have semantics similar to the following:
 Note that the file will not be included twice under the same specified
 name.
 
-The file must return true as the last statement to indicate
+Historically the file must return true as the last statement to indicate
 successful execution of any initialization code, so it's customary to
 end such a file with C<1;> unless you're sure it'll return true
 otherwise.  But it's better just to put the C<1;>, in case you add more
-statements.
+statements. As of 5.37.6 this requirement may be avoided by enabling
+the 'module_true' feature, which is enabled by default in modern
+version bundles. Thus code with C<use v5.37;> no longer needs to concern
+itself with this issue. See L<feature> for more details. Note that this
+affects the compilation unit within which the feature is used, and using
+it before requiring a module will not change the behavior of existing
+modules that do not themselves also use it.
 
 If EXPR is a bareword, L<C<require>|/require VERSION> assumes a F<.pm>
 extension and replaces C<::> with C</> in the filename for you,
@@ -6550,16 +6910,20 @@ F<.pmc> extension.  If this file is found, it will be loaded in place of
 any file ending in a F<.pm> extension. This applies to both the explicit
 C<require "Foo/Bar.pm";> form and the C<require Foo::Bar;> form.
 
-You can also insert hooks into the import facility by putting Perl code
-directly into the L<C<@INC>|perlvar/@INC> array.  There are three forms
-of hooks: subroutine references, array references, and blessed objects.
+You can also insert hooks into the import facility by putting Perl
+coderefs or objects directly into the L<C<@INC>|perlvar/@INC> array.
+There are two types of hooks, INC filters, and INCDIR hooks, and there
+are three forms of representing a hook: subroutine references, array
+references, and blessed objects.
 
 Subroutine references are the simplest case.  When the inclusion system
-walks through L<C<@INC>|perlvar/@INC> and encounters a subroutine, this
-subroutine gets called with two parameters, the first a reference to
-itself, and the second the name of the file to be included (e.g.,
-F<Foo/Bar.pm>).  The subroutine should return either nothing or else a
-list of up to four values in the following order:
+walks through L<C<@INC>|perlvar/@INC> and encounters a subroutine, unless
+this subroutine is blessed and supports an INCDIR hook this
+subroutine will be assumed to be an INC hook will be called with two
+parameters, the first a reference to itself, and the second the name of
+the file to be included (e.g., F<Foo/Bar.pm>).  The subroutine should
+return either nothing or else a list of up to four values in the
+following order:
 
 =over
 
@@ -6591,6 +6955,9 @@ Optional state for the subroutine.  The state is passed in as C<$_[1]>.
 
 =back
 
+C<AUTOLOAD> cannot be used to resolve the C<INCDIR> method, C<INC> is
+checked first, and C<AUTOLOAD> would resolve that.
+
 If an empty list, L<C<undef>|/undef EXPR>, or nothing that matches the
 first 3 values above is returned, then L<C<require>|/require VERSION>
 looks at the remaining elements of L<C<@INC>|perlvar/@INC>.
@@ -6598,10 +6965,37 @@ Note that this filehandle must be a real filehandle (strictly a typeglob
 or reference to a typeglob, whether blessed or unblessed); tied filehandles
 will be ignored and processing will stop there.
 
-If the hook is an array reference, its first element must be a subroutine
-reference.  This subroutine is called as above, but the first parameter is
-the array reference.  This lets you indirectly pass arguments to
-the subroutine.
+If the hook is an object, it should provide an C<INC> or C<INCDIR>
+method that will be called as above, the first parameter being the
+object itself. If it does not provide either method, and the object is
+not CODE ref then an exception will be thrown, otherwise it will simply
+be executed like an unblessed CODE ref would. Note that you must fully
+qualify the method name when you declare an C<INC> sub (unlike the
+C<INCDIR> sub), as the unqualified symbol C<INC> is always forced into
+package C<main>.  Here is a typical code layout for an C<INC> hook:
+
+    # In Foo.pm
+    package Foo;
+    sub new { ... }
+    sub Foo::INC {
+        my ($self, $filename) = @_;
+        ...
+    }
+
+    # In the main program
+    push @INC, Foo->new(...);
+
+If the hook is an array reference, its first element must be a
+subroutine reference or an object as described above. When the first
+element is an object that supports an C<INC> or C<INCDIR> method then
+the method will be called with the object as the first argument, the
+filename requested as the second, and the hook array reference as the
+the third. When the first element is a subroutine then it will be
+called with the array as the first argument, and the filename as the
+second, no third parameter will be passed in. In both forms you can
+modify the contents of the array to provide state between calls, or
+whatever you like.
+
 
 In other words, you can write:
 
@@ -6621,26 +7015,130 @@ or:
         ...
     }
 
-If the hook is an object, it must provide an C<INC> method that will be
-called as above, the first parameter being the object itself.  (Note that
-you must fully qualify the sub's name, as unqualified C<INC> is always forced
-into package C<main>.)  Here is a typical code layout:
+or:
 
-    # In Foo.pm
-    package Foo;
-    sub new { ... }
-    sub Foo::INC {
-        my ($self, $filename) = @_;
+    push @INC, [ HookObj->new(), $x, $y, ... ];
+    sub HookObj::INC {
+        my ($self, $filename, $arrayref)= @_;
+        my (undef, @parameters) = @$arrayref;
         ...
     }
 
-    # In the main program
-    push @INC, Foo->new(...);
-
 These hooks are also permitted to set the L<C<%INC>|perlvar/%INC> entry
 corresponding to the files they have loaded.  See L<perlvar/%INC>.
+Should an C<INC> hook not do this then perl will set the C<%INC> entry
+to be the hook reference itself.
 
-For a yet-more-powerful import facility, see
+A hook may also be used to rewrite the C<@INC> array. While this might
+sound strange, there are situations where it can be very useful to do
+this. Such hooks usually just return undef and do not mix filtering and
+C<@INC> modifications. While in older versions of perl having a hook
+modify C<@INC> was fraught with issues and could even result in
+segfaults or assert failures, as of 5.37.7 the logic has been made much
+more robust and the hook now has control over the loop iteration if it
+wishes to do so.
+
+There is a now a facility to control the iterator for the C<@INC> array
+traversal that is performed during require. The C<$INC> variable will be
+initialized with the index of the currently executing hook. Once the
+hook returns the next slot in C<@INC> that will be checked will be the
+integer successor of value in C<$INC> (or -1 if it is undef). For example
+the following code
+
+    push @INC, sub {
+        splice @INC, $INC, 1; # remove this hook from @INC
+        unshift @INC, sub { warn "A" };
+        undef $INC; # reset the $INC iterator so we
+                    # execute the newly installed sub
+                    # immediately.
+    };
+
+would install a sub into C<@INC> that when executed as a hook (by for
+instance a require of a file that does not exist), the hook will splice
+itself out of C<@INC>, and add a new sub to the front that will warn
+whenever someone does a require operation that requires an C<@INC>
+search, and then immediately execute that hook.
+
+Prior to 5.37.7, there was no way to cause perl to use the newly
+installed hook immediately, or to inspect any changed items in C<@INC> to
+the left of the iterator, and so the warning would only be generated on
+the second call to require. In more recent perl the presence of the last
+statement which undefines C<$INC> will cause perl to restart the
+traversal of the C<@INC> array at the beginning and execute the newly
+installed sub immediately.
+
+Whatever value C<$INC> held, if any, will be restored at the end of the
+require. Any changes made to C<$INC> during the lifetime of the hook
+will be unrolled after the hook exits, and its value only has meaning
+immediately after execution of the hook, thus setting C<$INC> to some
+value prior to executing a C<require> will have no effect on how the
+require executes at all.
+
+As of 5.37.7 C<@INC> values of undef will be silently ignored.
+
+The function C<require()> is difficult to wrap properly. Many modules
+consult the stack to find information about their caller, and injecting
+a new stack frame by wrapping C<require()> often breaks things.
+Nevertheless it can be very helpful to have the ability to perform
+actions before and after a C<require>, for instance for trace utilities
+like C<Devel::TraceUse> or to measure time to load and the memory
+consumption of the require graph. Because of the difficulties in safely
+creating a C<require()> wrapper in 5.37.10 we introduced a new mechanism.
+
+As of 5.37.10, prior to any other actions it performs, C<require> will
+check if C<${^HOOK}{require__before}> contains a coderef, and if it does
+it will be called with the filename form of the item being loaded. The hook
+may modify C<$_[0]> to load a different filename, or it may throw a fatal
+exception to cause the require to fail, which will be treated as though the
+required code itself had thrown an exception.
+
+The C<${^HOOK}{require__before}> hook may return a code reference, in
+which case the code reference will be executed (in an eval with the
+filname as a parameter) after the require completes. It will be executed
+regardless of how the compilation completed, and even if the require
+throws a fatal exception.  The function may consult C<%INC> to determine
+if the require failed or not.  For instance the following code will print
+some diagnostics before and after every C<require> statement.  The
+example also includes logic to chain the signal, so that multiple
+signals can cooperate. Well behaved C<${^HOOK}{require__before}>
+handlers should always take this into account.
+
+    {
+        use Scalar::Util qw(reftype);
+        my $old_hook = ${^HOOK}{require__before};
+        local ${^HOOK}{require__before} = sub {
+            my ($name) = @_;
+            my $old_hook_ret;
+            $old_hook_ret = $old_hook->($name) if $old_hook;
+            warn "Requiring: $name\n";
+            return sub {
+                $old_hook_ret->() if ref($old_hook_ret)
+                                  && reftype($old_hook_ret) eq "CODE";
+                warn sprintf "Finished requiring %s: %s\n",
+                        $name, $INC{$name} ? "loaded" :"failed";
+            };
+        };
+        require Whatever;
+    }
+
+This hook executes for ALL C<require> statements, unlike C<INC> and
+C<INCDIR> hooks, which are only executed for relative file names, and it
+executes first before any other special behaviour inside of require.
+Note that the initial hook in C<${^HOOK}{require__before}> is *not*
+executed inside of an eval, and throwing an exception will stop further
+processing, but the after hook it may return is executed inside of an
+eval, and any exceptions it throws will be silently ignored.  This is
+because it executes inside of the scope cleanup logic that is triggered
+after the require completes, and an exception at this time would not
+stop the module from being loaded, etc.
+
+There is a similar hook that fires after require completes,
+C<${^HOOK}{require__after}>, which will be called after each require statement
+completes, either via an exception or successfully. It will be called with
+the filename of the most recently executed require statement. It is executed
+in an eval, and will not in any way affect execution.
+
+For a yet-more-powerful import facility built around C<require>, see
 L<C<use>|/use Module VERSION LIST> and L<perlmod>.
 
 =item reset EXPR
@@ -6682,8 +7180,8 @@ X<return>
 
 Returns from a subroutine, L<C<eval>|/eval EXPR>,
 L<C<do FILE>|/do EXPR>, L<C<sort>|/sort SUBNAME LIST> block or regex
-eval block (but not a L<C<grep>|/grep BLOCK LIST> or
-L<C<map>|/map BLOCK LIST> block) with the value
+eval block (but not a L<C<grep>|/grep BLOCK LIST>,
+L<C<map>|/map BLOCK LIST>, or L<C<do BLOCK>|/do BLOCK> block) with the value
 given in EXPR.  Evaluation of EXPR may be in list, scalar, or void
 context, depending on how the return value will be used, and the context
 may vary from one execution to the next (see
@@ -6789,8 +7287,8 @@ X<say>
 =for Pod::Functions +say output a list to a filehandle, appending a newline
 
 Just like L<C<print>|/print FILEHANDLE LIST>, but implicitly appends a
-newline.  C<say LIST> is simply an abbreviation for
-C<{ local $\ = "\n"; print LIST }>.  To use FILEHANDLE without a LIST to
+newline at the end of the LIST instead of any value L<C<$\>|perlvar/$\>
+might have.  To use FILEHANDLE without a LIST to
 print the contents of L<C<$_>|perlvar/$_> to it, you must use a bareword
 filehandle like C<FH>, not an indirect one like C<$fh>.
 
@@ -6832,7 +7330,7 @@ is the moral equivalent of these two:
     print(uc($bar), $baz);
 
 See L<perlop> for more details on unary operators and the comma operator,
-and L<perldata> for details on evaluating a hash in scalar contex.
+and L<perldata> for details on evaluating a hash in scalar context.
 
 =item seek FILEHANDLE,POSITION,WHENCE
 X<seek> X<fseek> X<filehandle, position>
@@ -6910,10 +7408,10 @@ X<select> X<filehandle, default>
 
 Returns the currently selected filehandle.  If FILEHANDLE is supplied,
 sets the new current default filehandle for output.  This has two
-effects: first, a L<C<write>|/write FILEHANDLE> or a L<C<print>|/print
-FILEHANDLE LIST> without a filehandle
-default to this FILEHANDLE.  Second, references to variables related to
-output will refer to this output channel.
+effects: first, a L<C<write>|/write FILEHANDLE>,  L<C<print>|/print
+FILEHANDLE LIST>, or L<C<say>|/say FILEHANDLE LIST> without a
+filehandle default to this FILEHANDLE.  Second, references to variables
+related to output will refer to this output channel.
 
 For example, to set the top-of-form format for more than one
 output channel, you might do the following:
@@ -6935,6 +7433,34 @@ methods, preferring to write the last example as:
 
 (Prior to Perl version 5.14, you have to C<use IO::Handle;> explicitly
 first.)
+
+Whilst you can use C<select> to temporarily "capture" the output of
+C<print> like this:
+
+    {
+        my $old_handle = select $new_handle;
+
+        # This goes to $new_handle:
+        print "ok 1\n";
+        ...
+
+        select $old_handle;
+    }
+
+you might find it easier to localize the typeglob instead:
+
+    {
+        local *STDOUT = $new_handle;
+
+        print "ok 1\n";
+        ...
+    }
+
+The two are not exactly equivalent, but the latter might be clearer and will
+restore STDOUT if the wrapped code dies.  The difference is that in the
+former, the original STDOUT can still be accessed by explicitly using it in a
+C<print> statement (as C<print STDOUT ...>), whereas in the latter the meaning
+of the STDOUT handle itself has temporarily been changed.
 
 Portability issues: L<perlport/select>.
 
@@ -7144,14 +7670,25 @@ X<shift>
 
 =for Pod::Functions remove the first element of an array, and return it
 
-Shifts the first value of the array off and returns it, shortening the
-array by 1 and moving everything down.  If there are no elements in the
-array, returns the undefined value.  If ARRAY is omitted, shifts the
-L<C<@_>|perlvar/@_> array within the lexical scope of subroutines and
-formats, and the L<C<@ARGV>|perlvar/@ARGV> array outside a subroutine
-and also within the lexical scopes
-established by the C<eval STRING>, C<BEGIN {}>, C<INIT {}>, C<CHECK {}>,
-C<UNITCHECK {}>, and C<END {}> constructs.
+Removes and returns the B<first> element of an array. This shortens the
+array by one and moves everything down.
+
+    my @arr  = ('cat', 'dog');
+    my $item = shift(@arr); # 'cat'
+
+    # @arr is now ('dog');
+
+Returns C<undef> if the array is empty.
+
+B<Note:> C<shift> may also return C<undef> if the first element in the array
+is C<undef>.
+
+    my @arr  = (undef, 'two', 'three');
+    my $item = shift(@arr); # undef
+
+If ARRAY is omitted, C<shift> operates on the C<@ARGV> array in the main
+program, and the C<@_> array in subroutines. C<shift> will operate on the
+C<@ARGV> array in C<eval STRING>, C<BEGIN {}>, C<INIT {}>, C<CHECK {}> blocks.
 
 Starting with Perl 5.14, an experimental feature allowed
 L<C<shift>|/shift ARRAY> to take a
@@ -7264,6 +7801,17 @@ X<sleep> X<pause>
 Causes the script to sleep for (integer) EXPR seconds, or forever if no
 argument is given.  Returns the integer number of seconds actually slept.
 
+EXPR should be a positive integer. If called with a negative integer,
+L<C<sleep>|/sleep EXPR> does not sleep but instead emits a warning, sets
+C<$!> (C<errno>), and returns zero.
+
+If called with a non-integer, the fractional part is ignored.
+
+
+C<sleep 0> is permitted, but a function call to the underlying platform
+implementation still occurs, with any side effects that may have.
+C<sleep 0> is therefore not exactly identical to not sleeping at all.
+
 May be interrupted if the process receives a signal such as C<SIGALRM>.
 
     eval {
@@ -7353,7 +7901,7 @@ undefined.
 If SUBNAME or BLOCK is omitted, L<C<sort>|/sort SUBNAME LIST>s in
 standard string comparison
 order.  If SUBNAME is specified, it gives the name of a subroutine
-that returns an integer less than, equal to, or greater than C<0>,
+that returns a numeric value less than, equal to, or greater than C<0>,
 depending on how the elements of the list are to be ordered.  (The
 C<< <=> >> and C<cmp> operators are extremely useful in such routines.)
 SUBNAME may be a scalar variable name (unsubscripted), in which case
@@ -7475,6 +8023,14 @@ Examples:
     package main;
     my @new = sort Other::backwards @old;
 
+    ## using a prototype with function signature
+    use feature 'signatures';
+    sub function_with_signature :prototype($$) ($one, $two) {
+        return $one <=> $two
+    }
+
+    my @new = sort function_with_signature @old;
+
     # guarantee stability
     use sort 'stable';
     my @new = sort { substr($a, 3, 5) cmp substr($b, 3, 5) } @old;
@@ -7567,6 +8123,9 @@ eliminate any C<NaN>s from the input list.
 
     my @result = sort { $a <=> $b } grep { $_ == $_ } @input;
 
+In this version of F<perl>, the C<sort> function is implemented via the
+mergesort algorithm.
+
 =item splice ARRAY,OFFSET,LENGTH,LIST
 X<splice>
 
@@ -7651,16 +8210,15 @@ to specify a pattern that varies at runtime.
 If PATTERN matches the empty string, the EXPR is split at the match
 position (between characters).  As an example, the following:
 
-    print join(':', split(/b/, 'abc')), "\n";
+    my @x = split(/b/, "abc"); # ("a", "c")
 
-uses the C<b> in C<'abc'> as a separator to produce the output C<a:c>.
+uses the C<b> in C<'abc'> as a separator to produce the list ("a", "c").
 However, this:
 
-    print join(':', split(//, 'abc')), "\n";
+    my @x = split(//, "abc"); # ("a", "b", "c")
 
-uses empty string matches as separators to produce the output
-C<a:b:c>; thus, the empty string may be used to split EXPR into a
-list of its component characters.
+uses empty string matches as separators; thus, the empty string
+may be used to split EXPR into a list of its component characters.
 
 As a special case for L<C<split>|/split E<sol>PATTERNE<sol>,EXPR,LIMIT>,
 the empty pattern given in
@@ -7685,7 +8243,18 @@ S<C<"\x20">>, but not e.g. S<C</ />>).  In this case, any leading
 whitespace in EXPR is removed before splitting occurs, and the PATTERN is
 instead treated as if it were C</\s+/>; in particular, this means that
 I<any> contiguous whitespace (not just a single space character) is used as
-a separator.  However, this special treatment can be avoided by specifying
+a separator.
+
+    my @x = split(" ", "  Quick brown fox\n");
+    # ("Quick", "brown", "fox")
+
+    my @x = split(" ", "RED\tGREEN\tBLUE");
+    # ("RED", "GREEN", "BLUE")
+
+Using split in this fashion is very similar to how
+L<C<qwE<sol>E<sol>>|/qwE<sol>STRINGE<sol>> works.
+
+However, this special treatment can be avoided by specifying
 the pattern S<C</ />> instead of the string S<C<" ">>, thereby allowing
 only a single space character to be a separator.  In earlier Perls this
 special case was restricted to the use of a plain S<C<" ">> as the
@@ -7693,7 +8262,7 @@ pattern argument to split; in Perl 5.18.0 and later this special case is
 triggered by any expression which evaluates to the simple string S<C<" ">>.
 
 As of Perl 5.28, this special-cased whitespace splitting works as expected in
-the scope of L<< S<C<"use feature 'unicode_strings">>|feature/The
+the scope of L<< S<C<"use feature 'unicode_strings'">>|feature/The
 'unicode_strings' feature >>. In previous versions, and outside the scope of
 that feature, it exhibits L<perlunicode/The "Unicode Bug">: characters that are
 whitespace according to Unicode rules but not according to ASCII rules can be
@@ -7710,18 +8279,10 @@ the LIMIT value C<1> means that EXPR may be split a maximum of zero
 times, producing a maximum of one field (namely, the entire value of
 EXPR).  For instance:
 
-    print join(':', split(//, 'abc', 1)), "\n";
-
-produces the output C<abc>, and this:
-
-    print join(':', split(//, 'abc', 2)), "\n";
-
-produces the output C<a:bc>, and each of these:
-
-    print join(':', split(//, 'abc', 3)), "\n";
-    print join(':', split(//, 'abc', 4)), "\n";
-
-produces the output C<a:b:c>.
+    my @x = split(//, "abc", 1); # ("abc")
+    my @x = split(//, "abc", 2); # ("a", "bc")
+    my @x = split(//, "abc", 3); # ("a", "b", "c")
+    my @x = split(//, "abc", 4); # ("a", "b", "c")
 
 If LIMIT is negative, it is treated as if it were instead arbitrarily
 large; as many fields as possible are produced.
@@ -7732,13 +8293,13 @@ trailing empty fields are stripped (empty leading fields are always
 preserved); if all fields are empty, then all fields are considered to
 be trailing (and are thus stripped in this case).  Thus, the following:
 
-    print join(':', split(/,/, 'a,b,c,,,')), "\n";
+    my @x = split(/,/, "a,b,c,,,"); # ("a", "b", "c")
 
-produces the output C<a:b:c>, but the following:
+produces only a three element list.
 
-    print join(':', split(/,/, 'a,b,c,,,', -1)), "\n";
+    my @x = split(/,/, "a,b,c,,,", -1); # ("a", "b", "c", "", "", "")
 
-produces the output C<a:b:c:::>.
+produces a six element list.
 
 In time-critical applications, it is worthwhile to avoid splitting
 into more fields than necessary.  Thus, when assigning to a list,
@@ -7754,23 +8315,21 @@ produces zero fields, regardless of the LIMIT specified.
 An empty leading field is produced when there is a positive-width
 match at the beginning of EXPR.  For instance:
 
-    print join(':', split(/ /, ' abc')), "\n";
+    my @x = split(/ /, " abc"); # ("", "abc")
 
-produces the output C<:abc>.  However, a zero-width match at the
+splits into two elements.  However, a zero-width match at the
 beginning of EXPR never produces an empty field, so that:
 
-    print join(':', split(//, ' abc'));
+    my @x = split(//, " abc"); # (" ", "a", "b", "c")
 
-produces the output S<C< :a:b:c>> (rather than S<C<: :a:b:c>>).
+splits into four elements instead of five.
 
 An empty trailing field, on the other hand, is produced when there is a
 match at the end of EXPR, regardless of the length of the match
 (of course, unless a non-zero LIMIT is given explicitly, such fields are
 removed, as in the last example).  Thus:
 
-    print join(':', split(//, ' abc', -1)), "\n";
-
-produces the output S<C< :a:b:c:>>.
+    my @x = split(//, " abc", -1); # (" ", "a", "b", "c", "")
 
 If the PATTERN contains
 L<capturing groups|perlretut/Grouping things and hierarchical matching>,
@@ -7785,20 +8344,20 @@ does B<not> count towards the LIMIT.  Consider the following expressions
 evaluated in list context (each returned list is provided in the associated
 comment):
 
-    split(/-|,/, "1-10,20", 3)
-    # ('1', '10', '20')
+    my @x = split(/-|,/    , "1-10,20", 3);
+    # ("1", "10", "20")
 
-    split(/(-|,)/, "1-10,20", 3)
-    # ('1', '-', '10', ',', '20')
+    my @x = split(/(-|,)/  , "1-10,20", 3);
+    # ("1", "-", "10", ",", "20")
 
-    split(/-|(,)/, "1-10,20", 3)
-    # ('1', undef, '10', ',', '20')
+    my @x = split(/-|(,)/  , "1-10,20", 3);
+    # ("1", undef, "10", ",", "20")
 
-    split(/(-)|,/, "1-10,20", 3)
-    # ('1', '-', '10', undef, '20')
+    my @x = split(/(-)|,/  , "1-10,20", 3);
+    # ("1", "-", "10", undef, "20")
 
-    split(/(-)|(,)/, "1-10,20", 3)
-    # ('1', '-', undef, '10', undef, ',', '20')
+    my @x = split(/(-)|(,)/, "1-10,20", 3);
+    # ("1", "-", undef, "10", undef, ",", "20")
 
 =item sprintf FORMAT, LIST
 X<sprintf>
@@ -8074,8 +8633,13 @@ as supported by the compiler used to build Perl:
                64-bit integers)
    t           interpret integer as C type "ptrdiff_t" on Perl
                5.14 or later
-   z           interpret integer as C type "size_t" on Perl 5.14
-               or later
+   z           interpret integer as C types "size_t" or
+               "ssize_t" on Perl 5.14 or later
+
+Note that, in general, using the C<l> modifier (for example, when writing
+C<"%ld"> or C<"%lu"> instead of C<"%d"> and C<"%u">) is unnecessary
+when used from Perl code.  Moreover, it may be harmful, for example on
+Windows 64-bit where a long is 32-bits.
 
 As of 5.14, none of these raises an exception if they are not supported on
 your platform.  However, if warnings are enabled, a warning of the
@@ -8087,7 +8651,7 @@ conversion flag.  Should you instead prefer an exception, do this:
 If you would like to know about a version dependency before you
 start running the program, put something like this at its top:
 
-    use 5.014;  # for hh/j/t/z/ printf modifiers
+    use v5.14;  # for hh/j/t/z/ printf modifiers
 
 You can find out whether your Perl supports quads via L<Config>:
 
@@ -8194,11 +8758,11 @@ The point of the function is to "seed" the L<C<rand>|/rand EXPR>
 function so that L<C<rand>|/rand EXPR> can produce a different sequence
 each time you run your program.  When called with a parameter,
 L<C<srand>|/srand EXPR> uses that for the seed; otherwise it
-(semi-)randomly chooses a seed.  In either case, starting with Perl 5.14,
+(semi-)randomly chooses a seed (see below).  In either case, starting with Perl 5.14,
 it returns the seed.  To signal that your code will work I<only> on Perls
 of a recent vintage:
 
-    use 5.014;	# so srand returns the seed
+    use v5.14;	# so srand returns the seed
 
 If L<C<srand>|/srand EXPR> is not called explicitly, it is called
 implicitly without a parameter at the first use of the
@@ -8225,6 +8789,20 @@ A typical use of the returned seed is for a test program which has too many
 combinations to test comprehensively in the time available to it each run.  It
 can test a random subset each time, and should there be a failure, log the seed
 used for that run so that it can later be used to reproduce the same results.
+
+If the C<PERL_RAND_SEED> environment variable is set to a non-negative
+integer during process startup then calls to C<srand()> with no
+arguments will initialize the perl random number generator with a
+consistent seed each time it is called, whether called explicitly with
+no arguments or implicitly via use of C<rand()>. The exact seeding that
+a given C<PERL_RAND_SEED> will produce is deliberately unspecified, but
+using different values for C<PERL_RAND_SEED> should produce different
+results. This is intended for debugging and performance analysis and is
+only guaranteed to produce consistent results between invocations of the
+same perl executable running the same code when all other factors are
+equal. The environment variable is read only once during process
+startup, and changing it during the program flow will not affect the
+currently running process. See L<perlrun> for more details.
 
 B<L<C<rand>|/rand EXPR> is not cryptographically secure.  You should not rely
 on it in security-sensitive situations.>  As of this writing, a
@@ -8412,6 +8990,11 @@ used as a
 dummy placeholder.  However, since initialization of state variables in
 such lists is currently not possible this would serve no purpose.
 
+Redeclaring a variable in the same scope or statement will "shadow" the
+previous declaration, creating a new instance and preventing access to
+the previous one. This is usually undesired and, if warnings are enabled,
+will result in a warning in the C<shadow> category.
+
 L<C<state>|/state VARLIST> is available only if the
 L<C<"state"> feature|feature/The 'state' feature> is enabled or if it is
 prefixed with C<CORE::>.  The
@@ -8518,7 +9101,7 @@ Here's an example showing the behavior for boundary cases:
 An alternative to using
 L<C<substr>|/substr EXPR,OFFSET,LENGTH,REPLACEMENT> as an lvalue is to
 specify the
-replacement string as the 4th argument.  This allows you to replace
+REPLACEMENT string as the 4th argument.  This allows you to replace
 parts of the EXPR and return what was there before in one operation,
 just as you can with
 L<C<splice>|/splice ARRAY,OFFSET,LENGTH,LIST>.
@@ -8626,6 +9209,15 @@ parameters FILENAME, MODE, and PERMS.
 
 Returns true on success and L<C<undef>|/undef EXPR> otherwise.
 
+L<PerlIO> layers will be applied to the handle the same way they would in an
+L<C<open>|/open FILEHANDLE,MODE,EXPR> call that does not specify layers. That is,
+the current value of L<C<${^OPEN}>|perlvar/${^OPEN}> as set by the L<open>
+pragma in a lexical scope, or the C<-C> commandline option or C<PERL_UNICODE>
+environment variable in the main program scope, falling back to the platform
+defaults as described in L<PerlIO/Defaults and how to override them>. If you
+want to remove any layers that may transform the byte stream, use
+L<C<binmode>|/binmode FILEHANDLE, LAYER> after opening it.
+
 The possible values and flag bits of the MODE parameter are
 system-dependent; they are available via the standard module
 L<C<Fcntl>|Fcntl>.  See the documentation of your operating system's
@@ -8641,11 +9233,10 @@ X<O_RDONLY> X<O_RDWR> X<O_WRONLY>
 For historical reasons, some values work on almost every system
 supported by Perl: 0 means read-only, 1 means write-only, and 2
 means read/write.  We know that these values do I<not> work under
-OS/390 and on the Macintosh; you probably don't want to
-use them in new code.
+OS/390; you probably don't want to use them in new code.
 
 If the file named by FILENAME does not exist and the
-L<C<open>|/open FILEHANDLE,EXPR> call creates
+L<C<open>|/open FILEHANDLE,MODE,EXPR> call creates
 it (typically because MODE includes the C<O_CREAT> flag), then the value of
 PERMS specifies the permissions of the newly created file.  If you omit
 the PERMS argument to L<C<sysopen>|/sysopen FILEHANDLE,FILENAME,MODE>,
@@ -8675,6 +9266,13 @@ L<C<sysopen>|/sysopen FILEHANDLE,FILENAME,MODE>, because
 that takes away the user's option to have a more permissive umask.
 Better to omit it.  See L<C<umask>|/umask EXPR> for more on this.
 
+This function has no direct relation to the usage of
+L<C<sysread>|/sysread FILEHANDLE,SCALAR,LENGTH,OFFSET>,
+L<C<syswrite>|/syswrite FILEHANDLE,SCALAR,LENGTH,OFFSET>,
+or L<C<sysseek>|/sysseek FILEHANDLE,POSITION,WHENCE>.  A handle opened with
+this function can be used with buffered IO just as one opened with
+L<C<open>|/open FILEHANDLE,MODE,EXPR> can be used with unbuffered IO.
+
 Note that under Perls older than 5.8.0,
 L<C<sysopen>|/sysopen FILEHANDLE,FILENAME,MODE> depends on the
 L<fdopen(3)> C library function.  On many Unix systems, L<fdopen(3)> is known
@@ -8695,13 +9293,14 @@ X<sysread>
 =for Pod::Functions fixed-length unbuffered input from a filehandle
 
 Attempts to read LENGTH bytes of data into variable SCALAR from the
-specified FILEHANDLE, using L<read(2)>.  It bypasses
-buffered IO, so mixing this with other kinds of reads,
+specified FILEHANDLE, using L<read(2)>.  It bypasses any L<PerlIO> layers
+including buffered IO (but is affected by the presence of the C<:utf8>
+layer as described later), so mixing this with other kinds of reads,
 L<C<print>|/print FILEHANDLE LIST>, L<C<write>|/write FILEHANDLE>,
 L<C<seek>|/seek FILEHANDLE,POSITION,WHENCE>,
 L<C<tell>|/tell FILEHANDLE>, or L<C<eof>|/eof FILEHANDLE> can cause
 confusion because the
-perlio or stdio layers usually buffer data.  Returns the number of
+C<:perlio> or C<:crlf> layers usually buffer data.  Returns the number of
 bytes actually read, C<0> at end of file, or undef if there was an
 error (in the latter case L<C<$!>|perlvar/$!> is also set).  SCALAR will
 be grown or
@@ -8724,7 +9323,7 @@ Note that if the filehandle has been marked as C<:utf8>, C<sysread> will
 throw an exception.  The C<:encoding(...)> layer implicitly
 introduces the C<:utf8> layer.  See
 L<C<binmode>|/binmode FILEHANDLE, LAYER>,
-L<C<open>|/open FILEHANDLE,EXPR>, and the L<open> pragma.
+L<C<open>|/open FILEHANDLE,MODE,EXPR>, and the L<open> pragma.
 
 =item sysseek FILEHANDLE,POSITION,WHENCE
 X<sysseek> X<lseek>
@@ -8865,12 +9464,14 @@ X<syswrite>
 
 Attempts to write LENGTH bytes of data from variable SCALAR to the
 specified FILEHANDLE, using L<write(2)>.  If LENGTH is
-not specified, writes whole SCALAR.  It bypasses buffered IO, so
+not specified, writes whole SCALAR.  It bypasses any L<PerlIO> layers
+including buffered IO (but is affected by the presence of the C<:utf8>
+layer as described later), so
 mixing this with reads (other than C<sysread)>),
 L<C<print>|/print FILEHANDLE LIST>, L<C<write>|/write FILEHANDLE>,
 L<C<seek>|/seek FILEHANDLE,POSITION,WHENCE>,
 L<C<tell>|/tell FILEHANDLE>, or L<C<eof>|/eof FILEHANDLE> may cause
-confusion because the perlio and stdio layers usually buffer data.
+confusion because the C<:perlio> and C<:crlf> layers usually buffer data.
 Returns the number of bytes actually written, or L<C<undef>|/undef EXPR>
 if there was an error (in this case the errno variable
 L<C<$!>|perlvar/$!> is also set).  If the LENGTH is greater than the
@@ -8887,7 +9488,7 @@ The C<:encoding(...)> layer implicitly introduces the C<:utf8> layer.
 Alternately, if the handle is not marked with an encoding but you
 attempt to write characters with code points over 255, raises an exception.
 See L<C<binmode>|/binmode FILEHANDLE, LAYER>,
-L<C<open>|/open FILEHANDLE,EXPR>, and the L<open> pragma.
+L<C<open>|/open FILEHANDLE,MODE,EXPR>, and the L<open> pragma.
 
 =item tell FILEHANDLE
 X<tell>
@@ -9122,31 +9723,42 @@ X<uc> X<uppercase> X<toupper>
 
 =for Pod::Functions return upper-case version of a string
 
-Returns an uppercased version of EXPR.  This is the internal function
-implementing the C<\U> escape in double-quoted strings.
-It does not attempt to do titlecase mapping on initial letters.  See
-L<C<ucfirst>|/ucfirst EXPR> for that.
+Returns an uppercased version of EXPR.  If EXPR is omitted, uses
+L<C<$_>|perlvar/$_>.
 
-If EXPR is omitted, uses L<C<$_>|perlvar/$_>.
+    my $str = uc("Perl is GREAT"); # "PERL IS GREAT"
 
 This function behaves the same way under various pragmas, such as in a locale,
 as L<C<lc>|/lc EXPR> does.
+
+If you want titlecase mapping on initial letters see
+L<C<ucfirst>|/ucfirst EXPR> instead.
+
+B<Note:> This is the internal function implementing the
+L<C<\U>|perlop/"Quote and Quote-like Operators"> escape in double-quoted
+strings.
+
+    my $str = "Perl is \Ugreat\E"; # "Perl is GREAT"
 
 =item ucfirst EXPR
 X<ucfirst> X<uppercase>
 
 =item ucfirst
 
-=for Pod::Functions return a string with just the next letter in upper case
+=for Pod::Functions return a string with the first letter in upper case
 
-Returns the value of EXPR with the first character in uppercase
-(titlecase in Unicode).  This is the internal function implementing
-the C<\u> escape in double-quoted strings.
+Returns the value of EXPR with the B<first> character in uppercase
+(Unicode calls this titlecase). If EXPR is omitted, C<ucfirst> uses L<C<$_>|perlvar/$_>.
 
-If EXPR is omitted, uses L<C<$_>|perlvar/$_>.
+    my $str = ucfirst("hello world!"); # "Hello world!"
 
 This function behaves the same way under various pragmas, such as in a locale,
 as L<C<lc>|/lc EXPR> does.
+
+B<Note:> This is the internal function implementing the C<\u> escape in
+double-quoted strings.
+
+    my $str = "\uperl\E is great"; # "Perl is great"
 
 =item umask EXPR
 X<umask>
@@ -9333,12 +9945,21 @@ X<unshift>
 
 =for Pod::Functions prepend more elements to the beginning of a list
 
-Does the opposite of a L<C<shift>|/shift ARRAY>.  Or the opposite of a
-L<C<push>|/push ARRAY,LIST>,
-depending on how you look at it.  Prepends list to the front of the
-array and returns the new number of elements in the array.
+Add one or more elements to the B<beginning> of an array. This is the
+opposite of a L<C<shift>|/shift ARRAY>.
 
-    unshift(@ARGV, '-e') unless $ARGV[0] =~ /^-/;
+    my @animals = ("cat");
+    unshift(@animals, "mouse"); # ("mouse", "cat")
+
+    my @colors = ("red");
+    unshift(@colors, ("blue", "green")); # ("blue", "green", "red")
+
+Returns the new number of elements in the updated array.
+
+    # Return value is the number of items in the updated array
+    my $color_count = unshift(@colors, ("yellow", "purple"));
+
+    say "There are $color_count colors in the updated array";
 
 Note the LIST is prepended whole, not one element at a time, so the
 prepended elements stay in the same order.  Use
@@ -9367,8 +9988,6 @@ X<use> X<module> X<import>
 
 =item use Module
 
-=item use VERSION
-
 =for Pod::Functions load in a module at compile time and import its namespace
 
 Imports some semantics into the current package from the named module,
@@ -9379,44 +9998,6 @@ package.  It is exactly equivalent to
 
 except that Module I<must> be a bareword.
 The importation can be made conditional by using the L<if> module.
-
-In the C<use VERSION> form, VERSION may be either a v-string such as
-v5.24.1, which will be compared to L<C<$^V>|perlvar/$^V> (aka
-$PERL_VERSION), or a numeric argument of the form 5.024001, which will
-be compared to L<C<$]>|perlvar/$]>.  An exception is raised if VERSION
-is greater than the version of the current Perl interpreter; Perl will
-not attempt to parse the rest of the file.  Compare with
-L<C<require>|/require VERSION>, which can do a similar check at run
-time.  Symmetrically, C<no VERSION> allows you to specify that you
-want a version of Perl older than the specified one.
-
-Specifying VERSION as a numeric argument of the form 5.024001 should
-generally be avoided as older less readable syntax compared to
-v5.24.1. Before perl 5.8.0 released in 2002 the more verbose numeric
-form was the only supported syntax, which is why you might see it in
-
-    use v5.24.1;    # compile time version check
-    use 5.24.1;     # ditto
-    use 5.024_001;  # ditto; older syntax compatible with perl 5.6
-
-This is often useful if you need to check the current Perl version before
-L<C<use>|/use Module VERSION LIST>ing library modules that won't work
-with older versions of Perl.
-(We try not to do this more than we have to.)
-
-C<use VERSION> also lexically enables all features available in the requested
-version as defined by the L<feature> pragma, disabling any features
-not in the requested version's feature bundle.  See L<feature>.
-Similarly, if the specified Perl version is greater than or equal to
-5.12.0, strictures are enabled lexically as
-with L<C<use strict>|strict>.  Any explicit use of
-C<use strict> or C<no strict> overrides C<use VERSION>, even if it comes
-before it.  Later use of C<use VERSION>
-will override all behavior of a previous
-C<use VERSION>, possibly removing the C<strict> and C<feature> added by
-C<use VERSION>.  C<use VERSION> does not
-load the F<feature.pm> or F<strict.pm>
-files.
 
 The C<BEGIN> forces the L<C<require>|/require VERSION> and
 L<C<import>|/import LIST> to happen at compile time.  The
@@ -9509,15 +10090,75 @@ or no unimport method being found.
     no strict 'refs';
     no warnings;
 
-Care should be taken when using the C<no VERSION> form of L<C<no>|/no
-MODULE VERSION LIST>.  It is
-I<only> meant to be used to assert that the running Perl is of a earlier
-version than its argument and I<not> to undo the feature-enabling side effects
-of C<use VERSION>.
+See L<perlmodlib> for a list of standard modules and pragmas.  See
+L<perlrun|perlrun/-m[-]module> for the C<-M> and C<-m> command-line
+options to Perl that give L<C<use>|/use Module VERSION LIST>
+functionality from the command-line.
 
-See L<perlmodlib> for a list of standard modules and pragmas.  See L<perlrun>
-for the C<-M> and C<-m> command-line options to Perl that give
-L<C<use>|/use Module VERSION LIST> functionality from the command-line.
+=item use VERSION
+
+=for Pod::Functions enable Perl language features and declare required version
+
+Lexically enables all features available in the requested version as
+defined by the L<feature> pragma, disabling any features not in the
+requested version's feature bundle.  See L<feature>.
+
+VERSION may be either a v-string such as v5.24.1, which will be compared
+to L<C<$^V>|perlvar/$^V> (aka $PERL_VERSION), or a numeric argument of the
+form 5.024001, which will be compared to L<C<$]>|perlvar/$]>.  An
+exception is raised if VERSION is greater than the version of the current
+Perl interpreter; Perl will not attempt to parse the rest of the file.
+Compare with L<C<require>|/require VERSION>, which can do a similar check
+at run time.
+
+If the specified Perl version is 5.12 or higher, strictures are enabled
+lexically as with L<C<use strict>|strict>.  Similarly, if the specified
+Perl version is 5.35.0 or higher, L<warnings> are enabled.  Later use of
+C<use VERSION> will override all behavior of a previous C<use VERSION>,
+possibly removing the C<strict>, C<warnings>, and C<feature> added by it.
+C<use VERSION> does not load the F<feature.pm>, F<strict.pm>, or
+F<warnings.pm> files.
+
+In the current implementation, any explicit use of C<use strict> or
+C<no strict> overrides C<use VERSION>, even if it comes before it.
+However, this may be subject to change in a future release of Perl, so new
+code should not rely on this fact.  It is recommended that a
+C<use VERSION> declaration be the first significant statement within a
+file (possibly after a C<package> statement or any amount of whitespace or
+comment), so that its effects happen first, and other pragmata are applied
+after it.
+
+Specifying VERSION as a numeric argument of the form 5.024001 should
+generally be avoided as older less readable syntax compared to
+v5.24.1. Before perl 5.8.0 released in 2002 the more verbose numeric
+form was the only supported syntax, which is why you might see it in
+older code.
+
+    use v5.24.1;    # compile time version check
+    use 5.24.1;     # ditto
+    use 5.024_001;  # ditto; older syntax compatible with perl 5.6
+
+This is often useful if you need to check the current Perl version before
+L<C<use>|/use Module VERSION LIST>ing library modules that won't work
+with older versions of Perl.
+(We try not to do this more than we have to.)
+
+Symmetrically, C<no VERSION> allows you to specify that you want a version
+of Perl older than the specified one.  Historically this was added during
+early designs of the Raku language (formerly "Perl 6"), so that a Perl 5
+program could begin
+
+    no 6;
+
+to declare that it is not a Perl 6 program.  As the two languages have
+different implementations, file naming conventions, and other
+infrastructure, this feature is now little used in practice and should be
+avoided in newly-written code.
+
+Care should be taken when using the C<no VERSION> form, as it is I<only>
+meant to be used to assert that the running Perl is of a earlier version
+than its argument and I<not> to undo the feature-enabling side effects
+of C<use VERSION>.
 
 =item utime LIST
 X<utime>
@@ -9623,7 +10264,7 @@ versions of Perl with mysterious syntax errors, put this sort of thing at
 the top of your file to signal that your code will work I<only> on Perls of
 a recent vintage:
 
-    use 5.012;	# so keys/values/each work on arrays
+    use v5.12;	# so keys/values/each work on arrays
 
 See also L<C<keys>|/keys HASH>, L<C<each>|/each HASH>, and
 L<C<sort>|/sort SUBNAME LIST>.
@@ -9669,10 +10310,8 @@ to try to write off the beginning of the string (i.e., negative OFFSET).
 If the string happens to be encoded as UTF-8 internally (and thus has
 the UTF8 flag set), L<C<vec>|/vec EXPR,OFFSET,BITS> tries to convert it
 to use a one-byte-per-character internal representation. However, if the
-string contains characters with values of 256 or higher, that conversion
-will fail, and a deprecation message will be raised.  In that situation,
-C<vec> will operate on the underlying buffer regardless, in its internal
-UTF-8 representation.  In Perl 5.32, this will be a fatal error.
+string contains characters with values of 256 or higher, a fatal error
+will occur.
 
 Strings created with L<C<vec>|/vec EXPR,OFFSET,BITS> can also be
 manipulated with the logical
@@ -10115,6 +10754,8 @@ This method keyword is documented in L<perlobj/"Destructors">.
 
 =item gt
 
+=item isa
+
 =item le
 
 =item lt
@@ -10186,6 +10827,36 @@ Statements">.
 
 These flow-control keywords related to the experimental switch feature are
 documented in L<perlsyn/"Switch Statements">.
+
+=back
+
+=over
+
+=item try
+
+=item catch
+
+=item finally
+
+These flow-control keywords related to the experimental C<try> feature are
+documented in L<perlsyn/"Try Catch Exception Handling">.
+
+=back
+
+=over
+
+=item defer
+
+This flow-control keyword related to the experimental C<defer> feature is
+documented in L<perlsyn/"defer blocks">.
+
+=back
+
+=over
+
+=item ADJUST
+
+This class-related phaser block is documented in L<perlclass>.
 
 =back
 

@@ -8,14 +8,22 @@ Each programmer will, of course, have his or her own preferences in
 regards to formatting, but there are some general guidelines that will
 make your programs easier to read, understand, and maintain.
 
-The most important thing is to run your programs under the B<-w>
-flag at all times.  You may turn it off explicitly for particular
-portions of code via the C<no warnings> pragma or the C<$^W> variable
-if you must.  You should also always run under C<use strict> or know the
-reason why not.  The C<use sigtrap> and even C<use diagnostics> pragmas
-may also prove useful.
+The most important thing is to use L<strict> and L<warnings> in all your
+code or know the reason why not to.  You may turn them off explicitly for
+particular portions of code via C<no warnings> or C<no strict>, and this
+can be limited to the specific warnings or strict features you wish to
+disable.  The B<-w> flag and C<$^W> variable should not be used for this
+purpose since they can affect code you use but did not write, such as
+modules from core or CPAN.
 
-Regarding aesthetics of code lay out, about the only thing Larry
+A concise way to arrange for this is to use the
+L<C<use VERSION>|perlfunc/use VERSION> syntax, requesting a version 5.36
+or above, which will enable both the C<strict> and C<warnings> pragmata (as
+well as several other useful L<named features|feature/AVAILABLE FEATURES>).
+
+    use v5.36;
+
+Regarding aesthetics of code layout, about the only thing Larry
 cares strongly about is that the closing curly bracket of
 a multi-line BLOCK should line up with the keyword that started the construct.
 Beyond that, he has other preferences that aren't so strong:
@@ -102,11 +110,11 @@ you I<SHOULD> do it that way.  Perl is designed to give you several
 ways to do anything, so consider picking the most readable one.  For
 instance
 
-    open(FOO,$foo) || die "Can't open $foo: $!";
+    open(my $fh, '<', $foo) || die "Can't open $foo: $!";
 
 is better than
 
-    die "Can't open $foo: $!" unless open(FOO,$foo);
+    die "Can't open $foo: $!" unless open(my $fh, '<', $foo);
 
 because the second way hides the main point of the statement in a
 modifier.  On the other hand
@@ -217,7 +225,7 @@ Don't use slash as a delimiter when your regexp has slashes or backslashes.
 
 =item *
 
-Use the new C<and> and C<or> operators to avoid having to parenthesize
+Use the C<and> and C<or> operators to avoid having to parenthesize
 list operators so much, and to reduce the incidence of punctuation
 operators like C<&&> and C<||>.  Call your subroutines as if they were
 functions or list operators to avoid excessive ampersands and parentheses.
@@ -248,7 +256,7 @@ system call and arguments were, and (VERY IMPORTANT) should contain the
 standard system error message for what went wrong.  Here's a simple but
 sufficient example:
 
-    opendir(D, $dir)	 or die "can't opendir $dir: $!";
+    opendir(my $dh, $dir)	 or die "can't opendir $dir: $!";
 
 =item *
 
@@ -262,7 +270,7 @@ Line up your transliterations when it makes sense:
 Think about reusability.  Why waste brainpower on a one-shot when you
 might want to do something like it again?  Consider generalizing your
 code.  Consider writing a module or object class.  Consider making your
-code run cleanly with C<use strict> and C<use warnings> (or B<-w>) in
+code run cleanly with C<use strict> and C<use warnings> in
 effect.  Consider giving away your code.  Consider changing your whole
 world view.  Consider... oh, never mind.
 

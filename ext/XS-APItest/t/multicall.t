@@ -69,13 +69,13 @@ use XS::APItest;
 # these take different code paths.
 # Whenever an explicit 'return' is used, it is followed by '1;' to avoid
 # the return being optimised into a leavesub.
-# Adding a 'for' loop pushes extra junk on the stack, which we we want to
+# Adding a 'for' loop pushes extra junk on the stack, which we want to
 # avoid being interpreted as a return arg.
 
 {
     package Ret;
 
-    use XS::APItest qw(multicall_return G_VOID G_SCALAR G_ARRAY);
+    use XS::APItest qw(multicall_return G_VOID G_SCALAR G_LIST);
 
     # Helper function for the block that follows:
     # check that @$got matches what would be expected if a function returned
@@ -93,11 +93,11 @@ use XS::APItest;
                         "G_SCALAR: $desc: correct arg");
         }
         else {
-            ::is (join('-',@$got), join('-', @$args), "G_ARRAY:  $desc");
+            ::is (join('-',@$got), join('-', @$args), "G_LIST:  $desc");
         }
     }
 
-    for my $gimme (G_VOID, G_SCALAR, G_ARRAY) {
+    for my $gimme (G_VOID, G_SCALAR, G_LIST) {
         my @a;
 
         # zero args

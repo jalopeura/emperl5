@@ -6,6 +6,7 @@
 # which can be found at <https://www.eyrie.org/~eagle/software/rra-c-util/>.
 #
 # Written by Russ Allbery <eagle@eyrie.org>
+# Copyright 2019, 2021 Russ Allbery <eagle@eyrie.org>
 # Copyright 2013-2014
 #     The Board of Trustees of the Leland Stanford Junior University
 #
@@ -29,14 +30,15 @@
 #
 # SPDX-License-Identifier: MIT
 
-use 5.006;
+use 5.010;
 use strict;
 use warnings;
 
 use lib 't/lib';
 
-use Test::More;
 use Test::RRA qw(skip_unless_author use_prereq);
+
+use Test::More;
 
 # Only run this test for the module author since the required stopwords are
 # too sensitive to the exact spell-checking program and dictionary.
@@ -45,12 +47,15 @@ skip_unless_author('Spelling tests');
 # Load prerequisite modules.
 use_prereq('Test::Spelling');
 
-# Check all POD in the Perl distribution.  Add the examples directory if it
-# exists.  Also add any files in usr/bin or usr/sbin, which are widely used in
-# Stanford-internal packages.
+# Check all POD in the Perl distribution.  Add the examples and t/lib
+# directories if they exist.  Also add any files in usr/bin or usr/sbin, which
+# are widely used in Stanford-internal packages.
 my @files = all_pod_files();
 if (-d 'examples') {
     push(@files, all_pod_files('examples'));
+}
+if (-d File::Spec->catfile('t', 'lib')) {
+    push(@files, all_pod_files(File::Spec->catfile('t', 'lib')));
 }
 for my $dir (qw(usr/bin usr/sbin)) {
     if (-d $dir) {

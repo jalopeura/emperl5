@@ -36,18 +36,19 @@ BEGIN {
 
 use strict;
 use Test::More;
-plan tests => 3886;
 
 use feature (sprintf(":%vd", $^V)); # to avoid relying on the feature
                                     # logic to add CORE::
 use B::Deparse;
-my $deparse = new B::Deparse;
+my $deparse = B::Deparse->new();
 
 my %SEEN;
-my %SEEN_STRENGH;
+my %SEEN_STRENGTH;
 
-# for a given keyword, create a sub of that name, then
-# deparse "() = $expr", and see if it matches $expected_expr
+# For a given keyword, create a sub of that name,
+# then deparse 3 different assignment expressions
+# using that keyword.  See if the $expr we get back
+# matches $expected_expr.
 
 sub testit {
     my ($keyword, $expr, $expected_expr, $lexsub) = @_;
@@ -55,54 +56,52 @@ sub testit {
     $expected_expr //= $expr;
     $SEEN{$keyword} = 1;
 
-
     # lex=0:   () = foo($a,$b,$c)
     # lex=1:   my ($a,$b); () = foo($a,$b,$c)
     # lex=2:   () = foo(my $a,$b,$c)
     for my $lex (0, 1, 2) {
-	if ($lex) {
-	    next if $keyword =~ /local|our|state|my/;
-	}
-	my $vars = $lex == 1 ? 'my($a, $b, $c, $d, $e);' . "\n    " : "";
+        next if ($lex and $keyword =~ /local|our|state|my/);
+        my $vars = $lex == 1 ? 'my($a, $b, $c, $d, $e);' . "\n    " : "";
 
-	if ($lex == 2) {
-	    my $repl = 'my $a';
-	    if ($expr =~ 'CORE::do') {
-		# do foo() is a syntax error, so B::Deparse emits
-		# do (foo()), but does not distinguish between foo and my,
-		# because it is too complicated.
-		$repl = '(my $a)';
-	    }
-	    s/\$a/$repl/ for $expr, $expected_expr;
-	}
+        if ($lex == 2) {
+            my $repl = 'my $a';
+            if ($expr =~ 'CORE::do') {
+                # do foo() is a syntax error, so B::Deparse emits
+                # do (foo()), but does not distinguish between foo and my,
+                # because it is too complicated.
+                $repl = '(my $a)';
+            }
+            s/\$a/$repl/ for $expr, $expected_expr;
+        }
 
-	my $desc = "$keyword: lex=$lex $expr => $expected_expr";
-	$desc .= " (lex sub)" if $lexsub;
-
+        my $desc = "$keyword: lex=$lex $expr => $expected_expr";
+        $desc .= " (lex sub)" if $lexsub;
 
         my $code;
-	my $code_ref;
-	if ($lexsub) {
-	    package lexsubtest;
-	    no warnings 'experimental::lexical_subs';
-	    use feature 'lexical_subs';
-	    no strict 'vars';
+        my $code_ref;
+        if ($lexsub) {
+            package lexsubtest;
+            no warnings 'experimental::lexical_subs';
+            use feature 'lexical_subs';
+            no strict 'vars';
             $code = "sub { state sub $keyword; ${vars}() = $expr }";
-	    $code_ref = eval $code
-			    or die "$@ in $expr";
-	}
-	else {
-	    package test;
-	    use subs ();
-	    import subs $keyword;
-	    $code = "no strict 'vars'; sub { ${vars}() = $expr }";
-	    $code_ref = eval $code
-			    or die "$@ in $expr";
-	}
+            $code = "use feature 'isa';\n$code" if $keyword eq "isa";
+            $code = "use feature 'switch';\n$code" if $keyword eq "break";
+            $code_ref = eval $code or die "$@ in $expr";
+        }
+        else {
+            package test;
+            use subs ();
+            import subs $keyword;
+            $code = "no strict 'vars'; sub { ${vars}() = $expr }";
+            $code = "use feature 'isa';\n$code" if $keyword eq "isa";
+            $code = "use feature 'switch';\n$code" if $keyword eq "break";
+            $code_ref = eval $code or die "$@ in $expr";
+        }
 
-	my $got_text = $deparse->coderef2text($code_ref);
+        my $got_text = $deparse->coderef2text($code_ref);
 
-	unless ($got_text =~ /
+        unless ($got_text =~ /
     package (?:lexsub)?test;
 (?:    BEGIN \{\$\{\^WARNING_BITS\} = "[^"]+"\}
 )?    use strict 'refs', 'subs';
@@ -110,14 +109,14 @@ sub testit {
 (?:    (?:CORE::)?state sub \w+;
 )?    \Q$vars\E\(\) = (.*)
 \}/s) {
-	    ::fail($desc);
-	    ::diag("couldn't extract line from boilerplate\n");
-	    ::diag($got_text);
-	    return;
-	}
+            ::fail($desc);
+            ::diag("couldn't extract line from boilerplate\n");
+            ::diag($got_text);
+            return;
+        }
 
-	my $got_expr = $1;
-	is $got_expr, $expected_expr, $desc
+        my $got_expr = $1;
+        is $got_expr, $expected_expr, $desc
             or ::diag("ORIGINAL CODE:\n$code");;
     }
 }
@@ -126,14 +125,13 @@ sub testit {
 # Deparse can't distinguish 'and' from '&&' etc
 my %infix_map = qw(and && or ||);
 
-
-# test a keyword that is a binary infix operator, like 'cmp'.
+# Test a keyword that is a binary infix operator, like 'cmp'.
 # $parens - "$a op $b" is deparsed as "($a op $b)"
 # $strong - keyword is strong
 
 sub do_infix_keyword {
     my ($keyword, $parens, $strong) = @_;
-    $SEEN_STRENGH{$keyword} = $strong;
+    $SEEN_STRENGTH{$keyword} = $strong;
     my $expr = "(\$a $keyword \$b)";
     my $nkey = $infix_map{$keyword} // $keyword;
     my $expr = "(\$a $keyword \$b)";
@@ -147,17 +145,17 @@ sub do_infix_keyword {
     testit $keyword, "(\$a CORE::$keyword \$b)", $exp, 1;
     testit $keyword, "(\$a $keyword \$b)", $exp, 1;
     if (!$strong) {
-	# B::Deparse fully qualifies any sub whose name is a keyword,
-	# imported or not, since the importedness may not be reproduced by
-	# the deparsed code.  x is special.
-	my $pre = "test::" x ($keyword ne 'x');
-	testit $keyword, "$keyword(\$a, \$b)", "$pre$keyword(\$a, \$b);";
+        # B::Deparse fully qualifies any sub whose name is a keyword,
+        # imported or not, since the importedness may not be reproduced by
+        # the deparsed code.  x is special.
+        my $pre = "test::" x ($keyword ne 'x');
+        testit $keyword, "$keyword(\$a, \$b)", "$pre$keyword(\$a, \$b);";
     }
     testit $keyword, "$keyword(\$a, \$b)", "$keyword(\$a, \$b);", 1;
 }
 
-# test a keyword that is as tandard op/function, like 'index(...)'.
-# narg    - how many args to test it with
+# Test a keyword that is a standard op/function, like 'index(...)'.
+# $narg   - how many args to test it with
 # $parens - "foo $a, $b" is deparsed as "foo($a, $b)"
 # $dollar - an extra '$_' arg will appear in the deparsed output
 # $strong - keyword is strong
@@ -166,33 +164,38 @@ sub do_infix_keyword {
 sub do_std_keyword {
     my ($keyword, $narg, $parens, $dollar, $strong) = @_;
 
-    $SEEN_STRENGH{$keyword} = $strong;
+    $SEEN_STRENGTH{$keyword} = $strong;
 
     for my $core (0,1) { # if true, add CORE:: to keyword being deparsed
-      for my $lexsub (0,1) { # if true, define lex sub
-	my @code;
-	for my $do_exp(0, 1) { # first create expr, then expected-expr
-	    my @args = map "\$$_", (undef,"a".."z")[1..$narg];
-	    push @args, '$_'
-		if $dollar && $do_exp && ($strong && !$lexsub or $core);
-	    my $args = join(', ', @args);
-	     # XXX $lex_parens is temporary, until lex subs are
-	     #     deparsed properly.
-	    my $lex_parens =
-		!$core && $do_exp && $lexsub && $keyword ne 'map';
-	    $args = ((!$core && !$strong) || $parens || $lex_parens)
-			? "($args)"
-			:  @args ? " $args" : "";
-	    push @code, (($core && !($do_exp && $strong))
-			 ? "CORE::"
-			 : $lexsub && $do_exp
-			   ? "CORE::" x $core
-			   : $do_exp && !$core && !$strong ? "test::" : "")
-						       	. "$keyword$args;";
-	}
-	# code[0]: to run; code[1]: expected
-	testit $keyword, @code, $lexsub;
-      }
+        for my $lexsub (0,1) { # if true, define lex sub
+            my @code;
+            for my $do_exp(0, 1) { # first create expr, then expected-expr
+                my @args = map "\$$_", (undef,"a".."z")[1..$narg];
+                push @args, '$_'
+                    if $dollar && $do_exp && ($strong && !$lexsub or $core);
+                my $args = join(', ', @args);
+                # XXX $lex_parens is temporary, until lex subs are
+                #     deparsed properly.
+                my $lex_parens =
+                    !$core && $do_exp && $lexsub && $keyword ne 'map';
+                $args = ((!$core && !$strong) || $parens || $lex_parens)
+                    ? "($args)"
+                    :  @args
+                        ? " $args"
+                        : "";
+                push @code, (
+                    ($core && !($do_exp && $strong))
+                    ? "CORE::"
+                    : $lexsub && $do_exp
+                        ? "CORE::" x $core
+                        : $do_exp && !$core && !$strong
+                            ? "test::"
+                            : ""
+                ) . "$keyword$args;";
+            }
+            # code[0]: to run; code[1]: expected
+            testit $keyword, @code, $lexsub;
+        }
     }
 }
 
@@ -215,18 +218,18 @@ while (<DATA>) {
     die "unrecognised flag(s): '$flags'" unless $flags =~ /^-?$/;
 
     if ($args eq 'B') { # binary infix
-	die "$keyword: binary (B) op can't have '\$' flag\\n" if $dollar;
-	die "$keyword: binary (B) op can't have '1' flag\\n" if $invert1;
-	do_infix_keyword($keyword, $parens, $strong);
+        die "$keyword: binary (B) op can't have '\$' flag\\n" if $dollar;
+        die "$keyword: binary (B) op can't have '1' flag\\n" if $invert1;
+        do_infix_keyword($keyword, $parens, $strong);
     }
     else {
-	my @narg = split //, $args;
-	for my $n (0..$#narg) {
-	    my $narg = $narg[$n];
-	    my $p = $parens;
-	    $p = !$p if ($n == 0 && $invert1);
-	    do_std_keyword($keyword, $narg, $p, (!$n && $dollar), $strong);
-	}
+        my @narg = split //, $args;
+        for my $n (0..$#narg) {
+            my $narg = $narg[$n];
+            my $p = $parens;
+            $p = !$p if ($n == 0 && $invert1);
+            do_std_keyword($keyword, $narg, $p, (!$n && $dollar), $strong);
+        }
     }
 }
 
@@ -351,6 +354,7 @@ my %not_tested = map { $_ => 1} qw(
     __FILE__
     __LINE__
     __PACKAGE__
+    ADJUST
     AUTOLOAD
     BEGIN
     CHECK
@@ -359,15 +363,21 @@ my %not_tested = map { $_ => 1} qw(
     END
     INIT
     UNITCHECK
+    catch
+    class
     default
+    defer
     else
     elsif
+    field
+    finally
     for
     foreach
     format
     given
     if
     m
+    method
     no
     package
     q
@@ -378,6 +388,7 @@ my %not_tested = map { $_ => 1} qw(
     require
     s
     tr
+    try
     unless
     until
     use
@@ -385,8 +396,6 @@ my %not_tested = map { $_ => 1} qw(
     while
     y
 );
-
-
 
 # Sanity check against keyword data:
 # make sure we haven't missed any keywords,
@@ -411,7 +420,7 @@ SKIP:
 		diag("keyword '$key' seen in $file, but not tested here!!");
 		$pass = 0;
 	    }
-	    if (exists $SEEN_STRENGH{$key} and $SEEN_STRENGH{$key} != $strength) {
+	    if (exists $SEEN_STRENGTH{$key} and $SEEN_STRENGTH{$key} != $strength) {
 		diag("keyword '$key' strengh as seen in $file doen't match here!!");
 		$pass = 0;
 	    }
@@ -429,7 +438,7 @@ SKIP:
     ok($pass, "sanity checks");
 }
 
-
+done_testing();
 
 __DATA__
 #
@@ -545,6 +554,7 @@ hex              01    $
 index            23    p
 int              01    $
 ioctl            3     p
+isa              B     -
 join             13    p
 # keys handled specially
 kill             123   p
@@ -635,7 +645,7 @@ sin              01    $
 sleep            01    -
 socket           4     p
 socketpair       5     p
-sort             @     p1+
+sort             12    p+
 # split handled specially
 # splice handled specially
 sprintf          123   p

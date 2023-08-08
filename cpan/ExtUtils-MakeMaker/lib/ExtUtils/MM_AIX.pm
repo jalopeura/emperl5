@@ -1,8 +1,9 @@
 package ExtUtils::MM_AIX;
 
 use strict;
-our $VERSION = '7.34';
-$VERSION = eval $VERSION;
+use warnings;
+our $VERSION = '7.70';
+$VERSION =~ tr/_//d;
 
 use ExtUtils::MakeMaker::Config;
 require ExtUtils::MM_Unix;
@@ -19,10 +20,10 @@ ExtUtils::MM_AIX - AIX specific subclass of ExtUtils::MM_Unix
 
 =head1 DESCRIPTION
 
-This is a subclass of ExtUtils::MM_Unix which contains functionality for
+This is a subclass of L<ExtUtils::MM_Unix> which contains functionality for
 AIX.
 
-Unless otherwise stated it works just like ExtUtils::MM_Unix
+Unless otherwise stated it works just like ExtUtils::MM_Unix.
 
 =head2 Overridden methods
 
@@ -50,7 +51,9 @@ sub xs_dlsyms_ext {
 
 sub xs_dlsyms_arg {
     my($self, $file) = @_;
-    return qq{-bE:${file}};
+    my $arg = qq{-bE:${file}};
+    $arg = '-Wl,'.$arg if $Config{lddlflags} =~ /-Wl,-bE:/;
+    return $arg;
 }
 
 sub init_others {

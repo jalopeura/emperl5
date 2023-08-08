@@ -42,24 +42,25 @@ typedef struct yy_parser {
     /* Number of tokens to shift before error messages enabled.  */
     int		    yyerrstatus;
 
-    int		    yylen;	/* length of active reduction */
     yy_stack_frame  *stack;	/* base of stack */
     yy_stack_frame  *stack_max1;/* (top-1)th element of allocated stack */
     yy_stack_frame  *ps;	/* current stack frame */
+    int		    yylen;	/* length of active reduction */
 
     /* lexer state */
 
+    I32		lex_formbrack;	/* bracket count at outer format level */
     I32		lex_brackets;	/* square and curly bracket count */
     I32		lex_casemods;	/* casemod count */
     char	*lex_brackstack;/* what kind of brackets to pop */
     char	*lex_casestack;	/* what kind of case mods in effect */
     U8		lex_defer;	/* state after determined token */
     U8		lex_dojoin;	/* doing an array interpolation
-				   1 = @{...}  2 = ->@ */
+                                   1 = @{...}  2 = ->@ */
     U8		expect;		/* how to interpret ambiguous tokens */
     bool	preambled;
     bool        sub_no_recover; /* can't recover from a sublex error */
-    I32		lex_formbrack;	/* bracket count at outer format level */
+    U8		sub_error_count; /* the number of errors before sublexing */
     OP		*lex_inpat;	/* in pattern $) and $| are special */
     OP		*lex_op;	/* extra info to pass back on op */
     SV		*lex_repl;	/* runtime replacement from s/// */
@@ -69,8 +70,8 @@ typedef struct yy_parser {
     SV		*lex_stuff;	/* runtime pattern from m// or s/// */
     I32		multi_start;	/* 1st line of multi-line string */
     I32		multi_end;	/* last line of multi-line string */
-    UV		multi_open;	/* delimiter of said string */
-    UV		multi_close;	/* delimiter of said string */
+    UV		multi_open;	/* delimiter code point of said string */
+    UV		multi_close;	/* delimiter code point of said string */
     bool        lex_re_reparsing; /* we're doing G_RE_REPARSING */
     U8		lex_super_state;/* lexer state to save */
     U16		lex_sub_inwhat;	/* "lex_inwhat" to use in sublex_push */
@@ -80,8 +81,8 @@ typedef struct yy_parser {
     LEXSHARED	*lex_shared;
     SV		*linestr;	/* current chunk of src text */
     char	*bufptr;	/* carries the cursor (current parsing
-				   position) from one invocation of yylex
-				   to the next */
+                                   position) from one invocation of yylex
+                                   to the next */
     char	*oldbufptr;	/* in yylex, beginning of current token */
     char	*oldoldbufptr;	/* in yylex, beginning of previous token */
     char	*bufend;	
@@ -96,7 +97,6 @@ typedef struct yy_parser {
     U16		in_my;		/* we're compiling a "my"/"our" declaration */
     U8		lex_state;	/* next token is determined */
     U8		error_count;	/* how many compile errors so far, max 10 */
-    U8		sub_error_count; /* the number of errors before sublexing */
     HV		*in_my_stash;	/* declared class of this "my" declaration */
     PerlIO	*rsfp;		/* current source file pointer */
     AV		*rsfp_filters;	/* holds chain of active source filters */
@@ -112,11 +112,11 @@ typedef struct yy_parser {
     line_t	herelines;	/* number of lines in here-doc */
     line_t	preambling;	/* line # when processing $ENV{PERL5DB} */
 
-    bool        sig_seen;       /* the currently parsing sub has a signature */
     /* these are valid while parsing a subroutine signature */
-    IV          sig_elems;      /* number of signature elements seen so far */
-    IV          sig_optelems;   /* number of optional signature elems seen */
+    UV          sig_elems;      /* number of signature elements seen so far */
+    UV          sig_optelems;   /* number of optional signature elems seen */
     char        sig_slurpy;     /* the sigil of the slurpy var (or null) */
+    bool        sig_seen;       /* the currently parsing sub has a signature */
 
     bool        recheck_utf8_validity;
 
@@ -137,8 +137,8 @@ typedef struct yy_parser {
 # define LEX_START_COPIED	0x00000008
 # define LEX_DONT_CLOSE_RSFP	0x00000010
 # define LEX_START_FLAGS \
-	(LEX_START_SAME_FILTER|LEX_START_COPIED \
-	|LEX_IGNORE_UTF8_HINTS|LEX_EVALBYTES|LEX_DONT_CLOSE_RSFP)
+        (LEX_START_SAME_FILTER|LEX_START_COPIED \
+        |LEX_IGNORE_UTF8_HINTS|LEX_EVALBYTES|LEX_DONT_CLOSE_RSFP)
 #endif
 
 /* flags for parser API */

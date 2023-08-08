@@ -2,14 +2,11 @@ use ExtUtils::MakeMaker;
 use Config;
 use strict;
 
-our $VERSION = "1.30";
+our $VERSION = "1.37";
 
 my %err = ();
 
-# Symbian cross-compiling environment.
-my $IsSymbian = exists $ENV{SDK} && -d "$ENV{SDK}\\epoc32";
-
-my $IsMSWin32 = $^O eq 'MSWin32' && !$IsSymbian;
+my $IsMSWin32 = $^O eq 'MSWin32';
 
 unlink "Errno.pm" if -f "Errno.pm";
 unlink "Errno.tmp" if -f "Errno.tmp";
@@ -111,7 +108,7 @@ sub default_cpp {
 }
 
 sub get_files {
-    my %file = ();
+    my @file;
     # When cross-compiling we may store a path for gcc's "sysroot" option:
     my $sysroot = $Config{sysroot} || '';
     my $linux_errno_h;
@@ -125,19 +122,23 @@ sub get_files {
 
     # VMS keeps its include files in system libraries
     if ($^O eq 'VMS') {
-	$file{'Sys$Library:DECC$RTLDEF.TLB'} = 1;
+	push(@file, 'Sys$Library:DECC$RTLDEF.TLB');
     } elsif ($^O eq 'os390') {
 	# OS/390 C compiler doesn't generate #file or #line directives
-	$file{'/usr/include/errno.h'} = 1;
-    } elsif ($^O eq 'emscripten') {
+        # and it does not tag the header as 1047 (EBCDIC), so make a local
+        # copy and tag it
+        my $cp = `cp /usr/include/errno.h ./errno.h`;
+        my $chtag = `chtag -t -cIBM-1047 ./errno.h`;
+	push(@file, './errno.h');
+	} elsif ($^O eq 'emscripten') {
 	my $f = "$ENV{EMSCRIPTEN}/system/lib/libc/musl/arch/emscripten/bits/errno.h";
 	die "didn't find $f" unless -f $f;
-	$file{$f} = 1;
+	push(@file, $f);
     } elsif ($Config{archname} eq 'arm-riscos') {
 	# Watch out for cross compiling for RISC OS
 	my $dep = `echo "#include <errno.h>" | gcc -E -M -`;
 	if ($dep =~ /(\S+errno\.h)/) {
-	     $file{$1} = 1;
+	     push(@file, $1);
 	}
     } elsif ($^O eq 'linux' &&
 	      $Config{gccversion} ne '' && 
@@ -145,35 +146,27 @@ sub get_files {
 	      # might be using, say, Intel's icc
 	      $linux_errno_h
 	     ) {
-	$file{$linux_errno_h} = 1;
+	push(@file, $linux_errno_h);
     } elsif ($^O eq 'haiku') {
 	# hidden in a special place
-	$file{'/boot/develop/headers/posix/errno.h'} = 1;
+	push(@file, '/boot/system/develop/headers/posix/errno.h');
 
     } elsif ($^O eq 'vos') {
 	# avoid problem where cpp returns non-POSIX pathnames
-	$file{'/system/include_library/errno.h'} = 1;
-    } elsif ($IsSymbian) {
-        my $SDK = $ENV{SDK};
-        $SDK =~ s!\\!/!g;
-	$file{"$SDK/epoc32/include/libc/sys/errno.h"} = 1;
+	push(@file, '/system/include_library/errno.h');
     } else {
 	open(CPPI, '>', 'errno.c') or
 	    die "Cannot open errno.c";
 
-	if ($^O eq 'NetWare') {
-	    print CPPI "#include <nwerrno.h>\n";
-	} else {
-	    print CPPI "#include <errno.h>\n";
-	    if ($IsMSWin32) {
-		print CPPI qq[#include "../../win32/include/sys/errno2.h"\n];
-	    }
-	}
+        print CPPI "#include <errno.h>\n";
+        if ($IsMSWin32) {
+            print CPPI qq[#include "../../win32/include/sys/errno2.h"\n];
+        }
 
 	close(CPPI);
 
 	# invoke CPP and read the output
-	if ($IsMSWin32 || $^O eq 'NetWare') {
+	if ($IsMSWin32) {
 	    open(CPPO,"$Config{cpprun} $Config{cppflags} errno.c |") or
 		die "Cannot run '$Config{cpprun} $Config{cppflags} errno.c'";
 	} else {
@@ -184,20 +177,32 @@ sub get_files {
 
 	my $pat = '^#\s*(?:line)?\s*\d+\s+"([^"]+)"';
 	while(<CPPO>) {
-	    if ($^O eq 'os2' or $IsMSWin32 or $^O eq 'NetWare') {
+	    if ($^O eq 'os2' or $IsMSWin32) {
 		if (/$pat/o) {
 		   my $f = $1;
 		   $f =~ s,\\\\,/,g;
-		   $file{$f} = 1;
+		   push(@file, $f);
 		}
 	    }
 	    else {
-		$file{$1} = 1 if /$pat/o;
+		push(@file, $1) if /$pat/o;
 	    }
 	}
 	close(CPPO);
     }
-    return keys %file;
+    return uniq(@file);
+}
+
+# 
+#
+sub uniq
+{
+	# At this point List::Util::uniq appears not to be usable so
+	# roll our own.
+	#
+	# Returns a list with unique values, while keeping the order
+	#
+	return do { my %seen; grep { !$seen{$_}++ } @_ };
 }
 
 sub write_errno_pm {
@@ -212,12 +217,8 @@ sub write_errno_pm {
     open(CPPI, '>', 'errno.c') or
 	die "Cannot open errno.c";
 
-    if ($^O eq 'NetWare') {
-	print CPPI "#include <nwerrno.h>\n";
-	} 
-    else {
-	print CPPI "#include <errno.h>\n";
-    }
+    print CPPI "#include <errno.h>\n";
+
     if ($IsMSWin32) {
 	print CPPI qq[#include "../../win32/include/sys/errno2.h"\n];
     }
@@ -244,17 +245,12 @@ sub write_errno_pm {
 	    $cpp =~ s/sys\$input//i;
 	    open(CPPO,"$cpp  errno.c |") or
 		die "Cannot exec $Config{cppstdin}";
-	} elsif ($IsMSWin32 || $^O eq 'NetWare') {
+	} elsif ($IsMSWin32) {
 	    my $cpp = "$Config{cpprun} $Config{cppflags}" .
 		$inhibit_linemarkers;
 	    open(CPPO,"$cpp errno.c |") or
 		die "Cannot run '$cpp errno.c'";
-	} elsif ($IsSymbian) {
-            my $cpp = "gcc -E -I$ENV{SDK}\\epoc32\\include\\libc" .
-		$inhibit_linemarkers ." -";
-	    open(CPPO,"$cpp < errno.c |")
-		or die "Cannot exec $cpp";
-        } else {
+	} else {
 	    my $cpp = default_cpp() . $inhibit_linemarkers;
 	    open(CPPO,"$cpp < errno.c |")
 		or die "Cannot exec $cpp";
@@ -294,7 +290,7 @@ sub write_errno_pm {
 #
 
 package Errno;
-require Exporter;
+use Exporter 'import';
 use strict;
 
 EDQ
@@ -315,7 +311,6 @@ CONFIG_CHECK_END
     print <<"EDQ";
 our \$VERSION = "$VERSION";
 \$VERSION = eval \$VERSION;
-our \@ISA = 'Exporter';
 
 my %err;
 
@@ -379,7 +374,7 @@ ESQ
 
     if ($IsMSWin32) {
 	print "    WINSOCK => [qw(\n";
-	$k = join(" ", grep { /^WSAE/ } keys %err);
+	$k = join(" ", grep { /^WSAE/ } sort keys %err);
 	$k =~ s/(.{50,70})\s/$1\n\t/g;
 	print "\t",$k,"\n    )],\n";
     }

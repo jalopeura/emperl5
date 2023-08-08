@@ -1,6 +1,7 @@
 package ExtUtils::MM_Cygwin;
 
 use strict;
+use warnings;
 
 use ExtUtils::MakeMaker::Config;
 use File::Spec;
@@ -9,8 +10,8 @@ require ExtUtils::MM_Unix;
 require ExtUtils::MM_Win32;
 our @ISA = qw( ExtUtils::MM_Unix );
 
-our $VERSION = '7.34';
-$VERSION = eval $VERSION;
+our $VERSION = '7.70';
+$VERSION =~ tr/_//d;
 
 
 =head1 NAME
@@ -23,7 +24,7 @@ ExtUtils::MM_Cygwin - methods to override UN*X behaviour in ExtUtils::MakeMaker
 
 =head1 DESCRIPTION
 
-See ExtUtils::MM_Unix for a documentation of the methods provided there.
+See L<ExtUtils::MM_Unix> for a documentation of the methods provided there.
 
 =over 4
 
@@ -86,7 +87,7 @@ sub init_linker {
 
     if ($Config{useshrplib} eq 'true') {
         my $libperl = '$(PERL_INC)' .'/'. "$Config{libperl}";
-        if( $] >= 5.006002 ) {
+        if( "$]" >= 5.006002 ) {
             $libperl =~ s/(dll\.)?a$/dll.a/;
         }
         $self->{PERL_ARCHIVE} = $libperl;
@@ -100,12 +101,22 @@ sub init_linker {
     $self->{EXPORT_LIST}  ||= '';
 }
 
+sub init_others {
+    my $self = shift;
+
+    $self->SUPER::init_others;
+
+    $self->{LDLOADLIBS} ||= $Config{perllibs};
+
+    return;
+}
+
 =item maybe_command
 
 Determine whether a file is native to Cygwin by checking whether it
 resides inside the Cygwin installation (using Windows paths). If so,
-use C<ExtUtils::MM_Unix> to determine if it may be a command.
-Otherwise use the tests from C<ExtUtils::MM_Win32>.
+use L<ExtUtils::MM_Unix> to determine if it may be a command.
+Otherwise use the tests from L<ExtUtils::MM_Win32>.
 
 =cut
 
@@ -156,16 +167,6 @@ sub install {
     my $dll = "$dop/$self->{FULLEXT}/$self->{BASEEXT}.$self->{DLEXT}";
     $s =~ s|^(pure_install :: pure_\$\(INSTALLDIRS\)_install\n\t)\$\(NOECHO\) \$\(NOOP\)\n|$1\$(CHMOD) \$(PERM_RWX) $dll\n\t/bin/find $dop -xdev -name \\*.$self->{DLEXT} \| /bin/rebase -sOT -\n|m if (( $Config{myarchname} eq 'i686-cygwin') and not ( exists $ENV{CYGPORT_PACKAGE_VERSION} ));
     $s;
-}
-
-=item all_target
-
-Build man pages, too
-
-=cut
-
-sub all_target {
-    ExtUtils::MM_Unix::all_target(shift);
 }
 
 =back

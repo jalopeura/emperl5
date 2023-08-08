@@ -69,7 +69,7 @@ like($result, qr/Please use perlbug interactively./,
 # test -okay (mostly noninteractive)
 $result = runperl( progfile => $extracted_program,
                    args     => ['-okay', '-F', $testreport] );
-like($result, qr/Message saved/, 'build report saved');
+like($result, qr/Report saved/, 'build report saved');
 like(_slurp($testreport), qr/Perl reported to build OK on this system/,
      'build report looks sane');
 unlink $testreport;
@@ -82,7 +82,7 @@ $result = runperl( progfile => $extracted_program,
                                 '-nokay',
                                 '-e', 'file',
                                 '-F', $testreport] );
-like($result, qr/Message saved/, 'build failure report saved');
+like($result, qr/Report saved/, 'build failure report saved');
 like(_slurp($testreport), qr/This is a build failure report for perl/,
      'build failure report looks sane');
 unlink $testreport;
@@ -104,7 +104,7 @@ $result = runperl( progfile => $extracted_program,
                                 '-b', 'testreportbody',
                                 '-e', 'file',
                                 '-F', $testreport] );
-like($result, qr/Message saved/, 'fake bug report saved');
+like($result, qr/Report saved/, 'fake bug report saved');
 my $contents = _slurp($testreport);
 like($contents, qr/Subject: testingperlbug/,
      'Subject included in fake bug report');
@@ -136,7 +136,7 @@ $result = runperl( progfile => $extracted_program,
                                 '-p', $attachment,
                                 '-e', 'file',
                                 '-F', $testreport] );
-like($result, qr/Message saved/, 'fake bug report saved');
+like($result, qr/Report saved/, 'fake bug report saved');
 my $contents = _slurp($testreport);
 unlink $testreport, $body, $attachment;
 like($contents, qr/Subject: testing perlbug/,
@@ -148,7 +148,12 @@ my $maxlen1 = 0; # body
 my $maxlen2 = 0; # attachment
 for (split(/\n/, $contents)) {
         my $len = length;
-        $maxlen1 = $len if $len > $maxlen1 and !/$B/;
+        # content lines setting path-like environment variables like PATH, PERLBREW_PATH, MANPATH,...
+        #  will start "\s*xxxxPATH=" where "xxx" is zero or more non white space characters. These lines can
+        #  easily get over 1000 characters (see ok-test below) with no internal spaces, so they
+        #  will not get wrapped at white space.
+        # See also https://github.com/perl/perl5/issues/15544 for more information
+        $maxlen1 = $len if $len > $maxlen1 and !/(?:$B|^\s*\S*PATH=)/;
         $maxlen2 = $len if $len > $maxlen2 and  /$B/;
 }
 ok($maxlen1 < 1000, "[perl #128020] long body lines are wrapped: maxlen $maxlen1");

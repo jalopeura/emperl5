@@ -88,8 +88,8 @@ F<regen/opcodes> based on various criteria. These are:
 which respectively return a list of op names where:
 
     field 3 of regen/opcodes specifies 'ck_foo' as the check function;
-    field 4 of of regen/opcodes has flag or type 'X' set;
-    argument field N of of regen/opcodes matches 'XYZ';
+    field 4 of regen/opcodes has flag or type 'X' set;
+    argument field N of regen/opcodes matches 'XYZ';
 
 For example
 
@@ -199,7 +199,14 @@ use strict;
     # find which ops use 0,1,2,3 or 4 bits of op_private for arg count info
 
     $args0{$_} = 1 for qw(entersub avhvswitch
-                       rv2hv);                  # UNOPs that usurp bit 0
+                       rv2hv aelemfastlex_store);                  # UNOPs that usurp bit 0
+
+    # Historically, bit ops used bit 0 to indicate 'use integer' in scope;
+    # For now, ban use of bits 0..1 as an arg count, in order to detect
+    # any residual code which conflates use of the HINT_INTEGER and
+    # OPpUSEINT flags
+
+    $args0{$_} = 1 for ops_with_check('ck_bitop');
 
     $args1{$_} = 1 for (
                         qw(reverse), # ck_fun(), but most bits stolen
@@ -281,6 +288,16 @@ use strict;
 }
 
 
+# Are these bit ops in the scope of 'use integer'?
+#
+# Note that historically they used to use bit 0, which corresponded to
+# HINT_INTEGER (a bit flags within PL_hints). We deliberately choose
+# a value (2) different than that flag, and different to the two bits used
+# to store the argument count, to flush out any residual code which
+# conflates the two.
+
+addbits($_, 2 => qw(OPpUSEINT USEINT))
+    for ops_with_check('ck_bitop');
 
 # if NATIVE_HINTS is defined, op_private on cops holds the top 8 bits
 # of PL_hints, although only bits 6 & 7 are officially used for that
@@ -301,7 +318,7 @@ addbits($_, 7 => qw(OPpLVAL_INTRO LVINTRO))
     for qw(gvsv rv2sv rv2hv rv2gv rv2av aelem helem aslice split
            hslice delete padsv padav padhv enteriter entersub padrange
            pushmark cond_expr refassign lvref lvrefslice lvavref multideref
-           multiconcat),
+           multiconcat padsv_store undef emptyavhv),
            'list', # this gets set in my_attrs() for some reason
            ;
 
@@ -439,7 +456,7 @@ addbits($_, 3 => qw(OPpMAYBE_LVSUB LVSUB))
 
 
 
-for (qw(rv2hv padhv ref)) {
+for (qw(rv2hv padhv ref blessed)) {
     addbits($_,                           # e.g. %hash in (%hash || $foo) ...
         4 => qw(OPpMAYBE_TRUEBOOL BOOL?), # but cx not known till run time
         5 => qw(OPpTRUEBOOL       BOOL),
@@ -482,7 +499,8 @@ addbits($_, 7 => qw(OPpPV_IS_UTF8 UTF)) for qw(last redo next goto dump);
 #   \state $foo = ...
 
 addbits($_, 6 => qw(OPpPAD_STATE STATE))  for qw(padav padhv padsv lvavref
-                                                 lvref refassign pushmark);
+                                                 lvref refassign pushmark
+                                                 padsv_store undef emptyavhv);
 
 # NB: both sassign and aassign use the 'OPpASSIGN' naming convention
 # for their private flags
@@ -513,8 +531,12 @@ addbits('sassign',
 
 for (qw(trans transr)) {
     addbits($_,
-        0 => qw(OPpTRANS_FROM_UTF   <UTF),    # search chars are utf8
-        1 => qw(OPpTRANS_TO_UTF     >UTF),    # replacement chars are utf8
+        # There is a character in the lhs representable not using UTF-8 whose
+        # replacement requires UTF-8.
+        0 => qw(OPpTRANS_CAN_FORCE_UTF8 CAN_FORCE_UTF8),    # 0-255 range
+                                              # character maps to 256-INF
+        1 => qw(OPpTRANS_USE_SVOP   USE_SVOP),# This is implemented an an svop
+                                              # vs pvop
         2 => qw(OPpTRANS_IDENTICAL  IDENT),   # right side is same as left
         3 => qw(OPpTRANS_SQUASH     SQUASH),  # /s
         # 4 is used for OPpTARGET_MY
@@ -605,7 +627,7 @@ addbits('padrange',
 
 
 
-for (qw(aelemfast aelemfast_lex)) {
+for (qw(aelemfast aelemfast_lex aelemfastlex_store)) {
     addbits($_,
         '0..7' =>  {
                 label     => 'key',
@@ -672,8 +694,6 @@ addbits('sort',
     2 => qw(OPpSORT_REVERSE  REV    ), # Reversed sort
     3 => qw(OPpSORT_INPLACE  INPLACE), # sort in-place; eg @a = sort @a
     4 => qw(OPpSORT_DESCEND  DESC   ), # Descending sort
-    6 => qw(OPpSORT_STABLE   STABLE ), # Use a stable algorithm
-    7 => qw(OPpSORT_UNSTABLE UNSTABLE),# Use an unstable algorithm
 );
 
 
@@ -719,6 +739,8 @@ addbits('entereval',
     3 => qw(OPpEVAL_BYTES        BYTES  ),
     4 => qw(OPpEVAL_COPHH        COPHH  ), # Construct %^H from COP hints
     5 => qw(OPpEVAL_RE_REPARSING REPARSE), # eval_sv(..., G_RE_REPARSING)
+    6 => qw(OPpEVAL_EVALSV       EVALSV ), # called from eval_sv()
+
 );
 
 
@@ -828,6 +850,42 @@ addbits('multiconcat',
 );
 
 
+addbits('pushdefer',
+    7 => qw(OPpDEFER_FINALLY FINALLY),
+);
+
+# undef does not have the T flag set in regen/opcodes (and therefore
+# automatically get the TARGMY flag added), as this causes S_maybe_targlex
+# to do an unwanted optimization prior to Perl_rpeep.
+addbits('undef',
+    4 => qw(OPpTARGET_MY TARGMY),
+    5 => qw(OPpUNDEF_KEEP_PV KEEP_PV),
+);
+
+addbits('emptyavhv',
+  # 7       OPpLVAL_INTRO
+  # 6       OPpPAD_STATE
+    5 => qw(OPpEMPTYAVHV_IS_HV ANONHASH),
+  # 4       OPpTARGET_MY
+);
+
+addbits('argdefelem',
+    7 => qw(OPpARG_IF_UNDEF  IF_UNDEF),
+    6 => qw(OPpARG_IF_FALSE  IF_FALSE),
+);
+
+addbits('helemexistsor',
+    7 => qw(OPpHELEMEXISTSOR_DELETE DELETE),
+);
+
+addbits('methstart',
+    7 => qw(OPpINITFIELDS INITFIELDS),
+);
+
+addbits('initfield',
+    1 => qw(OPpINITFIELD_AV INITFIELD_AV),
+    2 => qw(OPpINITFIELD_HV INITFIELD_HV),
+);
 
 1;
 

@@ -7,14 +7,9 @@ BEGIN {
         print "1..0 # Skip -- Perl configured without B module\n";
         exit 0;
     }
-    if (!$Config::Config{useperlio}) {
-        print "1..0 # Skip -- need perlio to walk the optree\n";
-        exit 0;
-    }
 }
 
 use OptreeCheck;	# ALSO DOES @ARGV HANDLING !!!!!!
-use Config;
 
 plan tests => 99;
 
@@ -152,14 +147,14 @@ checkOptree ( name	=> 'myyes() as coderef',
 	      strip_open_hints => 1,
 	      expect	=> <<'EOT_EOT', expect_nt => <<'EONT_EONT');
 # 6  <@> leave[1 ref] vKP/REFC ->(end)
-# 1     <0> enter ->2
+# 1     <0> enter v ->2
 # 2     <;> nextstate(main 2 -e:1) v:>,<,%,{ ->3
 # 5     <@> print vK ->6
 # 3        <0> pushmark s ->4
 # 4        <$> const[SPECIAL sv_yes] s*/FOLD ->5
 EOT_EOT
 # 6  <@> leave[1 ref] vKP/REFC ->(end)
-# 1     <0> enter ->2
+# 1     <0> enter v ->2
 # 2     <;> nextstate(main 2 -e:1) v:>,<,%,{ ->3
 # 5     <@> print vK ->6
 # 3        <0> pushmark s ->4
@@ -176,14 +171,14 @@ checkOptree ( name	=> 'myno() as coderef',
 	      strip_open_hints => 1,
 	      expect	=> <<'EOT_EOT', expect_nt => <<'EONT_EONT');
 # 6  <@> leave[1 ref] vKP/REFC ->(end)
-# 1     <0> enter ->2
+# 1     <0> enter v ->2
 # 2     <;> nextstate(main 2 -e:1) v:>,<,%,{ ->3
 # 5     <@> print vK ->6
 # 3        <0> pushmark s ->4
 # 4        <$> const[SPECIAL sv_no] s*/FOLD ->5
 EOT_EOT
 # 6  <@> leave[1 ref] vKP/REFC ->(end)
-# 1     <0> enter ->2
+# 1     <0> enter v ->2
 # 2     <;> nextstate(main 2 -e:1) v:>,<,%,{ ->3
 # 5     <@> print vK ->6
 # 3        <0> pushmark s ->4

@@ -7,15 +7,10 @@ BEGIN {
         print "1..0 # Skip -- Perl configured without B module\n";
         exit 0;
     }
-    if (!$Config::Config{useperlio}) {
-        print "1..0 # Skip -- need perlio to walk the optree\n";
-        exit 0;
-    }
 }
 
 # import checkOptree(), and %gOpts (containing test state)
 use OptreeCheck;	# ALSO DOES @ARGV HANDLING !!!!!!
-use Config;
 
 plan tests => 41;
 
@@ -183,13 +178,13 @@ checkOptree ( name	=> "terse basic",
 UNOP (0x82b0918) leavesub [1] 
     LISTOP (0x82b08d8) lineseq 
         COP (0x82b0880) nextstate 
-        UNOP (0x82b0860) null [14] 
+        UNOP (0x82b0860) null [15] 
             PADOP (0x82b0840) gvsv  GV (0x82a818c) *a 
 EOT_EOT
 # UNOP (0x8282310) leavesub [1] 
 #     LISTOP (0x82822f0) lineseq 
 #         COP (0x82822b8) nextstate 
-#         UNOP (0x812fc20) null [14] 
+#         UNOP (0x812fc20) null [15] 
 #             SVOP (0x812fc00) gvsv  GV (0x814692c) *a 
 EONT_EONT
 
@@ -217,7 +212,7 @@ checkOptree ( name => 'cmdline invoke -basic works',
 	      strip_open_hints => 1,
 	      expect	=> <<'EOT_EOT', expect_nt => <<'EONT_EONT');
 # 7  <@> leave[1 ref] vKP/REFC ->(end)
-# 1     <0> enter ->2
+# 1     <0> enter v ->2
 # 2     <;> nextstate(main 1 -e:1) v:>,<,%,{ ->3
 # 6     <@> sort vK ->7
 # 3        <0> pushmark s ->4
@@ -225,7 +220,7 @@ checkOptree ( name => 'cmdline invoke -basic works',
 # 4           <#> gv[*a] s ->5
 EOT_EOT
 # 7  <@> leave[1 ref] vKP/REFC ->(end)
-# 1     <0> enter ->2
+# 1     <0> enter v ->2
 # 2     <;> nextstate(main 1 -e:1) v:>,<,%,{ ->3
 # 6     <@> sort vK ->7
 # 3        <0> pushmark s ->4
@@ -241,7 +236,7 @@ checkOptree ( name => 'cmdline invoke -exec works',
 	      bcopts => '-exec',
 	      strip_open_hints => 1,
 	      expect => <<'EOT_EOT', expect_nt => <<'EONT_EONT');
-1  <0> enter 
+1  <0> enter v
 2  <;> nextstate(main 1 -e:1) v:>,<,%,{
 3  <0> pushmark s
 4  <#> gv[*a] s
@@ -249,7 +244,7 @@ checkOptree ( name => 'cmdline invoke -exec works',
 6  <@> sort vK
 7  <@> leave[1 ref] vKP/REFC
 EOT_EOT
-# 1  <0> enter 
+# 1  <0> enter v
 # 2  <;> nextstate(main 1 -e:1) v:>,<,%,{
 # 3  <0> pushmark s
 # 4  <$> gv(*a) s
@@ -290,7 +285,7 @@ checkOptree
       errs	=> ['Useless use of sort in void context at -e line 1.'],
       strip_open_hints => 1,
       expect	=> <<'EOT_EOT', expect_nt => <<'EONT_EONT');
-# 1  <0> enter 
+# 1  <0> enter v
 # 2  <;> nextstate(main 2 -e:1) v:>,<,%,{
 # 3  <0> pushmark s
 # 4  <#> gv[*a] s
@@ -298,7 +293,7 @@ checkOptree
 # 6  <@> sort vK
 # 7  <@> leave[1 ref] vKP/REFC
 EOT_EOT
-# 1  <0> enter 
+# 1  <0> enter v
 # 2  <;> nextstate(main 2 -e:1) v:>,<,%,{
 # 3  <0> pushmark s
 # 4  <$> gv(*a) s

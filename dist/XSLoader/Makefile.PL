@@ -5,16 +5,26 @@
 # - Fill in your dependencies in PREREQ_PM
 # Alternatively, you can say the hell with this and use h2xs.
 
+use strict;
+use warnings;
+
+use v5.6;
+
 use ExtUtils::MakeMaker;
 use ExtUtils::MM_Unix;
+
 eval 'use ExtUtils::MakeMaker::Coverage';
 
-$PACKAGE = 'XSLoader';
-($PACKAGE_FILE = $PACKAGE) =~ s|::|/|g;
-$LAST_API_CHANGE = 0;
+my $PACKAGE = 'XSLoader';
+(my $PACKAGE_FILE = $PACKAGE) =~ s|::|/|g;
+my $LAST_API_CHANGE = 0;
 
-$CURRENT_VERSION = ${$PACKAGE.'::VERSION'};
-$NEW_VERSION     = ExtUtils::MM_Unix->parse_version("XSLoader_pm.PL");
+my $CURRENT_VERSION;
+{
+    no strict 'refs';
+    $CURRENT_VERSION = ${$PACKAGE.'::VERSION'};
+}
+my $NEW_VERSION     = ExtUtils::MM_Unix->parse_version("XSLoader_pm.PL");
 
 eval "require $PACKAGE";
 
@@ -66,8 +76,7 @@ WriteMakefile(
             x_IRC       => 'irc://irc.perl.org/#p5p',
             x_MailingList => 'http://lists.perl.org/list/perl5-porters.html',
             bugtracker => {
-                mailto      => 'perlbug@perl.org',
-                web         => "https://rt.perl.org/rt3/Search/Results.html?Query=Queue='perl5' AND Content LIKE 'module=XSLoader' AND (Status='open' OR Status='new' OR Status='stalled')",
+                web         => 'https://github.com/Perl/perl5/issues',
             },
         },
         provides    => {
@@ -93,11 +102,7 @@ WriteMakefile(
         my @perls = ($orig_perl);
         push @perls, qw(bleadperl 
                         perl5.6.1
-                        perl5.6.0
-                        perl5.005_03 
-                        perl5.004_05 
-                        perl5.004_04
-                        perl5.004)
+                        perl5.6.0)
           if $ENV{PERL_TEST_ALL};
 
         my $out;

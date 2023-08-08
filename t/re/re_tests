@@ -46,6 +46,7 @@ ab*bc	abbbbc	y	$+[0]	6
 \N{3,4}	abbbbc	y	$&	abbb
 \N{3,4}	abbbbc	y	$-[0]	0
 \N{3,4}	abbbbc	y	$+[0]	4
+\N{ 3 , 4 }	abbbbc	y	$+[0]	4
 /\N {3,4}/x	abbbbc	y	$&	abbb
 /\N {3,4}/x	abbbbc	y	$-[0]	0
 /\N {3,4}/x	abbbbc	y	$+[0]	4
@@ -136,14 +137,22 @@ a[^]b]c	adc	y	$&	adc
 \By\B	xyz	y	-	-
 \b		n	-	-
 \b{gcb}		n	-	-
+\b{ gcb }		n	-	-
 \b{lb}		n	-	-
+\b{ lb }		n	-	-
 \b{sb}		n	-	-
+\b{ sb }		n	-	-
+\b{ wb }		n	-	-
 \b{wb}		n	-	-
 \B		y	-	-
 \B{gcb}		y	-	-
+\B{ gcb }		y	-	-
 \B{lb}		y	-	-
+\B{ lb }		y	-	-
 \B{sb}		y	-	-
+\B{ sb }		y	-	-
 \B{wb}		y	-	-
+\B{ wb }		y	-	-
 \w	a	y	-	-
 \w	-	n	-	-
 \W	a	n	-	-
@@ -281,6 +290,7 @@ a[bcd]+dcdcde	adcdcde	n	-	-
 ((((((((((a))))))))))${bang}	aa	n	-	-
 ((((((((((a))))))))))${bang}	a!	y	$&	a!
 (((((((((a)))))))))	a	y	$&	a
+[89]+	1((((((7(9))))))	y	-	-
 multiple words of text	uh-uh	n	-	-
 multiple words	multiple words, yeah	y	$&	multiple words
 (.*)c(.*)	abcde	y	$&-$1-$2	abcde-ab-de
@@ -296,11 +306,15 @@ a[-]?c	ac	y	$&	ac
 \g1	-	c	-	Reference to nonexistent group
 \g-1	-	c	-	Reference to nonexistent or unclosed group
 \g{1}	-	c	-	Reference to nonexistent group
+\g{ 1 }	-	c	-	Reference to nonexistent group
 \g{-1}	-	c	-	Reference to nonexistent or unclosed group
+\g{ -1 }	-	c	-	Reference to nonexistent or unclosed group
 \g0	-	c	-	Reference to invalid group 0
 \g-0	-	c	-	Reference to invalid group 0
 \g{0}	-	c	-	Reference to invalid group 0
+\g{ 0 }	-	c	-	Reference to invalid group 0
 \g{-0}	-	c	-	Reference to invalid group 0
+\g{ -0 }	-	c	-	Reference to invalid group 0
 (a)|\1	a	y	-	-
 (a)|\1	x	n	-	Reference to group in different branch
 (?:(b)?a)\1	a	n	-	Reference to group that did not match
@@ -464,7 +478,7 @@ a(?:b|c|d)+(.)	acdbcdbe	y	$1	e
 a(?:b|c|d){2}(.)	acdbcdbe	y	$1	b
 a(?:b|c|d){4,5}(.)	acdbcdbe	y	$1	b
 a(?:b|c|d){4,5}?(.)	acdbcdbe	y	$1	d
-((foo)|(bar))*	foobar	y	$1-$2-$3	bar-foo-bar
+((foo)|(bar))*	foobar	y	$1-$2-$3	bar--bar		# was bar-foo-bar prior to 5.37.10
 :(?:	-	c	-	Sequence (? incomplete
 a(?:b|c|d){6,7}(.)	acdbcdbe	y	$1	e
 a(?:b|c|d){6,7}?(.)	acdbcdbe	y	$1	e
@@ -482,10 +496,12 @@ a(?:b|(c|e){1,2}?|d)+?(.)	ace	y	$1$2	ce
 ^(a(?(1)\1)){4}$	aaaaaaaaaa	y	$1	aaaa
 ^(a(?(1)\1)){4}$	aaaaaaaaa	n	-	-
 ^(a(?(1)\1)){4}$	aaaaaaaaaaa	n	-	-
+((?(1)a|b))+	baaa	y	$&	baaa		# GH 7754
+((?(1)aa|b))+	baaaa	y	$&	baaaa		# GH 7754
 ((a{4})+)	aaaaaaaaa	y	$1	aaaaaaaa
 (((aa){2})+)	aaaaaaaaaa	y	$1	aaaaaaaa
 (((a{2}){2})+)	aaaaaaaaaa	y	$1	aaaaaaaa
-(?:(f)(o)(o)|(b)(a)(r))*	foobar	y	$1:$2:$3:$4:$5:$6	f:o:o:b:a:r
+(?:(f)(o)(o)|(b)(a)(r))*	foobar	y	$1:$2:$3:$4:$5:$6	:::b:a:r
 (?<=a)b	ab	y	$&	b
 (?<=af?)b	ab	y	$&	b
 (?<=a)b	cb	n	-	-
@@ -948,8 +964,8 @@ tt+$	xxxtt	y	-	-
 (?i)		y	-	-
 (?a:((?u)\w)\W)	\xC0\xC0	y	$&	\xC0\xC0
 '(?!\A)x'm	a\nxb\n	y	-	-
-^(a(b)?)+$	aba	y	-$1-$2-	-a--
-^(aa(bb)?)+$	aabbaa	y	-$1-$2-	-aa--
+^(a(b)?)+$	aba	y	-$1-$2-	-a--		
+^(aa(bb)?)+$	aabbaa	y	-$1-$2-	-aa--		
 '^.{9}abc.*\n'm	123\nabcabcabcabc\n	y	-	-
 ^(a)?a$	a	y	-$1-	--
 ^(a)?(?(1)a|b)+$	a	n	-	-
@@ -1331,9 +1347,14 @@ a*(*F)	aaaab	n	-	-
 /foo \k''/	-	c	-	Group name must start with a non-digit word character
 /foo \k<>/	-	c	-	Group name must start with a non-digit word character
 /(?<as>as) (\w+) \k<as> (\w+)/	as easy as pie	y	$1-$2-$3	as-easy-pie
+/(?<as>as) (\w+) \k{as} (\w+)/	as easy as pie	y	$1-$2-$3	as-easy-pie
+/(?<as>as) (\w+) \k'as' (\w+)/	as easy as pie	y	$1-$2-$3	as-easy-pie
+/(?<as>as) (\w+) \k{ as } (\w+)/	as easy as pie	y	$1-$2-$3	as-easy-pie
+/(?<as>as) (\w+) \k< as> (\w+)/	as easy as pie	c	-	Group name must start with a non-digit word character
 
 # \g{...} with a name as the argument 
 /(?'n'foo) \g{n}/	..foo foo..	y	$1	foo
+/(?'n'foo) \g{ n }/	..foo foo..	y	$1	foo
 /(?'n'foo) \g{n}/	..foo foo..	yM	$+{n}	foo	miniperl cannot load Tie::Hash::NamedCapture
 /(?<n>foo) \g{n}/	..foo foo..	y	$1	foo
 /(?<n>foo) \g{n}/	..foo foo..	yM	$+{n}	foo	miniperl cannot load Tie::Hash::NamedCapture
@@ -1406,6 +1427,7 @@ foo(\R)bar	foo\r\nbar	y	$1	\r\n
 foo(\R)bar	foo\rbar	y	$1	\r
 (\V)(\R)	foo\rbar	y	$1-$2	o-\r
 (\R)(\V)	foo\rbar	y	$1-$2	\r-b
+0|\R??\n0	\n\n	n	-	-	-	# GH17746: assertion failure
 
 foo(\v+)bar	foo\r\n\x{85}\r\n\nbar	y	$1	\r\n\x{85}\r\n\n
 (\V+)(\v)	foo\r\n\x{85}\r\n\nbar	y	$1-$2	foo-\r
@@ -1452,7 +1474,9 @@ foo(\h)bar	foo\tbar	y	$1	\t
 # [perl #60344] Regex lookbehind failure after an (if)then|else in perl 5.10
 /\A(?(?=db2)db2|\D+)(?<!processed)\.csv\z/xms	sql_processed.csv	n	-	-
 /\N{U+0100}/	\x{100}	y	$&	\x{100}	# Bug #59328
+/\N{ U+0100 }/	\x{100}	y	$&	\x{100}	# Bug #59328
 /[a\N{U+0100}]/	\x{100}	y	$&	\x{100}
+/[a\N{ U+0100 }]/	\x{100}	y	$&	\x{100}
 /[a\N{U+0100}]/	a	y	$&	a
 
 # Verify that \N{U+...} forces Unicode rules
@@ -1564,6 +1588,7 @@ a(.)\g4294967297}	x	c	-	Reference to nonexistent group in regex
 a(.)\g4294967298}	x	c	-	Reference to nonexistent group in regex
 
 (.)\g{2147483648}	x	c	-	Reference to nonexistent group in regex
+(.)\g{ 2147483648 }	x	c	-	Reference to nonexistent group in regex
 (.)\g{2147483649}	x	c	-	Reference to nonexistent group in regex
 (.)\g{2147483650}	x	c	-	Reference to nonexistent group in regex
 (.)\g{4294967296}	x	c	-	Reference to nonexistent group in regex
@@ -1838,7 +1863,7 @@ ab[c\\\](??{"x"})]{3}d	ab\\](d	y	-	-
 # [ perl #114272]
 \Vn	\xFFn/	y	$&	\xFFn
 
-# These mostly exercize various paths in the optimizer
+# These mostly exercise various paths in the optimizer
 /(?l:a?\w)/	b	y	$&	b
 /(?l:a?\D)/	b	y	$&	b
 ^_?[^\S_0-9]\w*\z	\t	y	$&	\t
@@ -1926,7 +1951,7 @@ A+(*PRUNE)BC(?{})	AAABC	y	$&	AAABC
 /^(.\2?)(.)(?1)$/	abcb	y	$2	b
 /^(.\1?)(?1)$/	aba	y	$1	a
 /^ (\3(?2)\3)? ((.)) (?1) $/x	aaba	y	$2	a
-/^ (a|\3(?1)\2|(?2)) ((b|c)(?4)?) (?1) (d(?1)) $/x	abbcdcabbda	y	$2	b
+/^ (a|\3(?1)\2|(?2)) ((b|c)(?4)?) (?1) (d(?1)) $/x	abbcdcabbda	y	$1-$2-$3-$4	a-b-b-da
 
 # RT #121321 - perl 5.19.10 infinite loops on backrefs > number of capture buffers (npar) where npar>9
 /(a)\2/	a\2	c	-	Reference to nonexistent group in regex
@@ -2011,11 +2036,127 @@ AB\s+\x{100}	AB \x{100}X	y	-	-
 (?il)\x{100}|\x{100}|\x{FE}	\xFE	y	$&	\xFE
 \A([\x00-\x7F]+)(.*)\z	\007\011\012	y	$&	\007\011\012	# [perl #133311]
 (?:(?^:(?{1}))[^0-9])	:	y	$&	:	# [perl #133348]
-/[\xdf-/i	-	c	-	Invalid [] range	# [perl #133620] likely only fails under valgrind
-/\1a(b)/	bab	n	-	-		# This compiles but fails to match as \1 is not set when parsed.
+/[\xdf-/i	-	ca	-	Invalid [] range	# [perl #133620] likely only fails under valgrind
+/[\x59-/i	-	ce	-	Unmatched [	# [perl #133620] likely only fails under valgrind
+/\1a(b)/	bab	n	-	-		# This compiles but fails to match as \1 is not set when parsed
 /(?iu)(?<=\xdf)hbase/	sshbase	y	$&	hbase
 /\x{30c3}?[\x{30a2}\x{30a4}\x{30a6}\x{30a8}\x{30aa}-\x{30e2}\x{30e4}\x{30e6}\x{30e8}-\x{30f4}](?:[\x{30e3}\x{30e5}\x{30e7}\x{30a1}\x{30a3}\x{30a5}\x{30a7}\x{30a9}])?\x{30fc}?\x{30f3}?/	\x{30de}\x{30fc}\x{30af}\x{30b5}\x{30fc}\x{30d3}\x{30b9}	y	$&	\x{30de}\x{30fc}	# part of [perl #133942
 /[\x{3041}-\x{3093}]+/	\x{6f22}\x{5b57}\x{3001}\x{30ab}\x{30bf}\x{30ab}\x{30ca}\x{3001}\x{3072}\x{3089}\x{304c}\x{306a}\x{306e}\x{5165}\x{3063}\x{305f}String	y	$&	\x{3072}\x{3089}\x{304c}\x{306a}\x{306e}	# [perl #133978]
+/(?:0)|(?:)(?:[1-9])/	q0	y	$&	0	# [https://github.com/Perl/perl5/issues/17372]
+/\x{_1_0000}/	\x{10000}	y	$&	\x{10000}		# khw doesn't like leading underscores, but don't rmv them accidentally
+/\o{_1_0000}/	\o{10000}	y	$&	\o{10000}
+/(?iaax:A? \K +)/	African_Feh	y	$&	
+/(?iaa:A?\K+)/	African_Feh	y	$&	
+/(?iaa:A?\K*)/	African_Feh	y	$&	
+^((\w|<(\s)*(?1)(?3)*>)(?:(?3)*\+(?3)*(?2))*)(?3)*\+	a + b + <c + d>	y	$1	a + b		# [GH #18096]
+^((\w|<(\s)*(?1)(?3)*>)(?:(?3)*\+(?3)*(?2))*)(?3)*\+	a + <b> + c	y	$1	a + <b>		# [GH #18096]
+/0?\xdf\xdf\xdf\xdfs\o{500}|/i	\o{600}	y	$&				# [GH #18451]
+/^a{,2}$/		y				# 0 or more
+/^a{,2}$/	a	y	$&	a
+/^a{,2}$/	aa	y	$&	aa
+/^a{,2}$/	aaa	n	-	-
+
+/.{, 2 }/	a	y	$&	a
+/[x]{, 2}/	x	y	$&	x
+/\p{Latin}{ , 2 }/	a	y	$&	a
+
+/(?=foo)(?<=a|ab)/	abfoo	y	-	-	-	# Positive variable length lookbehind GH #19168
+/(?=foo)(?<=a|ab)/	adfoo	n	-	-	-	# Positive variable length lookbehind GH #19168
+/(?=foo)(?<=a|ab)/	cafoo	y	-	-	-	# Positive variable length lookbehind GH #19168
+/(?=foo)(?<!a|ab)/	abfoo	n	-	-	-	# Negative variable length lookbehind GH #19168
+/(?=foo)(?<!a|ab)/	adfoo	y	-	-	-	# Negative variable length lookbehind GH #19168
+/(?=foo)(?<!a|ab)/	cafoo	n	-	-	-	# Negative variable length lookbehind GH #19168
+/(?=foo)(?<=c|a[a-d](?<!b))/	aafoo	y	-	-	-	# Variable length lookbehind GH #19168
+/(?=foo)(?<=c|a[a-d](?<!b))/	abfoo	n	-	-	-	# Variable length lookbehind GH #19168
+/(?<!)/	abfoo	n	-	-	-	# OPFAIL
+/(?!)/	abfoo	n	-	-	-	# OPFAIL
+/(.*b)(?<=)/	abfoo	y	$1	ab	-	# NOTHING
+/(.*b)(?=)/	abfoo	y	$1	ab	-	# NOTHING
+/(?=(\w))(?<!^)/	1234	y	$1	2	-	# Lookahead with zero width negative lookbehind
+/(\w)(?<!^)/	1234	y	$1	1	-	# Negative lookbehind with zero width assertion
+/(?=foo)(?<=(a??))/	afoo	y	$1	a	-	# Postive lookbehind with minmod (leftmost longest)
+/(?=foo)(?<=(a{0,2}))/	aafoo	y	$1	aa	-	# Positive lookbehind with min/max (leftmost longest)
+/(?=foo)(?<=(|a|aa))/	aafoo	y	$1	aa	-	# Positive lookbehind with alternation (leftmost longest)
+(?<=(?<!yz)b)c	aabcdef	y	$&	c	-	# Nested lookbehind without early bailout
+(?<=(?<!yz)b)c	abcdef	y	$&	c	-	# Nested lookbehind with early bailout
+/(A(A|B(*ACCEPT)|C)+D)(E)/	ABDE	y	$1-$2	AB-B	-	# ACCEPT with CurlyM optimization GH #19484
+/(A(A|B(*ACCEPT)|C)+D)(E)/	ABDE	y	$&	AB	-	# ACCEPT with CurlyM optimization GH #19484
+/(A(A|B(*ACCEPT)|C)+D)(E)/	ABCDE	y	$1-$2	AB-B	-	# ACCEPT with CurlyM optimization GH #19484
+/(A(A|B(*ACCEPT)|C)+D)(E)/	ABCDE	y	$&	AB	-	# ACCEPT with CurlyM optimization GH #19484
+/(A(A|B(*ACCEPT)|C)D)(E)/	ABDE	y	$1-$2	AB-B	-	# ACCEPT without CurlyM optimization
+/(A(A|B(*ACCEPT)|C)D)(E)/	ABDE	y	$&	AB	-	# ACCEPT without CurlyM optimization
+/(A(A|B(*ACCEPT)|C)D)(E)/	ABCDE	y	$1-$2	AB-B	-	# ACCEPT without CurlyM optimization
+/(A(A|B(*ACCEPT)|C)D)(E)/	ABCDE	y	$&	AB	-	# ACCEPT without CurlyM optimization
+/(A(A|B(*ACCEPT)|(?>C))D)(E)/	ABCDE	y	$1-$2	AB-B	-	# ACCEPT with SUSPEND in pattern
+/(A(A|B(*ACCEPT)|(?>C))D)(E)/	ABCDE	y	$&	AB	-	# ACCEPT with SUSPEND in pattern
+/(A(A|B(*ACCEPT)|C(?<=C))D)(E)/	ABCDE	y	$1-$2	AB-B	-	# ACCEPT with IFMATCH in pattern
+/(A(A|B(*ACCEPT)|C(?<=C))D)(E)/	ABCDE	y	$&	AB	-	# ACCEPT with IFMATCH in pattern
+/(A(A|B(*ACCEPT)|C(?<!Q))D)(E)/	ABCDE	y	$1-$2	AB-B	-	# ACCEPT with UNLESSM in pattern
+/(A(A|B(*ACCEPT)|C(?<!Q))D)(E)/	ABCDE	y	$&	AB	-	# ACCEPT with UNLESSM in pattern
+/(?(DEFINE)(?<a>(?:[ab]|[cd](*ACCEPT)|[ef])g))(?&a)(?&a)/	cc	y	$&	cc	-	# ACCEPT in GOSUB
+/(?(DEFINE)(?<a>(?:[ab]|[cd](*ACCEPT)|[ef])g))(?&a)(?&a)/	agag	y	$&	agag	-	# (not) ACCEPT in GOSUB
+/(?(DEFINE)(?<a>(?:[ab]|[cd](*ACCEPT)|[ef])g))(?&a)(?&a)/	agcq	y	$&	agc	-	# (not) ACCEPT in GOSUB
+/(?<=([cd](*ACCEPT)|x)gggg)blrph/	cblrph	y	$&-$1	blrph-c	-	# ACCEPT in IFMATCH var pos lookbehind
+/(?<=([cd](*ACCEPT)|x)gggg)blrph/	dblrph	y	$&-$1	blrph-d	-	# ACCEPT in IFMATCH var pos lookbehind
+/(?<=([cd](*ACCEPT)|x)gggg)blrph/	xggggblrph	y	$&-$1	blrph-x	-	# (not) ACCEPT in IFMATCH var pos lb
+/(?<!([cd](*ACCEPT)|x)gggg)blrph/	cblrph	n	-	-	-	# ACCEPT in UNLESSM var neg lookbehind
+/(?<!([cd](*ACCEPT)|x)gggg)blrph/	dblrph	n	-	-	-	# ACCEPT in UNLESSM var neg lookbehind
+/(?<!([cd](*ACCEPT)|x)gggg)blrph/	xggggblrph	n	-	-	-	# (not) ACCEPT in UNLESSM var neg lb
+/(?:a?(*ACCEPT))b/	x	y	>$&<	><	-	# Test minlen for ACCEPT
+/(?:a?(*ACCEPT))b/	a	y	>$&<	>a<	-	# Test minlen for ACCEPT
+/(?:a?(*ACCEPT))b/	b	y	>$&<	><	-	# Test minlen for ACCEPT
+/a?(*ACCEPT)b/	x	y	>$&<	><	-	# Test minlen for ACCEPT
+/a?(*ACCEPT)b/	a	y	>$&<	>a<	-	# Test minlen for ACCEPT
+/a?(*ACCEPT)b/	b	y	>$&<	><	-	# Test minlen for ACCEPT
+/ (A (*ACCEPT) | BC){2} D{0,4}/x	A	y	$1	A	-	# ACCEPT optimizer check
+
+\p{nv=-0}	\x{660}	y	$&	\x{660}
+(?:a|xx){0,4}?b	aaaaab 	y	$&	aaaab		# Bug is GH #8369; test is GH #19781
+(?|(?<a>a)|(?<b>b))\1(?&a)(?&b)	bbab 	y	$&	bbab		# GH 20653
+(?|(?<a>a)|(?<b>b))(?(<a>)x|y)\1	byb 	y	$&	byb		# GH 20653
+(?|(?<a>a)|(?<b>b))(?(<a>)x|y)\1	bxb 	n	-	-		# GH 20653
+(?|(?<a>a)|(?<b>b))(?(<a>)x|y)\1	axa 	y	$&	axa		# GH 20653
+(?|(?<a>a)|(?<b>b))(?(<a>)x|y)\1	aya 	n	-	-		# GH 20653
+(?|(?<a>a)|(?<b>b))	a 	y	$1-$+{a}-$+{b}	a-a-		# GH 20653
+(?|(?<a>a)|(?<b>b))	b 	y	$1-$+{a}-$+{b}	b--b		# GH 20653
+(?<pre>pre)(?|(?<a>a)(?<b>b)(?<c>c)|(?<d>d)(?<e>e)|(?<f>f))(?<post>post)	preabcpost 	y	$2-$3-$4	a-b-c		# GH 20653
+(?<pre>pre)(?|(?<a>a)(?<b>b)(?<c>c)|(?<d>d)(?<e>e)|(?<f>f))(?<post>post)	predepost 	y	$2-$3-$4	d-e-		# GH 20653
+(?<pre>pre)(?|(?<a>a)(?<b>b)(?<c>c)|(?<d>d)(?<e>e)|(?<f>f))(?<post>post)	prefpost 	y	$2-$3-$4	f--		# GH 20653
+(?<pre>pre)(?|(?<a>a)(?<b>b)(?<c>c)|(?<d>d)(?<e>e)|(?<f>f))(?<post>post)	preabcpost 	y	$+{a}-$+{b}-$+{c}	a-b-c		# GH 20653
+((?|(?<a>a)(?-1)|(?<b>b)(?-1)|(?<c>c)(?-1)))	aa 	y	$1	aa		# GH 20653
+((?|(?<a>a)(?-1)|(?<b>b)(?-1)|(?<c>c)(?-1)))	bb 	y	$1	bb		# GH 20653
+((?|(?<a>a)(?-1)|(?<b>b)(?-1)|(?<c>c)(?-1)))	cc 	y	$1	cc		# GH 20653
+
+(?|(a)|(b))	b	y	$+	b		# GH 20912
+(?|(a)(?{$::plus_got=$+})|(b)(?{$::plus_got=$+}))	b	y	$::plus_got	b		# GH 20912
+(?|(a)|(b))	b	y	$^N	b		# GH 20912
+(?|(a)(?{$::caret_n_got=$^N})|(b)(?{$::caret_n_got=$^N}))	b	y	$::caret_n_got	b		# GH 20912
+(?|(a)|(b))	a	y	$+	a		# GH 20912
+(?|(a)(?{$::plus_got=$+})|(b)(?{$::plus_got=$+}))	a	y	$::plus_got	a		# GH 20912
+(?|(a)|(b))	a	y	$^N	a		# GH 20912
+(?|(a)(?{$::caret_n_got=$^N})|(b)(?{$::caret_n_got=$^N}))	a	y	$::caret_n_got	a		# GH 20912
+
+/(([ab]+)|([cd]+)|([ef]+))+/	ace	y	$1-$2-$3-$4=$&	e---e=ace
+/(([ab]+)|([cd]+)|([ef]+))+/	aceb	Ty	$1-$2-$3-$4=$&	b-b--=aceb
+/(([ab]+)|([cd]+)|([ef]+))+/	acebd	Ty	$1-$2-$3-$4=$&	d--d-=acebd
+/(([ab]+)|([cd]+)|([ef]+))+/	acebdf	y	$1-$2-$3-$4=$&	f---f=acebdf
+/((a)(b)(c)|(a)(b)|(a))+/	abcaba	y	$1+$2-$3-$4+$5-$6+$7=$&	a+--+-+a=abcaba
+
+/^(xa|=?\1a){2}$/	xa=xaaa	n	-	-	# GH 10073 - RT72020
+/^(xa|(?:=|zzzz|)\1a){2}$/	xa=xaaa	n	-	-	# GH 10073 - RT72020
+/^(xa|(?:=|zzzz)?\1a){2}$/	xa=xaaa	n	-	-	# GH 10073 - RT72020
+/^(xa|[Z=]?\1a){2}$/	xa=xaaa	n	-	-	# GH 10073 - RT72020
+/^(xa|([Z=])?\1a){2}$/	xa=xaaa	n	-	-	# GH 10073 - RT72020
+/^(xa|([Z=]|zzzz)?\1a){2}$/	xa=xaaa	n	-	-	# GH 10073 - RT72020
+/^(xa|(=|)\1a){2}$/	xa=xaaa	n	-	-	# GH 10073 - RT72020
+/^(xa|(?:[Z=])?\1a){2}$/	xa=xaaa	n	-	-	# GH 10073 - RT72020
+/^(xa|(?:[Z=]|zzzz)?\1a){2}$/	xa=xaaa	n	-	-	# GH 10073 - RT72020
+/^(xa|(?:=|)\1a){2}$/	xa=xaaa	n	-	-	# GH 10073 - RT72020
+/^(xa|=*\1a){2}$/	xa=xaaa	n	-	-	# GH 10073 - RT72020
+/^(xa|[Z=]*\1a){2}$/	xa=xaaa	n	-	-	# GH 10073 - RT72020
+/^(xa|(?:[Z=])*\1a){2}$/	xa=xaaa	n	-	-	# GH 10073 - RT72020
+/^(xa|(?:[Z=]|zzzz)*\1a){2}$/	xa=xaaa	n	-	-	# GH 10073 - RT72020
 
 # Keep these lines at the end of the file
+# pat	string	y/n/etc	expr	expected-expr	skip-reason	comment
 # vim: softtabstop=0 noexpandtab

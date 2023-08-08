@@ -9,8 +9,9 @@ use File::Basename ();
 use File::Path ();
 use File::Spec ();
 use CPAN::Mirrors ();
+use CPAN::Version ();
 use vars qw($VERSION $auto_config);
-$VERSION = "5.5311";
+$VERSION = "5.5317";
 
 =head1 NAME
 
@@ -36,6 +37,34 @@ variables are collected.
 my @podpara = split /\n\n/, <<'=back';
 
 =over 2
+
+=item allow_installing_module_downgrades
+
+The CPAN shell can watch the C<blib/> directories that are built up
+before running C<make test> to determine whether the current
+distribution will end up with modules being overwritten with decreasing module version numbers. It
+can then let the build of this distro fail when it discovers a
+downgrade.
+
+Do you want to allow installing distros with decreasing module
+versions compared to what you have installed (yes, no, ask/yes,
+ask/no)?
+
+=item allow_installing_outdated_dists
+
+The CPAN shell can watch the C<blib/> directories that are built up
+before running C<make test> to determine whether the current
+distribution contains modules that are indexed with a distro with a
+higher distro-version number than the current one. It can
+then let the build of this distro fail when it would not represent the
+most up-to-date version of the distro.
+
+Note: choosing anything but 'yes' for this option will need
+CPAN::DistnameInfo being installed for taking effect.
+
+Do you want to allow installing distros that are not indexed as the
+highest distro-version for all contained modules (yes, no, ask/yes,
+ask/no)?
 
 =item auto_commit
 
@@ -97,7 +126,7 @@ To considerably speed up the initial CPAN shell startup, it is
 possible to use Storable to create a cache of metadata. If Storable is
 not available, the normal index mechanism will be used.
 
-Note: this mechanism is not used when use_sqlite is on and SQLLite is
+Note: this mechanism is not used when use_sqlite is on and SQLite is
 running.
 
 Cache metadata (yes/no)?
@@ -192,7 +221,8 @@ How many days shall we keep statistics about downloads?
 =item ftpstats_size
 
 Statistics about downloads are truncated by size and period
-simultaneously.
+simultaneously. Setting this to zero or negative disables download
+statistics.
 
 How many items shall we keep in the statistics about downloads?
 
@@ -421,6 +451,20 @@ Please set your policy to one of the three values.
 
 Policy on building prerequisites (follow, ask or ignore)?
 
+=item pushy_https
+
+Boolean. Defaults to true. If this option is true, the cpan shell will
+use https://cpan.org/ to download stuff from the CPAN. It will fall
+back to http://cpan.org/ if it can't handle https for some reason
+(missing modules, missing programs). Whenever it falls back to the
+http protocol, it will issue a warning.
+
+If this option is true, the option C<urllist> will be ignored.
+Consequently, if you want to work with local mirrors via your own
+configured list of URLs, you will have to choose no below.
+
+Do you want to turn the pushy_https behaviour on?
+
 =item randomize_urllist
 
 CPAN.pm can introduce some randomness when using hosts for download
@@ -566,6 +610,23 @@ because of missing dependencies.  Also, tests can be run
 regardless of the history using "force".
 
 Do you want to rely on the test report history (yes/no)?
+
+=item urllist_ping_external
+
+When automatic selection of the nearest cpan mirrors is performed,
+turn on the use of the external ping via Net::Ping::External. This is
+recommended in the case the local network has a transparent proxy.
+
+Do you want to use the external ping command when autoselecting
+mirrors?
+
+=item urllist_ping_verbose
+
+When automatic selection of the nearest cpan mirrors is performed,
+this option can be used to turn on verbosity during the selection
+process.
+
+Do you want to see verbosity turned on when autoselecting mirrors?
 
 =item use_prompt_default
 
@@ -1088,6 +1149,14 @@ sub init {
 
     my_dflt_prompt(mbuild_install_arg => "", $matcher);
 
+    for my $o (qw(
+        allow_installing_outdated_dists
+        allow_installing_module_downgrades
+        )) {
+        my_prompt_loop($o => 'ask/no', $matcher,
+                       'yes|no|ask/yes|ask/no');
+    }
+
     #
     #== use_prompt_default
     #
@@ -1260,9 +1329,16 @@ sub init {
     # Let's assume they want to use the internet and make them turn it
     # off if they really don't.
     my_yn_prompt("connect_to_internet_ok" => 1, $matcher);
+    my_yn_prompt("pushy_https" => 1, $matcher);
 
     # Allow matching but don't show during manual config
     if ($matcher) {
+        if ("urllist_ping_external" =~ $matcher) {
+            my_yn_prompt(urllist_ping_external => 0, $matcher);
+        }
+        if ("urllist_ping_verbose" =~ $matcher) {
+            my_yn_prompt(urllist_ping_verbose => 0, $matcher);
+        }
         if ("randomize_urllist" =~ $matcher) {
             my_dflt_prompt(randomize_urllist => 0, $matcher);
         }
@@ -1283,7 +1359,11 @@ sub init {
             );
         }
         else {
-            $CPAN::Config->{urllist} = [ 'http://www.cpan.org/' ];
+            # Hint: as of 2021-11: to get http, use http://www.cpan.org/
+            $CPAN::Config->{urllist} = [ 'https://cpan.org/' ];
+            $CPAN::Frontend->myprint(
+                "We initialized your 'urllist' to @{$CPAN::Config->{urllist}}. Type 'o conf init urllist' to change it.\n"
+            );
         }
     }
     elsif (!$matcher || "urllist" =~ $matcher) {
@@ -1301,8 +1381,14 @@ sub init {
     if ( $CPAN::Config->{install_help} eq 'local::lib' ) {
         if ( ! @{ $CPAN::Config->{urllist} } ) {
             $CPAN::Frontend->myprint(
-                "Skipping local::lib bootstrap because 'urllist' is not configured.\n"
+                "\nALERT: Skipping local::lib bootstrap because 'urllist' is not configured.\n"
             );
+        }
+        elsif (! $CPAN::Config->{make} ) {
+            $CPAN::Frontend->mywarn(
+                "\nALERT: Skipping local::lib bootstrap because 'make' is not configured.\n"
+            );
+            _beg_for_make(); # repetitive, but we don't want users to miss it
         }
         else {
             $CPAN::Frontend->myprint("\nAttempting to bootstrap local::lib...\n");
@@ -1450,7 +1536,7 @@ sub _do_pick_mirrors {
     $CPAN::Frontend->myprint($prompts{urls_intro});
     # Only prompt for auto-pick if Net::Ping is new enough to do timings
     my $_conf = 'n';
-    if ( $CPAN::META->has_usable("Net::Ping") && Net::Ping->VERSION gt '2.13') {
+    if ( $CPAN::META->has_usable("Net::Ping") && CPAN::Version->vgt(Net::Ping->VERSION, '2.13')) {
         $_conf = prompt($prompts{auto_pick}, "yes");
     } else {
         prompt("Autoselection disabled due to Net::Ping missing or insufficient. Please press ENTER");
@@ -1584,12 +1670,17 @@ Windows users may want to follow this procedure when back in the CPAN shell:
     perl alien_nmake.pl
 
 This will install nmake on your system which can be used as a 'make'
-substitute. You can then revisit this dialog with
+substitute.
+
+HERE
+  }
+
+  $CPAN::Frontend->mywarn(<<"HERE");
+You can then retry the 'make' configuration step with
 
     o conf init make
 
 HERE
-  }
 }
 
 sub init_cpan_home {
@@ -1678,7 +1769,6 @@ sub my_yn_prompt {
     my $default;
     defined($default = $CPAN::Config->{$item}) or $default = $dflt;
 
-    # $DB::single = 1;
     if (!$auto_config && (!$m || $item =~ /$m/)) {
         if (my $intro = $prompts{$item . "_intro"}) {
             $CPAN::Frontend->myprint($intro);
@@ -1697,7 +1787,8 @@ sub my_prompt_loop {
     my $ans;
 
     if (!$auto_config && (!$m || $item =~ /$m/)) {
-        $CPAN::Frontend->myprint($prompts{$item . "_intro"});
+        my $intro = $prompts{$item . "_intro"};
+        $CPAN::Frontend->myprint($intro) if defined $intro;
         $CPAN::Frontend->myprint(" <$item>\n");
         do { $ans = prompt($prompts{$item}, $default);
         } until $ans =~ /$ok/;
@@ -1915,17 +2006,25 @@ sub auto_mirrored_by {
     my $mirrors = CPAN::Mirrors->new($local);
 
     my $cnt = 0;
+    my $callback_was_active = 0;
     my @best = $mirrors->best_mirrors(
       how_many => 3,
       callback => sub {
+          $callback_was_active++;
           $CPAN::Frontend->myprint(".");
           if ($cnt++>60) { $cnt=0; $CPAN::Frontend->myprint("\n"); }
       },
+      $CPAN::Config->{urllist_ping_external} ? (external_ping => 1) : (),
+      $CPAN::Config->{urllist_ping_verbose} ? (verbose => 1) : (),
     );
 
-    my $urllist = [ map { $_->http } @best ];
+    my $urllist = [
+        map { $_->http }
+        grep { $_ && ref $_ && $_->can('http') }
+        @best
+    ];
     push @$urllist, grep { /^file:/ } @{$CPAN::Config->{urllist}};
-    $CPAN::Frontend->myprint(" done!\n\n");
+    $CPAN::Frontend->myprint(" done!\n\n") if $callback_was_active;
 
     return $urllist
 }

@@ -1,3 +1,5 @@
+# vim: syntax=pod
+
 If you read this file _as_is_, just ignore the funny characters you see.
 It is written in the POD format (see pod/perlpod.pod) which is specially
 designed to be readable as is.
@@ -9,7 +11,7 @@ perlhurd - Perl version 5 on Hurd
 =head1 DESCRIPTION
 
 If you want to use Perl on the Hurd, I recommend using the Debian
-GNU/Hurd distribution ( see L<http://www.debian.org/> ), even if an
+GNU/Hurd distribution ( see L<https://www.debian.org/> ), even if an
 official, stable release has not yet been made.  The old "gnu-0.2"
 binary distribution will most certainly have additional problems.
 

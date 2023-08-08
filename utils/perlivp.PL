@@ -30,7 +30,7 @@ print "Extracting $file (with variable substitutions)\n";
 print OUT <<"!GROK!THIS!";
 $Config{'startperl'}
     eval 'exec $Config{'perlpath'} -S \$0 \${1+"\$@"}'
-        if \$running_under_some_shell;
+        if 0; # ^ Run only under a shell
 !GROK!THIS!
 
 print OUT "\n# perlivp $^V\n";
@@ -165,7 +165,7 @@ foreach (@INC) {
     $INC_total++;
 }
 
-$label = '@INC directoreis exist';
+$label = '@INC directories exist';
 if ($INC_total == $INC_there) {
     print "ok 3 $label\n";
     $pass__total++;

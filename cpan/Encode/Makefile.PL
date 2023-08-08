@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.PL,v 2.22 2017/10/06 22:21:53 dankogai Exp $
+# $Id: Makefile.PL,v 2.25 2022/06/25 01:58:57 dankogai Exp $
 #
 use 5.007003;
 use strict;
@@ -17,10 +17,12 @@ $ENV{PERL_CORE} ||= $ARGV{PERL_CORE} if $ARGV{PERL_CORE};
 my $ccflags = $Config{ccflags};
 if (!$ENV{PERL_CORE}) {
   if (my $gccver = $Config{gccversion}) {
+    # no more 'Argument "Apple" isn't numeric in addition (+)'
+    no warnings 'numeric';
     $gccver =~ s/\.//g; $gccver =~ s/ .*//;
     $gccver .= "0" while length $gccver < 3;
     $gccver = 0+$gccver;
-    $ccflags .= ' -Werror=declaration-after-statement' if $gccver > 412;
+    $ccflags .= ' -Werror=declaration-after-statement' if $gccver > 412 and $] < 5.035005;
     $ccflags .= ' -Wpointer-sign' if !$Config{d_cplusplus} and $gccver > 400;
     $ccflags .= ' -fpermissive' if $Config{d_cplusplus};
   }
@@ -70,7 +72,7 @@ WriteMakefile(
         Storable   => '0',      # bundled with Perl 5.7.3
     },
     TEST_REQUIRES => {
-        'Test::More' => '0.81_01',
+        'Test::More' => '0.92',
     },
     PMLIBDIRS   => \@pmlibdirs,
     INSTALLDIRS => ($] < 5.011 ? 'perl' : 'site'),

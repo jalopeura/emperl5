@@ -17,9 +17,908 @@ Consult your favorite dictionary for details.
 
 =head1 EPIGRAPHS
 
+=head2 v5.37.11 - Ben Aaronovitch, "Moon Over Soho"
+
+L<Announced on 2023-04-20 by Steve Hay|https://www.nntp.perl.org/group/perl.perl5.porters/2023/04/msg266242.html>
+
+My dad always said that a trumpet player likes to aim his weapon at the
+audience, but a sax man likes to cut a good profile and that they always
+have a favourite side.  It being an article of faith with my dad that
+you don't even pick up a reed instrument unless you're vain about the
+shape your face makes when you're blowing down it.
+
+=head2 v5.37.10 - Lewis Carroll "The Walrus and the Carpenter"
+
+L<Announced on 2023-03-21 by Yves Orton|https://www.nntp.perl.org/group/perl.perl5.porters/2023/03/msg266078.html>
+
+    The time has come,' the Walrus said,
+          To talk of many things:
+    Of shoes - and ships - and sealing-wax -
+          Of cabbages - and kings -
+    And why the sea is boiling hot -
+          And whether pigs have wings.'
+
+=head2 v5.37.9 - Virginia Woolf
+
+L<Announced on 2023-02-20 by Karen Etheridge|https://www.nntp.perl.org/group/perl.perl5.porters/2023/02/msg265769.html>
+
+Each has his past shut in him like the leaves of a book known to him by
+heart and his friends can only read the title.
+
+=head2 v5.37.8 - Helmut Schmidt
+
+L<Announced on 2023-01-20 by Renee Baecker|https://www.nntp.perl.org/group/perl.perl5.porters/2023/01/msg265547.html>
+
+Honesty doesn't require saying everything you think. Honesty only
+requires that you don't say anything that you don't think.
+
+=head2 v5.37.7 - Terry Pratchett, "Hogfather"
+
+L<Announced on 2022-12-20 by Richard Leach|https://www.nntp.perl.org/group/perl.perl5.porters/2022/12/msg265263.html>
+
+TO THE HOGFATHER, ALL PORK PIES ARE AS ONE PORK PIE.
+EXCEPT THE ONE LIKE A TURNIP.
+
+=head2 v5.37.6 - N. K. Jemisin - The City We Became
+
+L<Announced on 2022-11-20 by Max Maischein|https://www.nntp.perl.org/group/perl.perl5.porters/2022/11/msg265080.html>
+
+Queens sighs with the air of someone who is used to not being
+understood. She takes out her phone and starts texting someone,
+her bottom lip poked out a little.
+
+Brooklyn's expression turns grim. To Broca she says, "You said
+becoming a city punches through other universes."
+So she's not stupid. Bronca inclined her head to the woman, in
+respect if not in approval. "Yes".
+
+"Okay, so." Brooklyn visibly braces herself. "So what
+happens to those universes that our city punches through?"
+
+                      The City We Became - N.K. Jemisin
+
+=head2 v5.37.5 - Nori - The Lord of the Rings: The Rings of Power
+
+L<Announced on 2022-10-20 by Todd Rinaldo|https://www.nntp.perl.org/group/perl.perl5.porters/2022/10/msg264959.html>
+
+If we didn't do everything we weren't supposed to, we'd hardly do
+anything at all.
+
+=head2 v5.37.4 - C. F. Kettering
+
+L<Announced on 2022-09-20 by Karen Etheridge|https://www.nntp.perl.org/group/perl.perl5.porters/2022/09/msg264815.html>
+
+A problem well stated is a problem half solved.
+
+=head2 v5.37.3 - John Steinbeck, "East of Eden"
+
+L<Announced on 2022-08-20 by Neil B|https://www.nntp.perl.org/group/perl.perl5.porters/2022/08/msg264651.html>
+
+And now that you don't have to be perfect, you can be good.
+
+=head2 v5.37.2 - James Clear, "Atomic Habits"
+
+L<Announced on 2022-07-20 by Nicolas R.|https://www.nntp.perl.org/group/perl.perl5.porters/2022/07/msg264438.html>
+
+If you can get one percent better each day for one year,
+you'll end up thiry-seven times better by the time you are done
+
+=head2 v5.37.1 - Squirt, "Finding Nemo"
+
+L<Announced on 2022-06-20 by Matthew Horsfall|https://www.nntp.perl.org/group/perl.perl5.porters/2022/06/msg264107.html>
+
+Good afternoon! We're gonna have a great jump today!
+Okay, crank a hard cutback as you hit the wall.
+There's a screaming bottom curve, so watch out.
+Remember: Rip it! Roll it! And punch it!
+
+=head2 v5.37.0 - John Cage, "Lecture on Nothing"
+
+L<Announced on 2022-05-27 by Ricardo Signes|https://www.nntp.perl.org/group/perl.perl5.porters/2022/05/msg263786.html>
+
+I have nothing to say, and I am saying it.
+
+=head2 v5.36.1 - Louis Kentner, "Piano"
+
+L<Announced on 2023-04-23 by Steve Hay|https://www.nntp.perl.org/group/perl.perl5.porters/2023/04/msg266251.html>
+
+Pianists can be divided into the following three categories: those who
+practice a lot and admit it; those who practice a lot but deny it; and
+those who do not practice and, therefore, are no pianists.
+
+=head2 v5.36.1-RC3 - Karl Leimer & Walter Gieseking, trans. Frederick C. Rauser, "Rhythmics, Dynamics, Pedal and Other Problems of Piano Playing"
+
+L<Announced on 2023-04-16 by Steve Hay|https://www.nntp.perl.org/group/perl.perl5.porters/2023/04/msg266232.html>
+
+Generally, no clear opinions exist as to the usefulness of mental work
+in order to acquire a good technique.  We do not seem to know exactly
+what it means or how to develop technique through "brain work."
+Technique, when playing an instrument, means controlling the fingers.
+Generally, it is used only in a limited sense regarding fluency, rapid
+execution of difficult passages and steady aim.
+In order to acquire a perfect technique through brain work, an exact
+impression of the note picture upon the mind is the first problem which
+we must solve.  Thereafter we should busy ourselves with the study in
+question, as to fingering, touch, note value, etc., to achieve
+perfection along these lines in the broadest sense.  This occurs
+quickest and completely through intensive concentration of all
+intellectual powers and is, therefore, strenuous brain work.
+
+=head2 v5.36.1-RC2 - Karl Leimer & Walter Gieseking, "The Shortest Way to Pianistic Perfection"
+
+L<Announced on 2023-04-11 by Steve Hay|https://www.nntp.perl.org/group/perl.perl5.porters/2023/04/msg266203.html>
+
+In order to attain a natural manner of playing the piano, that is to
+say, with the least possible strain and exertion, it is of the utmost
+importance to learn to exert the muscles consciously, and, what is of
+still greater importance, to relax them consciously.  My manner of
+accomplishing this differs from that of many other pedagogues.  I
+contrive to raise a feeling of relaxation from within, as it were. This
+is generally attempted by the aid of visible movements.  All superfluous
+movements are injurious.  The aim should be the very least possible
+strain of the muscles when playing the piano.
+
+=head2 v5.36.1-RC1 - Josef Lhevinne, "Basic Principles in Pianoforte Playing"
+
+L<Announced on 2023-04-10 by Steve Hay|https://www.nntp.perl.org/group/perl.perl5.porters/2023/04/msg266184.html>
+
+Avoid worry and distractions of any kind when you are practicing.  Your
+mind must be every minute on what you are doing, or the value of your
+practice is lessened enormously.  By intense concentration, love of your
+work and the spirit in which you approach it, you can do more in a half
+hour than in an hour spent purposelessly.  Do not think you have been
+practicing, if you have played a single note with your mind on anything
+else.
+
+=head2 v5.36.0 - Alexandre Dumas, "The Three Musketeers"
+
+L<Announced on 2022-05-27 by Ricardo Signes|https://www.nntp.perl.org/group/perl.perl5.porters/2022/05/msg263783.html>
+
+“What!" cried he, in an accent of greater astonishment than before "your second
+witness is Monsieur Aramis?"
+
+"Doubtless! Are you not aware that we are never seen one without the others,
+and that we are called among the Musketeers and the Guards, at the court and in
+the city, Athos, Porthos, and Aramis, or the Three Inseparables?”
+
+=head2 v5.36.0-RC3 - The Three Amigos
+
+L<Announced on 2022-05-22 by Ricardo Signes|https://www.nntp.perl.org/group/perl.perl5.porters/2022/05/msg263750.html>
+
+  Lucky Day:  I'll come back one day
+  Carmen:     Why?
+    — The Three Amigos
+
+=head2 v5.36.0-RC1 - The Three Amigos
+
+L<Announced on 2022-05-20 by Ricardo Signes|https://www.nntp.perl.org/group/perl.perl5.porters/2022/05/msg263728.html>
+
+  Jefe:     I have put many beautiful piñatas in the storeroom, each of them filled
+            with little surprises.
+  El Guapo: Many piñatas?
+  Jefe:     Oh yes, many!
+  El Guapo: Would you say I have a plethora of piñatas?
+  Jefe:     A what?
+  El Guapo: A plethora.
+  Jefe:     Oh yes, you have a plethora.
+
+    — The Three Amigos
+
+=head2 v5.35.11 - Marcel Allain and Pierre Souvestre, "Fantômas"
+
+L<Announced on 2022-04-20 by Steve Hay|https://www.nntp.perl.org/group/perl.perl5.porters/2022/04/msg263644.html>
+
+"Fantômas."
+  "What did you say?"
+  "I said: Fantômas."
+  "And what does that mean?"
+  "Nothing. . . . Everything!"
+  "But what is it?"
+  "Nobody. . . . And yet, yes, it is somebody!"
+  "And what does the somebody do?"
+  "Spreads terror!"
+
+=head2 v5.35.10 - John Connolly, The Killing Kind
+
+L<Announced on 2022-03-20 by Sawyer X|https://www.nntp.perl.org/group/perl.perl5.porters/2022/03/msg263388.html>
+
+Tante Marie knew the nature of this world. She roamed through it, saw it
+for what it was, and understood her place in it, her responsibility to
+those who dwelt within it and beyond. Now, slowly, I too have begun to
+understand, to recognize a duty to the rest, to those whom I have never
+known as much as to those whom I have loved. The nature of humanity, its
+essence, is to feel another's pain as one's own, and to act to take that
+pain away. There is a nobility in compassion, a beauty in empathy,
+a grace in forgiveness.
+
+=head2 v5.35.9 - Sten Nadolny, The discovery of slowness
+
+L<Announced on 2022-02-20 by Renee Baecker|https://www.nntp.perl.org/group/perl.perl5.porters/2022/02/msg262928.html>
+
+"John's eyes and ears," Dr. Orme wrote to the captain,
+"retain every impression for a peculiarly long time. His apparent
+slowness of mind and his inertia are nothing but the result of
+exaggerated care taken by his brain in contemplating every kind
+of detail. His enormous patience..." He crossed out the last phrase.
+
+=head2 v5.35.8 - Miguel de Cervantes Saavedra, Don Quijote
+
+L<Announced on 2022-01-20 by Nicolas R|https://www.nntp.perl.org/group/perl.perl5.porters/2022/01/msg262478.html>
+
+Finally, from so little sleeping and so much reading,
+his brain dried up and he went completely out of his mind.
+
+=head2 v5.35.7 - Charles Dickens, Bleak House
+
+L<Announced on 2021-12-20 by Neil Bowers|https://www.nntp.perl.org/group/perl.perl5.porters/2021/12/msg262290.html>
+
+There were two classes of charitable people:
+one, the people who did a little and made a great deal of noise;
+the other, the people who did a great deal and made no noise at all.
+
+=head2 v5.35.6 - Hannu Rajaniemi, The Quantum Thief
+
+L<Announced on 2021-11-22 by Richard Leach|https://www.nntp.perl.org/group/perl.perl5.porters/2021/11/msg261958.html>
+
+"I have to say you were very clever. The chocolate tasted subtly wrong.
+He is in the dress, isn't he? His mind. You used the fabber to put it
+there. They had just finished the original: you melted it and made a
+copy."
+
+=head2 v5.35.5 - Frank Herbert, Heretics of Dune
+
+L<Announced on 2021-10-21 by Leon Timmermans|https://www.nntp.perl.org/group/perl.perl5.porters/2021/10/msg261779.html>
+
+Again, she sent the light beam along the mounded melange. Her attention was
+drawn to a strip of the wall above the spice. More words! Still in Chakobsa,
+written with a cutter in a fine flowing script, there was another message:
+  "A REVERENT MOTHER WILL READ MY WORDS"
+Something cold settled in Odrade's guts. She moved to her right with the light,
+plowing through an empire's ransom in melange. There was more to the message.
+  "I BEQUEATH TO YOU MY FEAR AND LONELINESS. TO YOU I GIVE THE CERTAINTY THAT
+THE BODY AND SOUL OF THE BENE GESSERIT WILL MEET THE SAME FATE AS ALL OTHER
+BODIES AND ALL OTHER SOULS".
+Another paragraph of the message beckoned to the right of this one. She plowed
+through the cloying melange and stopped to read.
+  "WHAT IS SURVIVAL IF YOU DO NOT SURVIVE AS A WHOLE? ASK THE BENE TLEILAX THAT!
+WHAT IF YOU NO LONGER HEAR THE MUSIC OF LIFE? MEMORIES ARE NOT ENOUGH UNLESS
+THEY CALL YOU TO NOBLE PURPOSE!"
+
+=head2 v5.35.4 - Tom Scharpling, "Comet", from Steven Universe
+
+L<Announced on 2021-09-20 by Matthew Horsfall|https://www.nntp.perl.org/group/perl.perl5.porters/2021/09/msg261577.html>
+
+  Some say I have no direction
+  That I'm a light-speed distraction
+  That's a knee-jerk reaction
+
+  Still, this is the final frontier
+  Everything is so clear
+  To my destiny I steer
+
+  This life in the stars is all I've ever known
+  Stars and stardust in infinite space is my only home
+
+  But the moment that I hit the stage
+  Thousands of voices are calling my name
+  And I know in my heart it's been worth it all of the while
+
+  And as my albums fly off of the shelves
+  Handing out autographed pics of myself
+  This life I chose isn't easy but sure is one heck of a ride
+
+  At the moment that I hit the stage
+  I hear the universe calling my name
+  And I know deep down in my heart I have nothing to fear
+
+  And as the solar wind blows through my hair,
+  Knowing I have so much more left to share
+  A wandering spirit who's tearing its way through the cold atmosphere
+
+  I'll fly like a comet
+  Soar like a comet
+  Crash like a comet
+  I'm just a comet
+
+=head2 v5.35.3 - Logan Pearsall Smith
+
+L<Announced on 2021-08-20 by Karen Etheridge|https://www.nntp.perl.org/group/perl.perl5.porters/2021/08/msg261393.html>
+
+The test of a vocation is the love of the drudgery it involves.
+
+=head2 v5.35.2 - Freeman Dyson
+
+L<Announced on 2021-07-23 by Neil Bowers|https://www.nntp.perl.org/group/perl.perl5.porters/2021/07/msg260926.html>
+
+There is a great satisfaction in building good tools for other people to use.
+
+=head2 v5.35.1 - Sam Schube
+
+L<Announced on 2021-06-20 by Max Maischein|https://www.nntp.perl.org/group/perl.perl5.porters/2021/06/msg260592.html>
+
+His first marriage ended. A new relationship with an old friend
+straightened him out. “I realized that I can't live like I was and be
+with Naomi,” he said. “I wanted to become a better man for her. At
+first. Then it was for myself too.” He started seeing a therapist. There
+were limits: He told her he wasn't interested in exploring the part of
+him that wanted to do stunts. “I know that needs looking at,” he said.
+“But I didn't want to break the machine.”
+
+It wasn't just about jeopardizing his livelihood, he explained. Doing
+stunts “was exciting. It's something that I did with my friends. And I
+was decent at it.” It wasn't so much about the stunts themselves, which
+were terrifying, as about how completing them made him feel. He loved,
+he said, “the exhilaration and relief, once you get on the other side of
+the stunt. Or when you come to. You wake up, you're like, ‘Oh, was that
+good?’ And they're like, ‘That was great.’ You got a good bit when
+there's seven people standing over you, snapping their fingers.” When we
+spoke, he still hadn't broached the topic in therapy. “I'll talk about
+it eventually,” he said. “It's not something I need to know this second.”
+
+=head2 v5.35.0 - Miguel de Unamuno
+
+L<Announced on 2021-05-20 by Ricardo Signes|https://www.nntp.perl.org/group/perl.perl5.porters/2021/05/msg260116.html>
+
+We should try to be the parents of our future rather than the offspring of our
+past.
+
+=head2 v5.34.1 - Edward Lear, ed. Vivien Noakes, "The Complete Nonsense and Other Verse": Limericks published in "More Nonsense"
+
+L<Announced on 2022-03-13 by Steve Hay|https://www.nntp.perl.org/group/perl.perl5.porters/2022/03/msg263342.html>
+
+  There was a Young Lady whose nose,
+  Continually prospers and grows;
+  When it grew out of sight, she exclaimed in a fright,
+  'Oh! Farewell to the end of my nose!'
+
+=head2 v5.34.1-RC2 - Edward Lear, ed. Vivien Noakes, "The Complete Nonsense and Other Verse": Limericks for the 1846 and 1855 editions of "A Book of Nonsense"
+
+L<Announced on 2022-03-06 by Steve Hay|https://www.nntp.perl.org/group/perl.perl5.porters/2022/03/msg263261.html>
+
+  There was an Old Lady whose folly,
+  Induced her to sit in a holly;
+  Whereon by a thorn, her dress being torn,
+  She quickly became melancholy.
+
+=head2 v5.34.1-RC1 - Edward Lear, ed. Vivien Noakes, "The Complete Nonsense and Other Verse": Additional limericks for the 1861 edition of "A Book of Nonsense"
+
+L<Announced on 2022-02-27 by Steve Hay|https://www.nntp.perl.org/group/perl.perl5.porters/2022/02/msg263129.html>
+
+  There was an Old Person whose habits,
+  Induced him to feed upon Rabbits;
+  When he'd eaten eighteen, he turned perfectly green,
+  Upon which he relinquished those habits.
+
+=head2 v5.34.0 - Aberjhani
+
+L<Announced on 2021-05-20 by Sawyer X|https://www.nntp.perl.org/group/perl.perl5.porters/2021/05/msg260110.html>
+
+Our greatest power as nations and individuals is not the ability to employ assault weapons, suicide bombers, and drones to destroy each other.
+The greater more creative powers with which we may arm ourselves are grace and compassion sufficient enough to love and save each other.
+
+=head2 v5.34.0-RC2 - Nelson Mandela, The Long Walk to Freedom
+
+L<Announced on 2021-05-15 by Sawyer X|https://www.nntp.perl.org/group/perl.perl5.porters/2021/05/msg260066.html>
+
+No one is born hating another person because of the color of his skin, or his background, or his religion. People must learn to hate, and if they can learn to hate, they can be taught to love, for love comes more naturally to the human heart than its opposite.
+
+=head2 v5.34.0-RC1 - Paul Tremblay, The Cabin at the End of the World
+
+L<Announced on 2021-05-04 by Sawyer X|https://www.nntp.perl.org/group/perl.perl5.porters/2021/05/msg260029.html>
+
+He’d irrationally hoped he could somehow put off indefinitely the future day on which she would recognize cruelty, ignorance, and injustice were the struts and pillars of the social order, as unavoidable and inevitable as the weather.
+
+=head2 v5.33.9 - Abraham Lincoln
+
+L<Announced on 2021-04-20 by toddr|https://www.nntp.perl.org/group/perl.perl5.porters/2021/04/msg259954.html>
+
+Seven minutes ago... we, your forefathers, were brought forth upon a most excellent adventure conceived by our new friends, Bill... and Ted. These two great gentlemen are dedicated to a proposition which was true in my time, just as it's true today. Be excellent to each other!
+
+=head2 v5.33.8 - David Bowie, "Heroes"
+
+L<Announced on 2021-03-20 by atoomic|https://www.nntp.perl.org/group/perl.perl5.porters/2021/03/msg259358.html>
+
+Tomorrow belongs to those who can hear it coming.
+
+=head2 v5.33.7 - Johann Wolfgang von Goethe, The Sorrows of Young Werther
+
+L<Announced on 2021-02-20 by Renée Bäcker|https://www.nntp.perl.org/group/perl.perl5.porters/2021/02/msg259169.html>
+
+The human race is a monotonous affair. Most people spend the greatest part of
+their time working in order to live, and what little freedom remains so fills
+them with fear that they seek out any and every means to be rid of it.
+
+=head2 v5.33.6 - Edward R. Murrow
+
+L<Announced on 2021-01-20 by Richard Leach|https://www.nntp.perl.org/group/perl.perl5.porters/2021/01/msg258843.html>
+
+This instrument can teach, it can illuminate; yes, and it can even
+inspire. But it can do so only to the extent that humans are determined
+to use it to those ends. Otherwise it is merely wires and lights in a box.
+
+=head2 v5.33.5 - Max Weber, (from "Understanding Administration", by Wolfgang Seibel)
+
+L<Announced on 2020-12-20 by Max Maischein|https://www.nntp.perl.org/group/perl.perl5.porters/2020/12/msg258683.html>
+
+Authority is primarily: Administration
+    -- Max Weber
+
+=head2 v5.33.4 - George Eliot, "Adam Bede"
+
+L<Announced on 2020-11-20 by Tom Hukins|https://www.nntp.perl.org/group/perl.perl5.porters/2020/11/msg258597.html>
+
+It was more than two o'clock in the afternoon when Adam came in sight of
+the grey town on the hill-side and looked searchingly towards the green
+valley below, for the first glimpse of the old thatched roof near the
+ugly red mill.
+
+=head2 v5.33.3 - Ludwig van Beethoven, "Heiligenstadt Testament"; translated and quoted in: Maynard Solomon, "Beethoven"
+
+L<Announced on 2020-10-20 by Steve Hay|https://www.nntp.perl.org/group/perl.perl5.porters/2020/10/msg258502.html>
+
+Oh you men who think or say that I am malevolent, stubborn, or
+misanthropic, how greatly do you wrong me.  You do not know the secret
+cause which makes me seem that way to you.  From childhood on, my
+heart and soul have been full of the tender feeling of goodwill, and I
+was ever inclined to accomplish great things.  But, think that for six
+years now I have been hopelessly afflicted, made worse by senseless
+physicians, from year to year deceived with hopes of improvement,
+finally compelled to face the prospect of a lasting malady (whose cure
+will take years or, perhaps, be impossible).  Though born with a
+fiery, active temperament, even susceptible to the diversions of
+society, I was soon compelled to withdraw myself, to live life alone.
+[...] I endured this wretched existence--truly wretched for so
+susceptible a body, which can be thrown by a sudden change from the
+best condition to the very worst.--Patience, they say, is what I must
+now choose for my guide, and I have done so--I hope my determination
+will remain firm to endure until it pleases the inexorable Parcae to
+break the thread. [...] Recommend virtue to your children; it alone,
+not money, can make them happy.  I speak from experience; this was
+what upheld me in time of misery. [...] Do not wholly forget me when I
+am dead; I deserve this from you, for during my lifetime I was
+thinking of you often and of ways to make you happy--please be so--
+
+=head2 v5.33.2 - Elizabeth Warren
+
+L<Announced on 2020-09-20 by Sawyer X|https://www.nntp.perl.org/group/perl.perl5.porters/2020/09/msg258369.html>
+
+  What I've learned is that real change is very, very hard. But I've
+  also learned that change is possible - if you fight for it.
+
+=head2 v5.33.1 - Aleksandr Solzhenitsyn, The Gulag Archipelago 1918-1956 (1973)
+
+L<Announced on 2020-08-20 by Karen Etheridge|https://www.nntp.perl.org/group/perl.perl5.porters/2020/08/msg258282.html>
+
+  If only there were evil people somewhere insidiously committing evil deeds,
+  and it were necessary only to separate them from the rest of us and destroy
+  them. But the line dividing good and evil cuts through the heart of every
+  human being. And who is willing to destroy a piece of his own heart?
+
+=head2 v5.33.0 - Confucius, "Confucius: The Analects"
+
+L<Announed on 2020-07-17 by Sawyer X|https://www.nntp.perl.org/group/perl.perl5.porters/2020/07/msg258033.html>
+
+  The man who moves a mountain begins by carrying away small stones.
+
+=head2 v5.32.1 - Mikhail Bulgakov, trans. Michael Glenny, "The Master and Margarita"
+
+L<Announced on 2021-01-23 by Steve Hay|https://www.nntp.perl.org/group/perl.perl5.porters/2021/01/msg258868.html>
+
+As the warning bells rang, inquisitive people were peeping into the star
+dressing room.  Among them were jugglers in bright robes and turbans, a
+roller-skater in a knitted cardigan, a comedian with a powdered white
+face and a make-up man.  The celebrated guest artiste amazed everyone
+with his unusually long, superbly cut tail coat and by wearing a black
+domino.  Even more astounding were the black magician's two companions:
+a tall man in checks with an unsteady pince-nez and a fat black cat
+which walked into the dressing room on its hind legs and casually sat
+down on the divan, blinking in the light of the unshaded lamps round the
+make-up mirror.
+
+=head2 v5.32.1-RC1 - Mikhail Bulgakov, trans. Michael Glenny, "The Heart of a Dog"
+
+L<Announced on 2021-01-09 by Steve Hay|https://www.nntp.perl.org/group/perl.perl5.porters/2021/01/msg258762.html>
+
+Why bother to learn to read when you can smell meat a mile away?  If you
+live in Moscow, though, and if you've got an ounce of brain in your head
+you can't help learning to read - and without going to night-school
+either.  There are forty-thousand dogs in Moscow and I'll bet there's
+not one of them so stupid he can't spell out the word 'sausage'.
+
+=head2 v5.32.0 - Bob Dylan, "The Times They Are A Changing"
+
+L<Announced on 2020-06-20 by Sawyer X|https://www.nntp.perl.org/group/perl.perl5.porters/2020/06/msg257547.html>
+
+    Come gather 'round, people
+    Wherever you roam
+    And admit that the waters
+    Around you have grown
+    And accept it that soon
+    You'll be drenched to the bone
+    If your time to you is worth savin'
+    And you better start swimmin'
+    Or you'll sink like a stone
+    For the times they are a-changin'
+
+=head2 v5.32.0-RC1 - Coretta Scott King
+
+L<Announced on 2020-06-08 by Sawyer X|https://www.nntp.perl.org/group/perl.perl5.porters/2020/06/msg257521.html>
+
+    Struggle is a never ending process. Freedom is never really won,
+    you earn it and win it in every generation.
+
+=head2 v5.32.0-RC0 - Franz Kafka
+
+L<Announced on 2020-05-30 by Sawyer X|https://www.nntp.perl.org/group/perl.perl5.porters/2020/05/msg257486.html>
+
+    There are some things one can only achieve by a deliberate leap
+    in the opposite direction.
+
+=head2 v5.31.11 - John F. Kennedy, National Committee for a Sane Nuclear Policy
+
+L<Announced on 2020-04-28 by Sawyer X|https://www.nntp.perl.org/group/perl.perl5.porters/2020/04/msg257385.html>
+
+    Mankind must put an end to war, or war will put an end to mankind.
+
+=head2 v5.31.10 - Christina Rossetti, "Remember"
+
+L<Announced on 2020-03-20 by Sawyer X|https://www.nntp.perl.org/group/perl.perl5.porters/2020/03/msg257274.html>
+
+    Remember me when I am gone away,
+        Gone far away into the silent land;
+        When you can no more hold me by the hand,
+    Nor I half turn to go yet turning stay.
+    Remember me when no more day by day
+        You tell me of our future that you plann'd:
+        Only remember me; you understand
+    It will be late to counsel then or pray.
+    Yet if you should forget me for a while
+        And afterwards remember, do not grieve:
+        For if the darkness and corruption leave
+        A vestige of the thoughts that once I had,
+    Better by far you should forget and smile
+        Than that you should remember and be sad.
+
+=head2 v5.31.9 - Sten Nadolny, book The Discovery of Slowness
+
+L<Announced on 2020-02-20 by Renee Bäcker|https://www.nntp.perl.org/group/perl.perl5.porters/2020/02/msg257144.html>
+
+  „When people talk too fast the content becomes as superfluous as the speed.“
+
+=head2 v5.31.8 - Joe Perham, "Joe Perham's Guide to Hunting and Guide to Fishing in Maine"
+
+L<Announced on 2020-01-20 by Matthew Horsfall|https://www.nntp.perl.org/group/perl.perl5.porters/2020/01/msg256894.html>
+
+  Harry used to cut wood for the Brown company over in Stoneham Red
+  Rock Basin. And of course he was the best shot in camp. One day the
+  foreman told him to go get some meat.
+
+  "Take any gun you want."
+
+  Harry says "I'll take the .45-70."
+
+  Foreman said "That gun's only got one bullet."
+
+  Harry says "I only need one bullet."
+
+  Took the .45-70, went out, an hour later he was back with two Moose,
+  a dozen trout you see, and a fluffy partridge. Went back to work.
+
+  Well at supper that night foreman says "Harry, um, something's
+  bothering me here a little bit. How did you get all that food with
+  only one bullet. I'm a little confused about the... the partridge,
+  there ain't a mark on him."
+
+  "Well", Harry says, "I'll tell ya. I took that .45-70, went back into
+  the woods a piece there I come to this brook. And I just uh, got to
+  the other side when I happen to see two moose in the swamp off
+  there. I figured I could get both of 'em. So I took out my huntin'
+  knife and stuck it into the mud, hilt foremost, sharp edge on the
+  blade towards me of course. I took dead aim on that knife, fired,
+  split that bullet and killed those two moose. Well you know the
+  recoil knocked me back into the brook. When I come up out of the
+  water, my pants were so full of fish that it popped a button off my
+  fly and killed that bird."
+
+=head2 v5.31.7 - Bernard Werber
+
+L<Announced on 2019-12-20 by Atoomic|https://www.nntp.perl.org/group/perl.perl5.porters/2019/12/msg256802.html>
+
+  Be quiet. Look at the stars and appreciate what you live.
+
+=head2 v5.31.6 - Neal Stephenson, "Quicksilver"
+
+L<Announced on 2019-11-20 by Chris 'BinGOs' Williams|https://www.nntp.perl.org/group/perl.perl5.porters/2019/11/msg256646.html>
+
+  Invocation
+
+  State your intentions, Muse. I know you're there.
+  Dead bards who pined for you have said
+  You're bright as flame, but fickle as the air.
+  My pen and I, submerged in liquid shade,
+  Much dark can spread, on days and over reams
+  But without you, no radiance can shed.
+  Why rustle in the dark, when fledged with fire?
+  Craze the night with flails of light. Reave
+  Your turbid shroud. Bestow what I require.
+
+  But you're not in the dark. I do believe
+  I swim, like squid, in clouds of my own make,
+  To you, offensive. To us both, opaque.
+  What's constituted so, only a pen
+  Can penetrate. I have one here; let's go.
+
+=head2 v5.31.5 - Edward Lear, ed. Vivien Noakes, "The Complete Nonsense and Other Verse": The Daddy Long-legs and the Fly
+
+L<Announced on 2019-10-20 by Steve Hay|https://www.nntp.perl.org/group/perl.perl5.porters/2019/10/msg256478.html>
+
+  'O Mr Daddy Long-legs,'
+    Said Mr Floppy Fly,
+  'It's true I never go to court,
+    And I will tell you why.
+  If I had six long legs like yours,
+    At once I'd go to court!
+  But oh! I can't, because my legs
+    Are so extremely short.
+  And I'm afraid the King and Queen
+  (One in red, and one in green)
+  Would say aloud, "You are not fit,
+  You Fly, to come to court a bit!"'
+
+=head2 v5.31.4 - Ann Leckie, "The Raven Tower"
+
+L<Announced on 2019-09-20 by Max Maischein|https://www.nntp.perl.org/group/perl.perl5.porters/2019/09/msg256254.html>
+
+  Stories can be risky for someone like me. What I say must be true, or it
+will be made true, and if it cannot be made true - if I don't have the
+power, or if what I have said is an impossibility - then I will pay the
+price. I might more or less safely say, "Once there was a man who rode
+home to attend his father's funeral and claim his inheritance, but
+matters were not as he expected them to be." I do not doubt that such a
+thing has happened more than once in all the time there have been
+fathers to die and sons to succeed them. But to go any further, I must
+supply more details - the specific actions of specific people, and their
+specific consequences - and there I might blunder, all unknowing, into
+untruth. It's safer for me to speak of what I know. Or to speak only in
+the safest of generalities. Or else to say plainly at the beginning,
+"Here is a story I have heard," placing the burden of truth or not on
+the teller whose words I am merely accurately reporting.
+
+  But what is the story that I am telling? Here is another story I have
+heard:
+Once there were two brothers, and one of them wanted what the other had.
+Bent all his will to obtain what the other had, no matter the cost.
+  Here is another story: Once there was a prisoner in a tower.
+  And another:
+Once someone risked their life out of duty and loyalty to a friend.
+  Ah, there's a story that I might tell, and truthfully.
+
+=head2 v5.31.3 - Samantha Harvey, "All Is Song"
+
+L<Announced on 2019-08-20 by Tom Hukins|https://www.nntp.perl.org/group/perl.perl5.porters/2019/08/msg256012.html>
+
+We are born from unity, we divide into isolation.  We winnow ourselves
+out from the thing that first made sense of us and then expect to find
+meaning, yet a fraction makes no sense without the number of which
+it's a fractional part.  We see loss, feel grief, give ourselves
+illness, we're cells that have over-divided and we call the division
+growth; the only real growth is in the return to unity, God, the
+unifying principle.
+
+Tired to his core, he turned the video off.  The rain still poured as
+he went upstairs, and in bed as he tripped down into the deep open
+shaft of sleep he kept thinking that to divide by zero was to end up
+with infinity, as was to divide by God.  To divide by God, to divide
+by God, over and over he thought it without sense; to divide by God; I
+must tell my students that the way to pass their exams is to divide by
+God.  Then he must have slept, for it was morning.
+
+=head2 v5.31.2 - Edward Lear, ed. Vivien Noakes, "The Complete Nonsense and Other Verse": The Duck and the Kangaroo
+
+L<Announced on 2019-07-20 by Steve Hay|https://www.nntp.perl.org/group/perl.perl5.porters/2019/07/msg255639.html>
+
+  Said the Duck to the Kangaroo,
+    'Good gracious! how you hop!
+  Over the fields and the water too,
+    As if you never would stop!
+  My life is a bore in this nasty pond,
+  And I long to go out in the world beyond!
+    I wish I could hop like you!'
+    Said the Duck to the Kangaroo.
+
+=head2 v5.31.1 - Kurt Vonnegut, _A Man without a Country_
+
+L<Announced on 2019-06-20 by Karen Etheridge|https://www.nntp.perl.org/group/perl.perl5.porters/2019/06/msg255243.html>
+
+On Tuesday, January 20, 2004, I sent Joel Bleifuss, my editor at _In These
+Times_, this fax:
+
+    ON ORANGE ALERT HERE.
+    ECONOMIC TERRORIST ATTACK
+    EXPECTED AT 8 PM EST. KV
+
+Worried, he called, asking what was up. I said I would tell him when I had
+more complete information on the bombs George Bush was set to deliver in his
+State of the Union address.
+
+That night I got a call from my friend, the out-of-print-science-fiction
+writer Kilgore Trout. He asked me, "Did you watch the State of the Union
+address?"
+
+"Yes, and it certainly helped to remember what the great British socialist
+playwright George Bernard Shaw said about this planet."
+
+"Which was?"
+
+"He said, 'I don't know if there are men on the moon, but if there are, they
+must be using the earth as their lunatic asylum.' And he wasn't talking
+about the germs or the elephants. He meant we the people."
+
+"Okay."
+
+"You don't think this is the Lunatic Asylum of the Universe?"
+
+"Kurt, I don't think I expressed an opinion one way of the other."
+
+"We are killing this planet as a life-support system with the poisons from
+all the thermodynamic whoopee we're making with atomic energy and fossil
+fuels, and everybody knows it, and practically nobody cares. This is how
+crazy we are. I think the planet's immune system is trying to get rid of us
+with AIDS and new strains of flu and tuberculosis, and so on. I think the
+planet should get rid of us. We're really awful animals. I mean, that dumb
+Barbra Streisand song, 'People who need people are the luckiest people in
+the world' -- she's talking about cannibals. Lots to eat. Yes, the planet is
+trying to get rid of us, but I think it's too late."
+
+And I said good-bye to my friend, hung up the phone, sat down and wrote this
+epitaph: "The good Earth -- we could have saved it, but we were too damn
+cheap and lazy."
+
+=head2 v5.31.0 - Fumiko Enchi, Masks
+
+L<Announced on 2019-05-24 by Sawyer X|https://www.nntp.perl.org/group/perl.perl5.porters/2019/05/msg254886.html>
+
+  The secrets inside her mind are like flowers in a garden at
+  nighttime, filling the darkness with perfume.
+
+=head2 v5.30.3 - Ben Aaronovitch, "Rivers of London"
+
+L<Announced on 2020-06-01 by Steve Hay|http://www.nntp.perl.org/group/perl.perl5.porters/2020/01/msg257498.html>
+
+Trewsbury Mead [...] According to the Ordnance Survey, this is where the
+Thames first rises 130 straight-line kilometres west of London.  Just to
+the north is the site either of an Iron Age hill fort or a Roman
+encampment, the exact nature of which is awaiting an episode of Time
+Team.  Apparently there is a soggy field, a stone to mark the spot and a
+chance, after a particularly wet winter, that you might see some water.
+
+=head2 v5.30.2 - Francesco Maria Piave, trans. Deutsche Grammophon GmbH, "La traviata", Act II, Scene 2
+
+L<Announced on 2020-03-14 by Steve Hay|http://www.nntp.perl.org/group/perl.perl5.porters/2020/03/msg257227.html>
+
+  FLORA, GASTON, DOCTOR, MARQUIS, CHORUS
+  (to Violetta)
+  Yes, you have suffered, but take heart!
+  Every one of us has shared your pain;
+  friends are around you to dry the tears
+  you have shed.
+
+  GERMONT
+  (I alone know the true devotion
+  this poor girl hides within her breast;
+  I know her faithful heart,
+  but I'm vowed so cruelly to silence.)
+
+  BARON
+  (softly to Alfredo)
+  Your deadly insult to this lady
+  offends us all, but such an outrage
+  shall not go unavenged!
+  I shall find a way to humble your pride!
+
+  ALFREDO
+  (Alas, what have I done? I feel terrible about it.
+  She will never forgive me.)
+
+  VIOLETTA
+  (coming to herself)
+  Alfredo, how should you understand
+  all the love that's in my heart?
+  How should you know that I have proved it,
+  even at the price of your contempt?
+
+  But the time will come when you will know,
+  when you'll admit how much I loved you.
+  God save you then from all remorse!
+  Even after death I shall still love you.
+
+=head2 v5.30.2-RC1 - Francesco Maria Piave, trans. Deutsche Grammophon GmbH, "La traviata", Act II, Scene 2
+
+L<Announced on 2020-02-29 by Steve Hay|http://www.nntp.perl.org/group/perl.perl5.porters/2020/02/msg257163.html>
+
+  ALFREDO
+  For me this woman lost
+  all she possessed.
+  I was blind, a wretched coward,
+  I accepted it all.
+  But it's time now for me to clear
+  myself from debt.
+  I call you all to witness here
+  that I've paid her back!
+
+  (Contemptuously, he throws his winnings at Violetta's feet.
+  She swoons in Flora's arms. Alfredo's father arrives suddenly.)
+
+  ALL
+  What you have done
+  is shameful!
+  To strike down
+  a tender heart that way!
+  You have insulted
+  a woman!
+  Get out of here!
+  We've no use for the likes of you!
+  Go!
+
+  GERMONT
+  (dignified in his anger)
+  A man who offends a woman, even in anger,
+  deserves nothing but scorn.
+  Where is my son? I no longer see him
+  in you, Alfredo.
+
+  ALFREDO
+  (What have I done? Yes, I despise myself!
+  Jealous madness, love deceived,
+  ravaged my soul, destroyed my reason.
+  How can I ever gain her pardon?
+  I would have left her, but I couldn't;
+  I came here to vent my anger,
+  But now I've done that, wretch that I am,
+  I feel nothing but deep remorse!)
+
+=head2 v5.30.1 - Francesco Maria Piave, trans. Deutsche Grammophon GmbH, "La traviata", Act I: Brindisi
+
+L<Announced on 2019-11-10 by Steve Hay|http://www.nntp.perl.org/group/perl.perl5.porters/2019/11/msg256610.html>
+
+  VIOLETTA:
+  With you I would share
+  my days of happiness;
+  everything is folly in this world
+  that does not give us pleasure.
+  Let us enjoy life,
+  for the pleasures of love are swift and fleeting
+  as a flower that lives and dies
+  and can be enjoyed no more.
+  Let's take our pleasure while its ardent,
+  brilliant summons lures us on!
+
+=head2 v5.30.1-RC1 - Francesco Maria Piave, trans. Deutsche Grammophon GmbH, "La traviata", Act I: Brindisi
+
+L<Announced on 2019-10-27 by Steve Hay|http://www.nntp.perl.org/group/perl.perl5.porters/2019/10/msg256542.html>
+
+  ALFREDO:
+  Let's drink from the joyous chalice
+  where beauty flowers...
+  Let the fleeting hour
+  to pleasure's intoxication yield.
+  Let's drink
+  to love's sweet tremors --
+  to those eyes
+  that pierce the heart.
+  Let's drink to love -- to wine
+  that warms our kisses.
+
+=head2 v5.30.0 - Morihei Ueshiba
+
+L<Announced on 2019-05-22 by Sawyer X|https://www.nntp.perl.org/group/perl.perl5.porters/2019/05/msg254844.html>
+
+  Life is growth. If we stop growing, technically and spiritually, we
+  are as good as dead.
+
 =head2 v5.30.0-RC2 - Derek Walcott
 
-Announced on 2019-05-17 by Sawyer X
+L<Announced on 2019-05-17 by Sawyer X|https://www.nntp.perl.org/group/perl.perl5.porters/2019/05/msg254824.html>
 
   The truest writers are those who see language not as linguistic process but
   as a living element.
@@ -28,7 +927,7 @@ Announced on 2019-05-17 by Sawyer X
 
 =head2 v5.30.0-RC1 - Marcel Proust
 
-L<Announced on 2019-05-11 by Sawyer X|https://www.nntp.perl.org/group/perl.perl5.porters/2019/05/msg254750.html>
+L<Announced on 2019-05-11 by Sawyer X|https://www.nntp.perl.org/group/perl.perl5.porters/2019/05/msg254748.html>
 
   If a little dreaming is dangerous, the cure for it is not to dream
   less but to dream more, to dream all the time.
@@ -283,6 +1182,16 @@ L<Announced on 2018-07-20 by Steve Hay|https://www.nntp.perl.org/group/perl.perl
 L<Announced on 2018-06-26 by Sawyer X|http://nntp.perl.org/group/perl.perl5.porters/251297>
 
   Courage is the only antidote for danger.
+
+=head2 v5.28.3 - Ben Aaronovitch, "Rivers of London"
+
+L<Announced on 2020-06-01 by Steve Hay|http://www.nntp.perl.org/group/perl.perl5.porters/2020/01/msg257497.html>
+
+The north end of the London Borough of Camden is dominated by two hills,
+Hampstead on the west, Highgate on the east, with the Heath, one of the
+largest parks in London, slung between them like a green saddle.  From
+these heights the land slopes down towards the River Thames and the
+floodplains that lurk below the built-up centre of London.
 
 =head2 v5.28.2 - Edward Lear, ed. Vivien Noakes, "The Complete Nonsense and Other Verse": The Jumblies
 
@@ -2364,7 +3273,7 @@ shed tears, struck my head and was filled with regret when it was no
 longer of any use, for to me the whole world was worth no more than
 a bean.
 
-=head2 v5.20.2 - Jonathan "Jonti" Picking, L<"Magical Trevor"|http://www.weebls-stuff.com/other-toons/video/magical-trevor.html>
+=head2 v5.20.2 - Jonathan "Jonti" Picking, L<"Magical Trevor"|http://weebls-stuff.com/toons/magical-trevor-episode-01-animated-music-video-mrweebl/>
 
 L<Announced on 2015-02-14 by Steve Hay|http://www.nntp.perl.org/group/perl.perl5.porters/2015/02/msg225777.html>
 
@@ -2388,7 +3297,7 @@ L<Announced on 2015-02-14 by Steve Hay|http://www.nntp.perl.org/group/perl.perl5
   Oh, beans, lots of beans, lots of beans, lots of beans,
   Yeah, yeah!
 
-=head2 v5.20.2-RC1 - Jonathan "Jonti" Picking, L<"Scampi"|http://www.weebls-stuff.com/other-toons/video/scampi.html>
+=head2 v5.20.2-RC1 - Jonathan "Jonti" Picking, L<"Scampi"|http://weebls-stuff.com/toons/ive-seen-things-scampi-animated-music-video-mrweebl/>
 
 L<Announced on 2015-02-01 by Steve Hay|http://www.nntp.perl.org/group/perl.perl5.porters/2015/02/msg225273.html>
 

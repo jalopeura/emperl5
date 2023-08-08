@@ -1,5 +1,5 @@
 /*
- $Id: Encode.xs,v 2.47 2019/03/13 00:26:18 dankogai Exp dankogai $
+ $Id: Encode.xs,v 2.51 2021/10/08 15:29:23 dankogai Exp $
  */
 
 #define PERL_NO_GET_CONTEXT
@@ -154,7 +154,7 @@ encode_method(pTHX_ const encode_t * enc, const encpage_t * dir, SV * src, U8 * 
     STRLEN sdone = 0;
     /* We allocate slen+1.
        PerlIO dumps core if this value is smaller than this. */
-    SV *dst = newSV(slen+1);
+    SV *dst = sv_2mortal(newSV(slen+1));
     U8 *d = (U8 *)SvPVX(dst);
     STRLEN dlen = SvLEN(dst)-1;
     int code = 0;
@@ -231,7 +231,7 @@ encode_method(pTHX_ const encode_t * enc, const encpage_t * dir, SV * src, U8 * 
         if (dir == enc->f_utf8) {
         STRLEN clen;
         UV ch =
-            utf8n_to_uvuni(s+slen, (tlen-sdone-slen),
+            utf8n_to_uvchr(s+slen, (tlen-sdone-slen),
                    &clen, UTF8_ALLOW_ANY|UTF8_CHECK_ONLY);
         /* if non-representable multibyte prefix at end of current buffer - break*/
         if (clen > tlen - sdone - slen) break;
@@ -810,13 +810,12 @@ CODE:
     tmp = encode_method(aTHX_ enc, enc->t_utf8, src, s, slen, check,
                 &offset, term, &code, fallback_cb);
     sv_catsv(dst, tmp);
-    SvREFCNT_dec(tmp);
     SvIV_set(off, (IV)offset);
     RETVAL = (code == ENCODE_FOUND_TERM);
 OUTPUT:
     RETVAL
 
-SV *
+void
 Method_decode(obj,src,check_sv = &PL_sv_no)
 SV *	obj
 SV *	src
@@ -828,6 +827,7 @@ PREINIT:
     encode_t *enc;
     U8 *s;
     STRLEN slen;
+    SV *ret;
 INIT:
     SvGETMAGIC(src);
     SvGETMAGIC(check_sv);
@@ -841,13 +841,13 @@ CODE:
     s = modify ? (U8 *)SvPV_force_nomg(src, slen) : (U8 *)SvPV_nomg(src, slen);
     if (SvUTF8(src))
         utf8_safe_downgrade(aTHX_ &src, &s, &slen, modify);
-    RETVAL = encode_method(aTHX_ enc, enc->t_utf8, src, s, slen, check,
+    ret = encode_method(aTHX_ enc, enc->t_utf8, src, s, slen, check,
               NULL, Nullsv, NULL, fallback_cb);
-    SvUTF8_on(RETVAL);
-OUTPUT:
-    RETVAL
+    SvUTF8_on(ret);
+    ST(0) = ret;
+    XSRETURN(1);
 
-SV *
+void
 Method_encode(obj,src,check_sv = &PL_sv_no)
 SV *	obj
 SV *	src
@@ -859,6 +859,7 @@ PREINIT:
     encode_t *enc;
     U8 *s;
     STRLEN slen;
+    SV *ret;
 INIT:
     SvGETMAGIC(src);
     SvGETMAGIC(check_sv);
@@ -872,10 +873,10 @@ CODE:
     s = modify ? (U8 *)SvPV_force_nomg(src, slen) : (U8 *)SvPV_nomg(src, slen);
     if (!SvUTF8(src))
         utf8_safe_upgrade(aTHX_ &src, &s, &slen, modify);
-    RETVAL = encode_method(aTHX_ enc, enc->f_utf8, src, s, slen, check,
+    ret = encode_method(aTHX_ enc, enc->f_utf8, src, s, slen, check,
               NULL, Nullsv, NULL, fallback_cb);
-OUTPUT:
-    RETVAL
+    ST(0) = ret;
+    XSRETURN(1);
 
 bool
 Method_needs_lines(obj)
@@ -982,6 +983,7 @@ ALIAS:
 PREINIT:
     SV *obj;
 INIT:
+    PERL_UNUSED_VAR(ix);
     SvGETMAGIC(encoding);
 CODE:
     if (!SvOK(encoding))
@@ -1003,6 +1005,7 @@ ALIAS:
 PREINIT:
     SV *obj;
 INIT:
+    PERL_UNUSED_VAR(ix);
     SvGETMAGIC(encoding);
 CODE:
     if (!SvOK(encoding))

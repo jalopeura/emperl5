@@ -17,7 +17,7 @@ use ExtUtils::MM;
 use Test::More
     !MM->can_run(make()) && $ENV{PERL_CORE} && $Config{'usecrosscompile'}
     ? (skip_all => "cross-compiling and make not available")
-    : (tests => 35);
+    : (tests => 37);
 use File::Path;
 
 use ExtUtils::MakeMaker;
@@ -63,6 +63,7 @@ chdir 't';
 
 perl_lib();
 
+rmtree($DIRNAME);
 hash2files($DIRNAME, \%FILES);
 END {
     ok( chdir(File::Spec->updir), 'leaving dir' );
@@ -127,12 +128,23 @@ note "Argument verification"; {
     eval {
         WriteMakefile(
             NAME             => 'Min::PerlVers',
+            MIN_PERL_VERSION => '5.005_04',
+        );
+    };
+    is( $warnings, '', 'MIN_PERL_VERSION=5.005_04 does not trigger a warning' );
+    is( $@, '',        '  nor a hard failure' );
+
+
+    $warnings = '';
+    eval {
+        WriteMakefile(
+            NAME             => 'Min::PerlVers',
             MIN_PERL_VERSION => '999999',
         );
     };
     ok( '' ne $warnings, 'MIN_PERL_VERSION=999999 triggers a warning' );
     is( $warnings,
-        "Warning: Perl version 999999 or higher required. We run $].\n",
+        "Warning: Perl version 999999.000 or higher required. We run $].\n",
                          '  with expected message text' );
     is( $@, '',          '  and without a hard failure' );
 
@@ -146,8 +158,7 @@ note "Argument verification"; {
     };
     is( $warnings, '', 'MIN_PERL_VERSION=999999 and PREREQ_FATAL: no warning' );
     is( $@, <<"END",   '  correct exception' );
-MakeMaker FATAL: perl version too low for this distribution.
-Required is 999999. We run $].
+MakeMaker FATAL: Perl version 999999.000 or higher required. We run $].
 END
 
     $warnings = '';
@@ -158,7 +169,7 @@ END
         );
     };
     is( $@, <<'END', 'Invalid MIN_PERL_VERSION is fatal' );
-Warning: MIN_PERL_VERSION is not in a recognized format.
+MakeMaker FATAL: MIN_PERL_VERSION (foobar) is not in a recognized format.
 Recommended is a quoted numerical value like '5.005' or '5.008001'.
 END
 

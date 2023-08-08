@@ -32,7 +32,7 @@ our $file_magic_str = 'pst0';
 our $other_magic = 7 + length $byteorder;
 our $network_magic = 2;
 our $major = 2;
-our $minor = 11;
+our $minor = 12;
 our $minor_write = $] >= 5.019 ? 11 : $] > 5.008 ? 9 : $] > 5.005_50 ? 8 : 4;
 
 use Test::More;
@@ -63,7 +63,7 @@ sub test_hash {
   is (ref $clone, "HASH", "Get hash back");
   is (scalar keys %$clone, 1, "with 1 key");
   is ((keys %$clone)[0], "perl", "which is correct");
-  is ($clone->{perl}, "rules");
+  is ($clone->{perl}, "rules", "Got expected value when looking up key in clone");
 }
 
 sub test_header {
@@ -206,7 +206,7 @@ sub test_things {
     $where = $file_magic + $network_magic;
   }
 
-  # Just the header and a tag 255. As 33 is currently the highest tag, this
+  # Just the header and a tag 255. As 34 is currently the highest tag, this
   # is "unexpected"
   $copy = substr ($contents, 0, $where) . chr 255;
 
@@ -226,7 +226,7 @@ sub test_things {
   # local $Storable::DEBUGME = 1;
   # This is the delayed croak
   test_corrupt ($copy, $sub,
-                "/^Storable binary image v$header->{major}.$minor6 contains data of type 255. This Storable is v$header->{major}.$minor and can only handle data types up to 33/",
+                "/^Storable binary image v$header->{major}.$minor6 contains data of type 255. This Storable is v$header->{major}.$minor and can only handle data types up to 35/",
                 "bogus tag, minor plus 4");
   # And check again that this croak is not delayed:
   {
@@ -238,7 +238,7 @@ sub test_things {
   }
 }
 
-ok (defined store(\%hash, $file));
+ok (defined store(\%hash, $file), "store() returned defined value");
 
 my $expected = 20 + length ($file_magic_str) + $other_magic + $fancy;
 my $length = -s $file;
@@ -266,7 +266,7 @@ test_things($stored, \&freeze_and_thaw, 'string');
 # Network order.
 unlink $file or die "Can't unlink '$file': $!";
 
-ok (defined nstore(\%hash, $file));
+ok (defined nstore(\%hash, $file), "nstore() returned defined value");
 
 $expected = 20 + length ($file_magic_str) + $network_magic + $fancy;
 $length = -s $file;

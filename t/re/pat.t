@@ -16,16 +16,18 @@ $| = 1;
 
 BEGIN {
     chdir 't' if -d 't';
-    require Config; import Config;
-    require './test.pl'; require './charset_tools.pl';
-    require './loc_tools.pl';
+    require './test.pl';
     set_up_inc('../lib', '.', '../ext/re');
+    require Config; import Config;
+    require './charset_tools.pl';
+    require './loc_tools.pl';
 }
 
-skip_all('no re module') unless defined &DynaLoader::boot_DynaLoader;
 skip_all_without_unicode_tables();
 
-plan tests => 863;  # Update this when adding/deleting tests.
+my $has_locales = locales_enabled('LC_CTYPE');
+
+plan tests => 1265;  # Update this when adding/deleting tests.
 
 run_tests() unless caller;
 
@@ -33,6 +35,33 @@ run_tests() unless caller;
 # Tests start here.
 #
 sub run_tests {
+    {
+        # see https://github.com/Perl/perl5/issues/12948
+        my $string="ABCDEFGHIJKL";
+        my $pat= "(.)" x length($string);
+        my $ok= $string=~/^$pat\z/;
+        foreach my $n (1 .. length($string)) {
+            $ok= eval sprintf 'is $%d, "%s", q($%d = %s); 1', ($n, substr($string,$n-1,1))x2;
+            ok($ok, "eval for \$$n test");
+            $ok= eval sprintf 'is ${%d}, "%s", q(${%d} = %s); 1', ($n, substr($string,$n-1,1))x2;
+            ok($ok, "eval for \${$n} test");
+
+            $ok= eval sprintf 'is $0%d, "%s", q($0%d = %s); 1', ($n, substr($string,$n-1,1))x2;
+            ok(!$ok, "eval failed as expected for \$0$n test");
+            $ok= eval sprintf 'is ${0%d}, "%s", q(${0%d} = %s); 1', ($n, substr($string,$n-1,1))x2;
+            ok(!$ok, "eval failed as expected for \${0$n} test");
+
+            no strict 'refs';
+            $ok= eval sprintf 'is ${0b%b}, "%s", q(${0b%b} = %s); 1', ($n, substr($string,$n-1,1))x2;
+            ok($ok, sprintf "eval for \${0b%b} test", $n);
+            $ok= eval sprintf 'is ${0x%x}, "%s", q(${0x%x} = %s); 1', ($n, substr($string,$n-1,1))x2;
+            ok($ok, sprintf "eval for \${0x%x} test", $n);
+            $ok= eval sprintf 'is ${0b%08b}, "%s", q(${0b%08b} = %s); 1', ($n, substr($string,$n-1,1))x2;
+            ok($ok, sprintf "eval for \${0b%b} test", $n);
+            $ok= eval sprintf 'is ${0x%04x}, "%s", q(${0x%04x} = %s); 1', ($n, substr($string,$n-1,1))x2;
+            ok($ok, sprintf "eval for \${0x%04x} test", $n);
+        }
+    }
 
     my $sharp_s = uni_to_native("\xdf");
 
@@ -321,7 +350,7 @@ sub run_tests {
 
 	#  Defaults assumed if this fails
 	eval { require Config; };
-        $::reg_infty   = $Config::Config{reg_infty} // 65535;
+        $::reg_infty   = $Config::Config{reg_infty} // ((1<<31)-1);
         $::reg_infty_m = $::reg_infty - 1;
         $::reg_infty_p = $::reg_infty + 1;
         $::reg_infty_m = $::reg_infty_m;   # Suppress warning.
@@ -329,23 +358,28 @@ sub run_tests {
         # As well as failing if the pattern matches do unexpected things, the
         # next three tests will fail if you should have picked up a lower-than-
         # default value for $reg_infty from Config.pm, but have not.
+        SKIP: {
+            skip "REG_INFTY too big to test ($::reg_infty)", 7
+                if $::reg_infty > (1<<16);
 
-        is(eval q{('aaa' =~ /(a{1,$::reg_infty_m})/)[0]}, 'aaa', $message);
-        is($@, '', $message);
-        is(eval q{('a' x $::reg_infty_m) =~ /a{$::reg_infty_m}/}, 1, $message);
-        is($@, '', $message);
-        isnt(q{('a' x ($::reg_infty_m - 1)) !~ /a{$::reg_infty_m}/}, 1, $message);
-        is($@, '', $message);
+            is(eval q{('aaa' =~ /(a{1,$::reg_infty_m})/)[0]}, 'aaa', $message);
+            is($@, '', $message);
+            is(eval q{('a' x $::reg_infty_m) =~ /a{$::reg_infty_m}/}, 1, $message);
+            is($@, '', $message);
+            isnt(q{('a' x ($::reg_infty_m - 1)) !~ /a{$::reg_infty_m}/}, 1, $message);
+            is($@, '', $message);
+
+            # It should be 'a' x 2147483647, but that exhausts memory on
+            # reasonably sized modern machines
+            like('a' x $::reg_infty_m, qr/a{1,}/,
+                 "{1,} matches more times than REG_INFTY");
+        }
 
         eval "'aaa' =~ /a{1,$::reg_infty}/";
         like($@, qr/^\QQuantifier in {,} bigger than/, $message);
         eval "'aaa' =~ /a{1,$::reg_infty_p}/";
         like($@, qr/^\QQuantifier in {,} bigger than/, $message);
 
-        # It should be 'a' x 2147483647, but that exhausts memory on
-        # reasonably sized modern machines
-        like('a' x $::reg_infty_p, qr/a{1,}/,
-             "{1,} matches more times than REG_INFTY");
     }
 
     {
@@ -355,23 +389,32 @@ sub run_tests {
         ok $@ =~ /^\QLookbehind longer than 255 not/, "Lookbehind limit";
     }
 
-    {
-        # Long Monsters
-        for my $l (125, 140, 250, 270, 300000, 30) { # Ordered to free memory
-            my $a = 'a' x $l;
-	    my $message = "Long monster, length = $l";
-	    like("ba$a=", qr/a$a=/, $message);
-            unlike("b$a=", qr/a$a=/, $message);
-            like("b$a=", qr/ba+=/, $message);
+  SKIP:
+    {   # Long Monsters
 
-	    like("ba$a=", qr/b(?:a|b)+=/, $message);
+        my @trials = (125, 140, 250, 270, 300000, 30);
+
+        skip('limited memory', @trials * 4) if $ENV{'PERL_SKIP_BIG_MEM_TESTS'};
+
+        for my $l (@trials) { # Ordered to free memory
+            my $a = 'a' x $l;
+            # we do not use like() or unlike() here as the string
+            # is very long and is not useful if the match fails,
+            # the useful part
+	    ok("ba$a=" =~ m/a$a=/, sprintf
+                'Long monster: ("ba".("a" x %d)."=") =~ m/aa...a=/', $l);
+            ok("b$a="  !~ m/a$a=/, sprintf
+                'Long monster: ("b" .("a" x %d)."=") !~ m/aa...a=/', $l);
+            ok("b$a="  =~ m/ba+=/, sprintf
+                'Long monster: ("b" .("a" x %d)."=") =~ m/ba+=/', $l);
+	    ok("ba$a=" =~ m/b(?:a|b)+=/, sprintf
+                'Long monster: ("ba".("a" x %d)."=") =~ m/b(?:a|b)+=/', $l);
         }
     }
 
-    {
-        # 20000 nodes, each taking 3 words per string, and 1 per branch
-        my $long_constant_len = join '|', 12120 .. 32645;
-        my $long_var_len = join '|', 8120 .. 28645;
+  SKIP:
+    {   # 20000 nodes, each taking 3 words per string, and 1 per branch
+
         my %ans = ( 'ax13876y25677lbc' => 1,
                     'ax13876y25677mcb' => 0, # not b.
                     'ax13876y35677nbc' => 0, # Num too big
@@ -381,6 +424,11 @@ sub run_tests {
                     'ax13876y25677y21378y21378kcb' => 0, # Not b.
                     'ax13876y25677y21378y21378y21378kbc' => 0, # 5 runs
                   );
+
+        skip('limited memory', 2 * scalar keys %ans) if $ENV{'PERL_SKIP_BIG_MEM_TESTS'};
+
+        my $long_constant_len = join '|', 12120 .. 32645;
+        my $long_var_len = join '|', 8120 .. 28645;
 
         for (keys %ans) {
 	    my $message = "20000 nodes, const-len '$_'";
@@ -547,7 +595,7 @@ sub run_tests {
         my $locale;
 
       SKIP: {
-            skip 'Locales not available', 1 unless locales_enabled('LC_CTYPE');
+            skip 'Locales not available', 1 unless $has_locales;
 
             use locale;
             $locale = qr/\b\v$/;
@@ -561,21 +609,21 @@ sub run_tests {
         is(qr/abc$dual/,    '(?^u:abc(?^:\b\v$))', 'Verify retains d meaning when interpolated under locale');
 
       SKIP: {
-            skip 'Locales not available', 1 unless locales_enabled('LC_CTYPE');
+            skip 'Locales not available', 1 unless $has_locales;
 
             is(qr/abc$locale/,    '(?^u:abc(?^l:\b\v$))', 'Verify retains l when interpolated under unicode_strings');
         }
 
         no feature 'unicode_strings';
       SKIP: {
-            skip 'Locales not available', 1 unless locales_enabled('LC_CTYPE');
+            skip 'Locales not available', 1 unless $has_locales;
             is(qr/abc$locale/,    '(?^:abc(?^l:\b\v$))', 'Verify retains l when interpolated outside locale and unicode strings');
         }
 
         is(qr/def$unicode/,    '(?^:def(?^u:\b\v$))', 'Verify retains u when interpolated outside locale and unicode strings');
 
       SKIP: {
-            skip 'Locales not available', 2 unless locales_enabled('LC_CTYPE');
+            skip 'Locales not available', 2 unless $has_locales;
 
              use locale;
             is(qr/abc$dual/,    '(?^l:abc(?^:\b\v$))', 'Verify retains d meaning when interpolated under locale');
@@ -660,7 +708,47 @@ sub run_tests {
         @_ = /(bbb)/g;
         is("@_", "", $message);
     }
-
+    {
+        my $message = 'ACCEPT and CLOSE - ';
+        $_ = "aced";
+        #12           3  4  5
+        /((a?(*ACCEPT)())())()/
+            or die "Failed to match";
+        is($1,"a",$message . "buffer 1 is defined with expected value");
+        is($2,"a",$message . "buffer 2 is defined with expected value");
+        ok(!defined($3),$message . "buffer 3 is not defined");
+        ok(!defined($4),$message . "buffer 4 is not defined");
+        ok(!defined($5),$message . "buffer 5 is not defined");
+        ok(!defined($6),$message . "buffer 6 is not defined");
+        $message= 'NO ACCEPT and CLOSE - ';
+        /((a?())())()/
+            or die "Failed to match";
+        is($1,"a",$message . "buffer 1 is defined with expected value");
+        is($2,"a",$message . "buffer 2 is defined with expected value");
+        is($3,"", $message . "buffer 3 is defined with expected value");
+        is($4,"", $message . "buffer 4 is defined with expected value");
+        is($5,"",$message . "buffer 5 is defined with expected value");
+        ok(!defined($6),$message . "buffer 6 is not defined");
+        #12           3  4  5
+        $message = 'ACCEPT and CLOSE - ';
+        /((a?(*ACCEPT)(c))(e))(d)/
+            or die "Failed to match";
+        is($1,"a",$message . "buffer 1 is defined with expected value");
+        is($2,"a",$message . "buffer 2 is defined with expected value");
+        ok(!defined($3),$message . "buffer 3 is not defined");
+        ok(!defined($4),$message . "buffer 4 is not defined");
+        ok(!defined($5),$message . "buffer 5 is not defined");
+        ok(!defined($6),$message . "buffer 6 is not defined");
+        $message= 'NO ACCEPT and CLOSE - ';
+        /((a?(c))(e))(d)/
+            or die "Failed to match";
+        is($1,"ace", $message . "buffer 1 is defined with expected value");
+        is($2,"ac", $message . "buffer 2 is defined with expected value");
+        is($3,"c", $message . "buffer 3 is defined with expected value");
+        is($4,"e", $message . "buffer 4 is defined with expected value");
+        is($5,"d", $message . "buffer 5 is defined with expected value");
+        ok(!defined($6),$message . "buffer 6 is not defined");
+    }
     {
         my $message = '@- and @+ and @{^CAPTURE} tests';
 
@@ -743,7 +831,7 @@ sub run_tests {
         is($#+, 2, $message);
         is($#-, 1, $message);
 
-        # Check that values don’t stick
+        # Check that values don't stick
         "     "=~/()()()(.)(..)/;
         my($m,$p,$q) = (\$-[5], \$+[5], \${^CAPTURE}[4]);
         () = "$$_" for $m, $p, $q; # FETCH (or eqv.)
@@ -1422,6 +1510,95 @@ EOP
         ok("\x{017F}\x{017F}" =~ qr/^[$sharp_s]?$/i, "[] to EXACTish optimization");
     }
 
+    {   # Test that it avoids spllitting a multi-char fold across nodes.
+        # These all fold to things that are like 'ss', which, if split across
+        # nodes could fail to match a single character that folds to the
+        # combination.  1F0 byte expands when folded;
+        my $utf8_locale = find_utf8_ctype_locale();
+        for my $char('F', $sharp_s, "\x{1F0}", "\x{FB00}") {
+            my $length = 260;    # Long enough to overflow an EXACTFish regnode
+            my $p = $char x $length;
+            my $s = ($char eq $sharp_s) ? 'ss'
+                                        : $char eq "\x{1F0}"
+                                          ? "j\x{30c}"
+                                          : 'ff';
+            $s = $s x $length;
+            for my $charset (qw(u d l aa)) {
+                for my $utf8 (0..1) {
+                    for my $locale ('C', $utf8_locale) {
+                      SKIP:
+                        {
+                            skip "test skipped for non-C locales", 2
+                                    if $charset ne 'l'
+                                    && (! defined $locale || $locale ne 'C');
+                            if ($charset eq 'l') {
+                                skip 'Locales not available', 2
+                                                            unless $has_locales;
+                                if (! defined $locale) {
+                                    skip "No UTF-8 locale", 2;
+                                }
+                                skip "Can't test in miniperl",2
+                                  if is_miniperl();
+
+                                require POSIX;
+                                POSIX::setlocale(&LC_CTYPE, $locale);
+                            }
+
+                            my $pat = $p;
+                            utf8::upgrade($pat) if $utf8;
+                            my $should_pass =
+                              (    $charset eq 'u'
+                               || ($charset eq 'd' && $utf8)
+                               || ($charset eq 'd' && (   $char =~ /[[:ascii:]]/
+                                                       || ord $char > 255))
+                               || ($charset eq 'aa' && $char =~ /[[:ascii:]]/)
+                               || ($charset eq 'l' && $locale ne 'C')
+                               || ($charset eq 'l' && $char =~ /[[:ascii:]]/)
+                              );
+                            my $name = "(?i$charset), utf8=$utf8, locale=$locale,"
+                              . " char=" . sprintf "%x", ord $char;
+                            no warnings 'locale';
+                            is (eval " '$s' =~ qr/(?i$charset)$pat/;",
+                                $should_pass, $name);
+                            fail "$name: $@" if $@;
+                            is (eval " 'a$s' =~ qr/(?i$charset)a$pat/;",
+                                $should_pass, "extra a, $name");
+                            fail "$name: $@" if $@;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    SKIP:
+    {
+        skip "no re debug", 5 if is_miniperl;
+        my $s = ("0123456789" x 26214) x 2; # Should fill 2 LEXACTS, plus
+                                            # small change
+        my $pattern_prefix = "use utf8; use re qw(Debug COMPILE)";
+        my $pattern = "$pattern_prefix; qr/$s/;";
+        my $result = fresh_perl($pattern);
+        if ($? != 0) {  # Re-run so as to display STDERR.
+            fail($pattern);
+            fresh_perl($pattern, { stderr => 0, verbose => 1 });
+        }
+        like($result, qr/Final program[^X]*\bLEXACT\b[^X]*\bLEXACT\b[^X]*\bEXACT\b[^X]*\bEND\b/s,
+             "Check that LEXACT nodes are generated");
+        like($s, qr/$s/, "Check that LEXACT nodes match");
+        like("a$s", qr/a$s/, "Previous test preceded by an 'a'");
+        substr($s, 260000, 1) = "\x{100}";
+        $pattern = "$pattern_prefix; qr/$s/;";
+        $result = fresh_perl($pattern, { 'wide_chars' => 1 } );
+        if ($? != 0) {  # Re-run so as to display STDERR.
+            fail($pattern);
+            fresh_perl($pattern, { stderr => 0, verbose => 1 });
+        }
+        like($result, qr/Final program[^X]*\bLEXACT_REQ8\b[^X]*\bLEXACT\b[^X]*\bEXACT\b[^X]*\bEND\b/s,
+             "Check that an LEXACT_ONLY node is generated with a \\x{100}");
+        like($s, qr/$s/, "Check that LEXACT_REQ8 nodes match");
+    }
+
     {
         for my $char (":", uni_to_native("\x{f7}"), "\x{2010}") {
             my $utf8_char = $char;
@@ -1662,27 +1839,6 @@ EOP
         like("X", qr/$x/, "UTF-8 of /[x]/i matches upper case");
     }
 
-SKIP: {   # make sure we get an error when \p{} cannot load Unicode tables
-        skip("Unicode tables always now loaded", 1);
-        fresh_perl_like(<<'        prog that cannot load uni tables',
-            BEGIN {
-                @INC = '../lib';
-                require utf8; require 'utf8_heavy.pl';
-                @INC = ();
-            }
-            $name = 'A B';
-            if ($name =~ /(\p{IsUpper}) (\p{IsUpper})/){
-                print "It's good! >$1< >$2<\n";
-            } else {
-                print "It's not good...\n";
-            }
-        prog that cannot load uni tables
-                  qr/^Can't locate unicore\/Heavy\.pl(?x:
-                   )|^Can't find Unicode property definition/,
-                  undef,
-                 '\p{} should not fail silently when uni tables evanesce');
-    }
-
     {   # Special handling of literal-ended ranges in [...] was breaking this
         use utf8;
         like("ÿ", qr/[ÿ-ÿ]/, "\"ÿ\" should match [ÿ-ÿ]");
@@ -1744,9 +1900,10 @@ SKIP: {   # make sure we get an error when \p{} cannot load Unicode tables
                 "test that we handle things like m/\\888888888/ without infinite loops" );
         }
 
+        SKIP:
         {   # Test that we handle some malformed UTF-8 without looping [perl
             # #123562]
-
+            skip "no Encode", 1 if is_miniperl;
             my $code='
                 BEGIN{require q(./test.pl);}
                 use Encode qw(_utf8_on);
@@ -1828,14 +1985,31 @@ SKIP: {   # make sure we get an error when \p{} cannot load Unicode tables
             }
         }
         {
-            fresh_perl_is('
+            my $is_cygwin = $^O eq "cygwin";
+            local $::TODO = "this flaps on github cygwin vm, but not on cygwin iron #18129"
+              if $is_cygwin;
+            my $expected = "Timeout";
+            my $code = '
                 BEGIN{require q(test.pl);}
                 watchdog(3);
-                $SIG{ALRM} = sub {print "Timeout\n"; exit(1)};
+                $SIG{ALRM} = sub {print "'.$expected.'\n"; exit(1)};
                 alarm 1;
                 $_ = "a" x 1000 . "b" x 1000 . "c" x 1000;
                 /.*a.*b.*c.*[de]/;
-            ',"Timeout",{},"Test Perl 73464")
+                print "increase the multipliers in the regex above to run the regex longer";
+            ';
+            # this flaps on github cygwin vm, but not on cygwin iron #18129
+            # so on cygwin it's run for 50 seconds to see if it fails eventually
+            my $max = $is_cygwin ? 50 : 1;
+            my ($iter, $result, $status);
+            for my $i (1..$max) {
+                $iter = $i;
+                $result = fresh_perl($code,{});
+                $status = $?;
+                last if $result ne $expected;
+            }
+            is($result, $expected, "Test Perl 73464")
+              or diag "PROG:", $code, "STATUS:", $status, "failed on iteration: $iter";
         }
 
         {   # [perl #128686], crashed the the interpreter
@@ -2007,7 +2181,23 @@ CODE
     {   # [perl #133871], ASAN/valgrind out-of-bounds access
         fresh_perl_like('qr/(?|(())|())|//', qr/syntax error/, {}, "[perl #133871]");
     }
+    {   # [perl #133871], ASAN/valgrind out-of-bounds access
+        fresh_perl_like('qr/\p{nv:NAnq}/', qr/Can't find Unicode property definition/, {}, "GH #17367");
+    }
+    {   # GH #17370, ASAN/valgrind out-of-bounds access
+        fresh_perl_like('qr/\p{nv:qnan}/', qr/Can't find Unicode property definition/, {}, "GH #17370");
+    }
+    {   # GH #17371, segfault
+        fresh_perl_like('qr/\p{nv=\\\\\}(?0)|\337ss|\337ss//', qr/Unicode property wildcard not terminated/, {}, "GH #17371");
+    }
+    {   # GH #17384, ASAN/valgrind out-of-bounds access
+        fresh_perl_like('"q0" =~ /\p{__::Is0}/', qr/Unknown user-defined property name \\p\{__::Is0}/, {}, "GH #17384");
+    }
+
+  SKIP:
     {   # [perl #133921], segfault
+        skip "Not valid for EBCDIC", 5 if $::IS_EBCDIC;
+
         fresh_perl_is('qr0||ß+p00000F00000ù\Q00000ÿ00000x00000x0c0e0\Qx0\Qx0\x{0c!}\;\;î0\x ÿÿÿþ   ù\Q`\Qx` {0c!}e;   ù\ò`\Qm`\x{0c!}\;\;îçÿ  ç   ! F  /;îçÿù\Q   xÿÿÿÿ   ù   `x{0c!}e;   ù\Q`\Qx`\x{c!}\;\;îç!}\;îçÿù\Q \x ÿÿÿÿ  >=\Qx`\Qx`  ù\ò`\Qx`\x{0c!};\;îçÿ  F n0t0 c  d;t    ù  ç  !00000000000000000000000m/0000000000000000000000000000000m/\x{){} )|i', "", {}, "[perl #133921]");
         fresh_perl_is('|ß+W0ü0r0\Qx0\Qx0x0c0G00000000000000000O000000000x0x0x0c!}\;îçÿù\Q0 \x ÿÿÿÿ   ù\Q`\Qx` {0d ;   ù\ò`\Qm`\x{0c!}\;\;îçÿ  ç   ! F  /;îçÿù\Q   xÿÿÿÿ   ù   `x{0c!};   ù\Q`\Qq`\x{c!}\;\;îç!}\;îçÿù\Q \x ÿÿÿÿ  >=\Qx`\Qx`  ù\ò`\Qx`\x{0c!};\;îçÿ  0000000F m0t0 c  d;t    ù  ç  !00000000000000000000000m/0000000000000000000000000000000m/\x{){} )|i', "", {}, "[perl #133921]");
 
@@ -2105,6 +2295,224 @@ x{0c!}\;\;îçÿ  /0f/! F  /;îçÿù\Q   xÿÿÿÿ   ù   `x{0c!};   ù\Q
                         eval $z;:, "", {}, 'foo');
     }
 
+    {   # [perl #134325]
+        my $quote="\\Q";
+        my $back="\\\\";
+        my $ff="\xff";
+        my $s = sprintf "/\\1|(|%s)%s%s   /i",
+                        $quote x 8 . $back x 69,
+                        $quote x 5 . $back x 4,
+                        $ff x 48;
+        like(fresh_perl("$s", { stderr => 1, }), qr/Unmatched \(/);
+   }
+
+   {    # GitHub #17196, caused assertion failure
+        fresh_perl_like('("0" x 258) =~ /(?l)0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/',
+                        qr/^$/,
+                        {},
+                        "Assertion failure with /l exact string longer than a single node");
+    }
+
+SKIP:
+    {   # [perl #134334], Assertion failure
+        my $utf8_locale = find_utf8_ctype_locale();
+        skip "no UTF-8 locale available" unless $utf8_locale;
+        fresh_perl_like("use POSIX; POSIX::setlocale(&LC_CTYPE, '$utf8_locale'); 'ssss' =~ /\xDF+?sX/il;",
+                        qr/^$/,
+                        {},
+                        "Assertion failure matching /il on single char folding to multi");
+    }
+
+    {   # Test ANYOFHs
+        my $pat = qr/[\x{4000001}\x{4000003}\x{4000005}]+/;
+        unlike("\x{4000000}", $pat, "4000000 isn't in pattern");
+        like("\x{4000001}", $pat, "4000001 is in pattern");
+        unlike("\x{4000002}", $pat, "4000002 isn't in pattern");
+        like("\x{4000003}", $pat, "4000003 is in pattern");
+        unlike("\x{4000004}", $pat, "4000004 isn't in pattern");
+        like("\x{4000005}", $pat, "4000005 is in pattern");
+        unlike("\x{4000006}", $pat, "4000006 isn't in pattern");
+
+        # gh #17319
+        $pat = qr/[\N{U+200D}\N{U+2000}]()/;
+        unlike("\x{1FFF}", $pat, "1FFF isn't in pattern");
+        like("\x{2000}", $pat, "2000 is in pattern");
+        unlike("\x{2001}", $pat, "2001 isn't in pattern");
+        unlike("\x{200C}", $pat, "200C isn't in pattern");
+        like("\x{200D}", $pat, "200 is in pattern");
+        unlike("\x{200E}", $pat, "200E isn't in pattern");
+    }
+
+    # gh17490: test recursion check
+    {
+        my $eval = '(?{1})';
+        my $re = sprintf '(?&FOO)(?(DEFINE)(?<FOO>%sfoo))', $eval x 20;
+        my $result = eval qq{"foo" =~ /$re/};
+        is($@ // '', '', "many evals did not die");
+        ok($result, "regexp correctly matched");
+    }
+
+    # gh16947: test regexp corruption (GOSUB)
+    {
+        fresh_perl_is(q{
+            'xy' =~ /x(?0)|x(?|y|y)/ && print 'ok'
+        }, 'ok', {}, 'gh16947: test regexp corruption (GOSUB)');
+    }
+    # gh16947: test fix doesn't break SUSPEND
+    {
+        fresh_perl_is(q{ 'sx' =~ m{ss++}i; print 'ok' },
+                'ok', {}, "gh16947: test fix doesn't break SUSPEND");
+    }
+
+    # gh17730: should not crash
+    {
+        fresh_perl_is(q{
+            "q00" =~ m{(((*ACCEPT)0)*00)?0(?1)}; print "ok"
+        }, 'ok', {}, 'gh17730: should not crash');
+    }
+
+    # gh17743: more regexp corruption via GOSUB
+    {
+        fresh_perl_is(q{
+            "0" =~ /((0(?0)|000(?|0000|0000)(?0))|)/; print "ok"
+        }, 'ok', {}, 'gh17743: test regexp corruption (1)');
+
+        fresh_perl_is(q{
+            "000000000000" =~ /(0(())(0((?0)())|000(?|\x{ef}\x{bf}\x{bd}|\x{ef}\x{bf}\x{bd}))|)/;
+            print "ok"
+        }, 'ok', {}, 'gh17743: test regexp corruption (2)');
+    }
+
+    {
+        # Test branch reset (?|...|...) in list context. This was reported
+        # in GH Issue #20710, in relation to breaking App::pl. See
+        # https://github.com/Perl/perl5/issues/20710#issuecomment-1404549785
+        my $ok = 0;
+        my ($w,$x,$y,$z);
+        $ok = ($x,$y) = "ab"=~/(?|(p)(q)|(x)(y)|(a)(b))/;
+        ok($ok,"Branch reset pattern 1 matched as expected");
+        is($x,"a","Branch reset in list context check 1 (a)");
+        is($y,"b","Branch reset in list context check 2 (b)");
+
+        $ok = ($x,$y,$z) = "xyz"=~/(?|(p)(q)|(x)(y)|(a)(b))(z)/;
+        ok($ok,"Branch reset pattern 2 matched as expected");
+        is($x,"x","Branch reset in list context check 3 (x)");
+        is($y,"y","Branch reset in list context check 4 (y)");
+        is($z,"z","Branch reset in list context check 5 (z)");
+
+        $ok = ($w,$x,$y) = "wpq"=~/(w)(?|(p)(q)|(x)(y)|(a)(b))/;
+        ok($ok,"Branch reset pattern 3 matched as expected");
+        is($w,"w","Branch reset in list context check 6 (w)");
+        is($x,"p","Branch reset in list context check 7 (p)");
+        is($y,"q","Branch reset in list context check 8 (q)");
+
+        $ok = ($w,$x,$y,$z) = "wabz"=~/(w)(?|(p)(q)|(x)(y)|(a)(b))(z)/;
+        ok($ok,"Branch reset pattern 4 matched as expected");
+        is($w,"w","Branch reset in list context check 9  (w)");
+        is($x,"a","Branch reset in list context check 10 (a)");
+        is($y,"b","Branch reset in list context check 11 (b)");
+        is($z,"z","Branch reset in list context check 12 (z)");
+    }
+    {
+        # Test for GH Issue #20826. Save stack overflow introduced in
+        # 92373dea9d7bcc0a017f20cb37192c1d8400767f PR #20530.
+        # Note this test depends on an assert so it will only fail
+        # under DEBUGGING.
+        fresh_perl_is(q{
+            $_ = "x" x 1000;
+            my $pat = '(.)' x 200;
+            $pat = qr/($pat)+/;
+            m/$pat/;
+            print "ok";
+        }, 'ok', {}, 'gh20826: test regex save stack overflow');
+    }
+    {
+        my ($x, $y);
+        ok( "aaa" =~ /(?:(a)?\1)+/,
+            "GH Issue #18865 'aaa' - pattern matches");
+        $x = "($-[0],$+[0])";
+        ok( "aaa" =~ /(?:((?{})a)?\1)+/,
+            "GH Issue #18865 'aaa' - deoptimized pattern matches");
+        $y = "($-[0],$+[0])";
+        {
+            local $::TODO = "Not Yet Implemented";
+            is( $y, $x,
+                "GH Issue #18865 'aaa' - test optimization");
+        }
+        ok( "ababab" =~ /(?:(?:(ab))?\1)+/,
+            "GH Issue #18865 'ababab' - pattern matches");
+        $x = "($-[0],$+[0])";
+        ok( "ababab" =~ /(?:(?:((?{})ab))?\1)+/,
+            "GH Issue #18865 'ababab' - deoptimized pattern matches");
+        $y = "($-[0],$+[0])";
+        {
+            local $::TODO = "Not Yet Implemented";
+            is( $y, $x,
+                "GH Issue #18865 'ababab' - test optimization");
+        }
+        ok( "XaaXbbXb" =~ /(?:X([ab])?\1)+/,
+            "GH Issue #18865 'XaaXbbXb' - pattern matches");
+        $x = "($-[0],$+[0])";
+        ok( "XaaXbbXb" =~ /(?:X((?{})[ab])?\1)+/,
+            "GH Issue #18865 'XaaXbbXb' - deoptimized pattern matches");
+        $y = "($-[0],$+[0])";
+        {
+            local $::TODO = "Not Yet Implemented";
+            is( $y, $x,
+                "GH Issue #18865 'XaaXbbXb' - test optimization");
+        }
+    }
+    {
+        # Test that ${^LAST_SUCCESSFUL_PATTERN} works as expected.
+        # It should match like the empty pattern does, and it should be dynamic
+        # in the same was as $1 is dynamic.
+        my ($str,$pat);
+        $str = "ABCD";
+        $str =~/(D)/;
+        is("$1", "D", '$1 is "D"');
+        $pat = "${^LAST_SUCCESSFUL_PATTERN}";
+        is($pat, "(?^:(D))", 'Outer ${^LAST_SUCCESSFUL_PATTERN} is as expected');
+        {
+            if ($str=~/BX/ || $str=~/(BC)/) {
+                is("$1", "BC",'$1 is now "BC"');
+                $pat = "${^LAST_SUCCESSFUL_PATTERN}";
+                ok($str =~ s//ZZ/, "Empty pattern matched as expected");
+                is($str, "AZZD", "Empty pattern in s/// has result we expected");
+            }
+        }
+        is("$1", "D", '$1 should now be "D" again');
+        is($pat, "(?^:(BC))", 'inner ${^LAST_SUCCESSFUL_PATTERN} is as expected');
+        ok($str=~s//Q/, 'Empty pattern to "Q" was successful');
+        is($str, "AZZQ", "Empty pattern in s/// has result we expected (try2)");
+        $pat = "${^LAST_SUCCESSFUL_PATTERN}";
+        is($pat, "(?^:(D))", 'Outer ${^LAST_SUCCESSFUL_PATTERN} restored to its previous value as expected');
+
+        $str = "ABCD";
+        {
+            if ($str=~/BX/ || $str=~/(BC)/) {
+                is("$1", "BC",'$1 is now "BC"');
+                $pat = "${^LAST_SUCCESSFUL_PATTERN}";
+                ok($str=~s/${^LAST_SUCCESSFUL_PATTERN}/ZZ/, '${^LAST_SUCCESSFUL_PATTERN} matched as expected');
+                is($str, "AZZD", '${^LAST_SUCCESSFUL_PATTERN} in s/// has result we expected');
+            }
+        }
+        is("$1", "D", '$1 should now be "D" again');
+        is($pat, "(?^:(BC))", 'inner ${^LAST_SUCCESSFUL_PATTERN} is as expected');
+        is($str, "AZZD", 'Using ${^LAST_SUCCESSFUL_PATTERN} as a pattern has same result as empty pattern');
+        ok($str=~s/${^LAST_SUCCESSFUL_PATTERN}/Q/, '${^LAST_SUCCESSFUL_PATTERN} to "Q" was successful');
+        is($str, "AZZQ", '${^LAST_SUCCESSFUL_PATTERN} in s/// has result we expected');
+        ok($str=~/ZQ/, "/ZQ/ matched as expected");
+        $pat = "${^LAST_SUCCESSFUL_PATTERN}";
+        is($pat, "(?^:ZQ)", '${^LAST_SUCCESSFUL_PATTERN} changed as expected');
+
+        $str = "foobarfoo";
+        ok($str =~ s/foo//, "matched foo");
+        my $copy= ${^LAST_SUCCESSFUL_PATTERN};
+        ok(defined($copy), '$copy is defined');
+        ok($str =~ s/bar//,"matched bar");
+        ok($str =~ s/$copy/PQR/, 'replaced $copy with PQR');
+        is($str, "PQR", 'final string should be PQR');
+    }
 } # End of sub run_tests
 
 1;

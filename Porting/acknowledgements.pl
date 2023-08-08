@@ -125,7 +125,7 @@ sub _round {
 # version
 sub changes_files {
     my $output = qx(git diff --shortstat $since_until);
-    my $q = ($^O =~ /^(?:MSWin32|NetWare|VMS)$/io) ? '"' : "'";
+    my $q = ($^O =~ /^(?:MSWin32|VMS)$/io) ? '"' : "'";
     my @filenames = qx(git diff --numstat $since_until | $^X -anle ${q}next if m{^dist/Module-CoreList} or not /\\.(?:pm|c|h|t)\\z/; print \$F[2]$q);
     chomp @filenames;
     my $output_code_changed = qx# git diff --shortstat $since_until -- @filenames #;
@@ -163,5 +163,5 @@ sub commify {
 # returns a list of the authors
 sub authors {
     return
-        qx(git log --pretty=fuller $since_until | $^X Porting/checkAUTHORS.pl --who -);
+        qx($^X Porting/updateAUTHORS.pl --who $since_until);
 }

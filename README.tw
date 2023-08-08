@@ -1,8 +1,10 @@
-=encoding utf8
+# vim: syntax=pod
 
 如果你用一般的文字編輯器閱覽這份文件, 請忽略文中奇特的註記字符.
 這份文件是以 POD (簡明文件格式) 寫成; 這種格式是為了能讓人直接讀取,
 而特別設計的. 關於此格式的進一步資訊, 請參考 perlpod 線上文件.
+
+=encoding utf8
 
 =head1 NAME
 
@@ -50,7 +52,7 @@ Perl 也內附了 "piconv", 一支完全以 Perl 寫成的字符轉換工具程�
 
 =head2 額外的中文編碼
 
-如果需要更多的中文編碼, 可以從 CPAN (L<http://www.cpan.org/>) 下載
+如果需要更多的中文編碼, 可以從 CPAN (L<https://www.cpan.org/>) 下載
 Encode::HanExtra 模組. 它目前提供下列編碼方式:
 
     cccii	1980 年文建會的中文資訊交換碼
@@ -79,15 +81,19 @@ Perl 的知識, 以及 Unicode 的使用方式. 不過, 外部的資源相當豐
 
 =over 4
 
-=item L<http://www.perl.com/>
+=item L<https://www.perl.org/>
 
-Perl 的首頁 (由歐萊禮公司維護)
+Perl 的首頁
 
-=item L<http://www.cpan.org/>
+=item L<https://www.perl.com/>
+
+由 Perl 基金會所營運的文章輯錄
+
+=item L<https://www.cpan.org/>
 
 Perl 綜合典藏網 (Comprehensive Perl Archive Network)
 
-=item L<http://lists.perl.org/>
+=item L<https://lists.perl.org/>
 
 Perl 郵遞論壇一覽
 
@@ -97,7 +103,7 @@ Perl 郵遞論壇一覽
 
 =over 4
 
-=item L<http://www.oreilly.com.tw/product_perl.php?id=index_perl>
+=item L<http://www.oreilly.com.cn/index.php?func=booklist&cat=68>
 
 正體中文版的歐萊禮 Perl 書藉
 
@@ -107,11 +113,11 @@ Perl 郵遞論壇一覽
 
 =over 4
 
-=item L<http://www.pm.org/groups/taiwan.html>
+=item L<https://www.pm.org/groups/taiwan.html>
 
 臺灣 Perl 推廣組一覽
 
-=item L<irc://irc.freenode.org/#perl.tw>
+=item L<irc://chat.freenode.org/#perl.tw>
 
 Perl.tw 線上聊天室
 
@@ -121,7 +127,7 @@ Perl.tw 線上聊天室
 
 =over 4
 
-=item L<http://www.unicode.org/>
+=item L<https://www.unicode.org/>
 
 Unicode 學術學會 (Unicode 標準的制定者)
 
@@ -138,10 +144,6 @@ Unix/Linux 上的 UTF-8 及 Unicode 答客問
 =item 中文化軟體聯盟
 
 L<http://www.cpatch.org/>
-
-=item Linux 軟體中文化計劃
-
-L<http://www.linux.org.tw/CLDP/>
 
 =back
 

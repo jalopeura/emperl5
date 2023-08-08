@@ -85,7 +85,7 @@ uname_minus_m="${uname_minus_m:-"$targetarch"}"
 
 # Check if we're about to use Intel's ICC compiler
 case "`${cc:-cc} -V 2>&1`" in
-*"Intel(R) C++ Compiler"*|*"Intel(R) C Compiler"*)
+*"Intel(R) C"*" Compiler"*)
     # record the version, formats:
     # icc (ICC) 10.1 20080801
     # icpc (ICC) 10.1 20080801
@@ -154,7 +154,7 @@ esac
 # (such as -lm) in /lib or /usr/lib.  So we have to ask gcc to tell us
 # where to look.  We don't want gcc's own libraries, however, so we
 # filter those out.
-# This could be conditional on Unbuntu, but other distributions may
+# This could be conditional on Ubuntu, but other distributions may
 # follow suit, and this scheme seems to work even on rather old gcc's.
 # This unconditionally uses gcc because even if the user is using another
 # compiler, we still need to find the math library and friends, and I don't
@@ -165,6 +165,9 @@ esac
 # plibpth to bypass this check.
 if [ -x /usr/bin/gcc ] ; then
     gcc=/usr/bin/gcc
+# clang also provides -print-search-dirs
+elif ${cc:-cc} --version 2>/dev/null | grep -q '^clang ' ; then
+    gcc=${cc:-cc}
 else
     gcc=gcc
 fi

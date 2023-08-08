@@ -11,15 +11,16 @@
 #
 # SPDX-License-Identifier: MIT
 
-use 5.006;
+use 5.010;
 use strict;
 use warnings;
 
 use lib 't/lib';
 
-use Getopt::Long qw(GetOptions);
 use Test::RRA qw(skip_unless_automated use_prereq);
 use Test::RRA::ModuleVersion qw(test_module_versions update_module_versions);
+
+use Getopt::Long qw(GetOptions);
 
 # If we have options, we're being run from the command line and always load
 # our prerequisite modules.  Otherwise, check if we have necessary
@@ -41,9 +42,9 @@ if (@ARGV) {
 # Throws: Text exception if MYMETA.json is not found or doesn't contain a
 #         version
 sub dist_version {
-    my $json     = JSON::PP->new->utf8(1);
+    my $json = JSON::PP->new->utf8(1);
     my $metadata = $json->decode(scalar(slurp('MYMETA.json')));
-    my $version  = $metadata->{version};
+    my $version = $metadata->{version};
     if (!defined($version)) {
         die "$0: cannot find version number in MYMETA.json\n";
     }
@@ -80,9 +81,9 @@ B<module-version.t> [B<--update>]
 
 =head1 REQUIREMENTS
 
-Perl 5.6.0 or later, the Perl6::Slurp module, and the JSON::PP Perl module,
-both of which are available from CPAN.  JSON::PP is also included in Perl core
-in Perl 5.14 and later.
+Perl 5.8 or later, the Perl6::Slurp module, and the JSON::PP Perl module, both
+of which are available from CPAN.  JSON::PP is also included in Perl core in
+Perl 5.14 and later.
 
 =head1 DESCRIPTION
 
@@ -120,7 +121,7 @@ Russ Allbery <eagle@eyrie.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2014-2016 Russ Allbery <eagle@eyrie.org>
+Copyright 2014-2016, 2019-2021 Russ Allbery <eagle@eyrie.org>
 
 Copyright 2013-2014 The Board of Trustees of the Leland Stanford Junior
 University

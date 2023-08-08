@@ -29,18 +29,17 @@
 #    perl5.def   OS/2
 #    perldll.def Windows
 #    perl.exp    AIX
-#    perl.imp    NetWare
 #    makedef.lis VMS
+
+use strict;
+use Config;
+use warnings;
 
 my $fold;
 my %ARGS;
 my %define;
 
 BEGIN {
-    BEGIN { unshift @INC, "lib" }
-    use Config;
-    use strict;
-
     %ARGS = (CCTYPE => 'MSVC', TARG_DIR => '');
 
     sub process_cc_flags {
@@ -59,7 +58,7 @@ BEGIN {
 	    ++$fold;
 	}
     }
-    my @PLATFORM = qw(aix win32 wince os2 netware vms test);
+    my @PLATFORM = qw(aix win32 os2 vms test);
     my %PLATFORM;
     @PLATFORM{@PLATFORM} = ();
 
@@ -68,15 +67,19 @@ BEGIN {
     die "PLATFORM must be one of: @PLATFORM\n"
 	unless exists $PLATFORM{$ARGS{PLATFORM}};
 }
+
 use constant PLATFORM => $ARGS{PLATFORM};
+
+# This makes us able to use, e.g., $define{WIN32}, so you don't have to
+# remember what things came from %ARGS.
+$define{uc $ARGS{'PLATFORM'}} = 1;
 
 require "./$ARGS{TARG_DIR}regen/embed_lib.pl";
 
 # Is the following guard strictly necessary? Added during refactoring
 # to keep the same behaviour when merging other code into here.
 process_cc_flags(@Config{qw(ccflags optimize)})
-    if $ARGS{PLATFORM} ne 'win32' && $ARGS{PLATFORM} ne 'wince'
-    && $ARGS{PLATFORM} ne 'netware';
+    if PLATFORM ne 'win32';
 
 # Add the compile-time options that miniperl was built with to %define.
 # On Win32 these are not the same options as perl itself will be built
@@ -87,12 +90,9 @@ process_cc_flags(@Config{qw(ccflags optimize)})
 # the user might have chosen to disable because the canned configs are
 # minimal configs that don't include any of those options.
 
-#don't use the host Perl's -V defines for the WinCE Perl
-if($ARGS{PLATFORM} ne 'wince') {
-    my @options = sort(Config::bincompat_options(), Config::non_bincompat_options());
-    print STDERR "Options: (@options)\n" unless $ARGS{PLATFORM} eq 'test';
-    $define{$_} = 1 foreach @options;
-}
+my @options = sort(Config::bincompat_options(), Config::non_bincompat_options());
+print STDERR "Options: (@options)\n" unless PLATFORM eq 'test';
+$define{$_} = 1 foreach @options;
 
 my %exportperlmalloc =
     (
@@ -102,7 +102,7 @@ my %exportperlmalloc =
        Perl_calloc		=>	"calloc",
     );
 
-my $exportperlmalloc = $ARGS{PLATFORM} eq 'os2';
+my $exportperlmalloc = PLATFORM eq 'os2';
 
 my $config_h = 'config.h';
 open(CFG, '<', $config_h) || die "Cannot open $config_h: $!\n";
@@ -113,7 +113,9 @@ while (<CFG>) {
 }
 close(CFG);
 
+#==========================================================================
 # perl.h logic duplication begins
+
 
 if ($define{USE_ITHREADS}) {
     if (!$define{MULTIPLICITY}) {
@@ -121,11 +123,11 @@ if ($define{USE_ITHREADS}) {
     }
 }
 
-$define{PERL_IMPLICIT_CONTEXT} ||=
+$define{MULTIPLICITY} ||=
     $define{USE_ITHREADS} ||
-    $define{MULTIPLICITY} ;
+    $define{PERL_IMPLICIT_CONTEXT} ;
 
-if ($define{USE_ITHREADS} && $ARGS{PLATFORM} ne 'win32' && $ARGS{PLATFORM} ne 'netware') {
+if ($define{USE_ITHREADS} && ! $define{WIN32}) {
     $define{USE_REENTRANT_API} = 1;
 }
 
@@ -144,37 +146,68 @@ if (! $define{NO_LOCALE}) {
     }
 }
 
+# https://en.wikipedia.org/wiki/Microsoft_Visual_C%2B%2B#Internal_version_numbering
 my $cctype = $ARGS{CCTYPE} =~ s/MSVC//r;
-if (! $define{HAS_SETLOCALE} && $define{HAS_POSIX_2008_LOCALE}) {
-    $define{USE_POSIX_2008_LOCALE} = 1;
-    $define{USE_THREAD_SAFE_LOCALE} = 1;
-}
-elsif (   ($define{USE_ITHREADS} || $define{USE_THREAD_SAFE_LOCALE})
-       && (    $define{HAS_POSIX_2008_LOCALE}
-           || ($ARGS{PLATFORM} eq 'win32' && (   $cctype !~ /\D/
-                                              && $cctype >= 80)))
-       && ! $define{NO_THREAD_SAFE_LOCALE})
-{
-    $define{USE_THREAD_SAFE_LOCALE} = 1 unless $define{USE_THREAD_SAFE_LOCALE};
-    $define{USE_POSIX_2008_LOCALE} = 1 if $define{HAS_POSIX_2008_LOCALE};
+if ($define{USE_ITHREADS} && ! $define{NO_LOCALE_THREADS}) {
+    $define{USE_LOCALE_THREADS} = 1;
 }
 
-if (   $ARGS{PLATFORM} eq 'win32'
-    && $define{USE_THREAD_SAFE_LOCALE}
-    && $cctype < 140)
+if (   $define{HAS_POSIX_2008_LOCALE}
+    && (  ! $define{HAS_SETLOCALE} || (     $define{USE_LOCALE_THREADS}
+                                       && ! $define{NO_POSIX_2008_LOCALE})))
 {
-    $define{TS_W32_BROKEN_LOCALECONV} = 1;
+    $define{USE_POSIX_2008_LOCALE} = 1;
+}
+
+if ($define{USE_LOCALE_THREADS} && ! $define{NO_THREAD_SAFE_LOCALE})
+{
+    if (    $define{USE_POSIX_2008_LOCALE}
+        || ($define{WIN32} && (   $cctype !~ /\D/
+                               && $cctype >= 80)))
+    {
+        $define{USE_THREAD_SAFE_LOCALE} = 1;
+    }
+}
+
+if ($define{USE_POSIX_2008_LOCALE} && $define{HAS_QUERYLOCALE})
+{
+    $define{USE_QUERYLOCALE} = 1;
+
+    # Don't need glibc only code from perl.h
+}
+
+if ($define{USE_POSIX_2008_LOCALE} && ! $define{USE_QUERYLOCALE})
+{
+    $define{USE_PL_CURLOCALES} = 1;
+    $define{USE_PL_CUR_LC_ALL} = 1;
+}
+
+if ($define{WIN32} && $define{USE_THREAD_SAFE_LOCALE})
+{
+    $define{USE_PL_CUR_LC_ALL} = 1;
+
+    if ($cctype < 140) {
+        $define{TS_W32_BROKEN_LOCALECONV} = 1;
+    }
+}
+
+if ($define{MULTIPLICITY} && (   $define{USE_POSIX_2008_LOCALE}
+                              || (   $define{WIN32}
+                                  && $define{USE_THREAD_SAFE_LOCALE})))
+{
+    $define{USE_PERL_SWITCH_LOCALE_CONTEXT} = 1;
 }
 
 # perl.h logic duplication ends
+#==========================================================================
 
 print STDERR "Defines: (" . join(' ', sort keys %define) . ")\n"
-     unless $ARGS{PLATFORM} eq 'test';
+     unless PLATFORM eq 'test';
 
 my $sym_ord = 0;
 my %ordinal;
 
-if ($ARGS{PLATFORM} eq 'os2') {
+if (PLATFORM eq 'os2') {
     if (open my $fh, '<', 'perl5.def') {
       while (<$fh>) {
 	last if /^\s*EXPORTS\b/;
@@ -192,6 +225,10 @@ my %skip;
 # All platforms export boot_DynaLoader unconditionally.
 my %export = ( boot_DynaLoader => 1 );
 
+# d_thread_local not perl_thread_local - see hints/darwin.sh
+++$export{PL_current_context}
+    if defined $Config{d_thread_local} && $define{USE_ITHREADS};
+
 sub try_symbols {
     foreach my $symbol (@_) {
 	++$export{$symbol} unless exists $skip{$symbol};
@@ -207,7 +244,7 @@ sub readvar {
     my $file = $ARGS{TARG_DIR} . shift;
     my $hash = shift;
     my $proc = shift;
-    open my $vars, '<', $file or die die "Cannot open $file: $!\n";
+    open my $vars, '<', $file or die "Cannot open $file: $!\n";
 
     while (<$vars>) {
 	# All symbols have a Perl_ prefix because that's what embed.h sticks
@@ -220,11 +257,9 @@ sub readvar {
     }
 }
 
-if ($ARGS{PLATFORM} ne 'os2') {
+if (PLATFORM ne 'os2') {
     ++$skip{$_} foreach qw(
-		     PL_cryptseen
 		     PL_opsave
-		     Perl_GetVars
 		     Perl_dump_fds
 		     Perl_my_bcopy
 		     Perl_my_bzero
@@ -235,7 +270,7 @@ if ($ARGS{PLATFORM} ne 'os2') {
 		     Perl_my_ntohl
 		     Perl_my_swap
 			 );
-    if ($ARGS{PLATFORM} eq 'vms') {
+    if (PLATFORM eq 'vms') {
 	++$skip{PL_statusvalue_posix};
         # This is a wrapper if we have symlink, not a replacement
         # if we don't.
@@ -243,7 +278,7 @@ if ($ARGS{PLATFORM} ne 'os2') {
     } else {
 	++$skip{PL_statusvalue_vms};
 	++$skip{PL_perllib_sep};
-	if ($ARGS{PLATFORM} ne 'aix') {
+	if (PLATFORM ne 'aix') {
 	    ++$skip{$_} foreach qw(
 				PL_DBcv
 				PL_generation
@@ -255,14 +290,14 @@ if ($ARGS{PLATFORM} ne 'os2') {
     }
 }
 
-if ($ARGS{PLATFORM} ne 'vms') {
+if (PLATFORM ne 'vms') {
     # VMS does its own thing for these symbols.
     ++$skip{$_} foreach qw(
 			PL_sig_handlers_initted
 			PL_sig_ignoring
 			PL_sig_defaulting
 			 );
-    if ($ARGS{PLATFORM} ne 'win32') {
+    if (PLATFORM ne 'win32') {
 	++$skip{$_} foreach qw(
 			    Perl_do_spawn
 			    Perl_do_spawn_nowait
@@ -271,9 +306,12 @@ if ($ARGS{PLATFORM} ne 'vms') {
     }
 }
 
-if ($ARGS{PLATFORM} ne 'win32') {
+if (PLATFORM ne 'win32') {
     ++$skip{$_} foreach qw(
-		    Perl_my_setlocale
+		    Perl_get_context
+		    Perl_get_win32_message_utf8ness
+		    Perl_Win_utf8_string_to_wstring
+		    Perl_Win_wstring_to_utf8_string
 			 );
 }
 
@@ -289,7 +327,6 @@ unless ($define{'DEBUGGING'}) {
 		    Perl_debstackptrs
 		    Perl_pad_sv
 		    Perl_pad_setsv
-                    Perl__setlocale_debug_string
 		    Perl_set_padlist
 		    Perl_hv_assert
 		    PL_watchaddr
@@ -356,61 +393,31 @@ else {
 			 );
 }
 
-if ($define{'PERL_USE_SAFE_PUTENV'}) {
-    ++$skip{PL_use_safe_putenv};
-}
-
 unless ($define{'USE_ITHREADS'}) {
     ++$skip{PL_thr_key};
     ++$skip{PL_user_prop_mutex};
     ++$skip{PL_user_def_props_aTHX};
 }
 
-# USE_5005THREADS symbols. Kept as reference for easier removal
-++$skip{$_} foreach qw(
-		    PL_sv_mutex
-		    PL_strtab_mutex
-		    PL_svref_mutex
-		    PL_cred_mutex
-		    PL_eval_mutex
-		    PL_fdpid_mutex
-		    PL_sv_lock_mutex
-		    PL_eval_cond
-		    PL_eval_owner
-		    PL_threads_mutex
-		    PL_nthreads
-		    PL_nthreads_cond
-		    PL_threadnum
-		    PL_threadsv_names
-		    PL_thrsv
-		    PL_vtbl_mutex
-		    Perl_condpair_magic
-		    Perl_new_struct_thread
-		    Perl_per_thread_magicals
-		    Perl_thread_create
-		    Perl_find_threadsv
-		    Perl_unlock_condpair
-		    Perl_magic_mutexfree
-		    Perl_sv_lock
-		     );
-
 unless ($define{'USE_ITHREADS'}) {
     ++$skip{$_} foreach qw(
                     PL_keyword_plugin_mutex
 		    PL_check_mutex
+                    PL_cur_locale_obj
 		    PL_op_mutex
 		    PL_regex_pad
 		    PL_regex_padav
 		    PL_dollarzero_mutex
+		    PL_env_mutex
 		    PL_hints_mutex
 		    PL_locale_mutex
-		    PL_lc_numeric_mutex
-		    PL_lc_numeric_mutex_depth
+		    PL_locale_mutex_depth
 		    PL_my_ctx_mutex
 		    PL_perlio_mutex
 		    PL_stashpad
 		    PL_stashpadix
 		    PL_stashpadmax
+                    PL_veto_switch_non_tTHX_context
 		    Perl_alloccopstash
 		    Perl_allocfilegv
 		    Perl_clone_params_del
@@ -439,27 +446,36 @@ unless ($define{'USE_ITHREADS'}) {
 			 );
 }
 
-if (      $define{NO_LOCALE}
-    || (! $define{USE_ITHREADS} && ! $define{USE_THREAD_SAFE_LOCALE}))
+unless ($define{USE_POSIX_2008_LOCALE})
 {
     ++$skip{$_} foreach qw(
         PL_C_locale_obj
+        PL_scratch_locale_obj
+        PL_underlying_numeric_obj
+    );
+}
+unless ($define{USE_PL_CURLOCALES})
+{
+    ++$skip{$_} foreach qw(
         PL_curlocales
     );
 }
 
-unless ( $define{'HAS_NEWLOCALE'}
-    &&   $define{'HAS_FREELOCALE'}
-    &&   $define{'HAS_USELOCALE'}
-    && ! $define{'NO_POSIX_2008_LOCALE'})
+unless ($define{USE_PL_CUR_LC_ALL})
 {
     ++$skip{$_} foreach qw(
-        PL_C_locale_obj
-        PL_underlying_numeric_obj
+        PL_cur_LC_ALL
     );
 }
 
-unless ($define{'PERL_IMPLICIT_CONTEXT'}) {
+unless ($define{USE_PERL_SWITCH_LOCALE_CONTEXT})
+{
+    ++$skip{$_} foreach qw(
+        Perl_switch_locale_context
+    );
+}
+
+unless ($define{'MULTIPLICITY'}) {
     ++$skip{$_} foreach qw(
 		    PL_my_cxt_index
 		    PL_my_cxt_list
@@ -484,14 +500,6 @@ unless ($define{'PERL_IMPLICIT_CONTEXT'}) {
 			 );
 }
 
-if ($define{USE_THREAD_SAFE_LOCALE}) {
-    ++$skip{PL_lc_numeric_mutex};
-    ++$skip{PL_lc_numeric_mutex_depth};
-    if (! $define{TS_W32_BROKEN_LOCALECONV}) {
-        ++$skip{PL_locale_mutex};
-    }
-}
-
 unless ($define{'USE_DTRACE'}) {
     ++$skip{$_} foreach qw(
                     Perl_dtrace_probe_call
@@ -499,14 +507,6 @@ unless ($define{'USE_DTRACE'}) {
                     Perl_dtrace_probe_op
                     Perl_dtrace_probe_phase
                 );
-}
-
-unless ($define{'PERL_NEED_APPCTX'}) {
-    ++$skip{PL_appctx};
-}
-
-unless ($define{'PERL_NEED_TIMESBASE'}) {
-    ++$skip{PL_timesbase};
 }
 
 unless ($define{'DEBUG_LEAKING_SCALARS'}) {
@@ -529,6 +529,17 @@ unless ($define{'PERL_TRACK_MEMPOOL'}) {
     ++$skip{PL_memory_debug_header};
 }
 
+unless ($define{'PERL_MEM_LOG'}) {
+    ++$skip{$_} foreach qw(
+                    PL_mem_log
+                    Perl_mem_log_alloc
+                    Perl_mem_log_realloc
+                    Perl_mem_log_free
+                    Perl_mem_log_new_sv
+                    Perl_mem_log_del_sv
+                );
+}
+
 unless ($define{'MULTIPLICITY'}) {
     ++$skip{$_} foreach qw(
 		    PL_interp_size
@@ -540,18 +551,6 @@ unless ($define{'MULTIPLICITY'}) {
 			 );
 }
 
-unless ($define{'PERL_GLOBAL_STRUCT'}) {
-    ++$skip{PL_global_struct_size};
-}
-
-unless ($define{'PERL_GLOBAL_STRUCT_PRIVATE'}) {
-    ++$skip{$_} foreach qw(
-		    PL_my_cxt_keys
-		    PL_my_cxt_keys_size
-		    Perl_my_cxt_index
-			 );
-}
-
 unless ($define{HAS_MMAP}) {
     ++$skip{PL_mmap_page_size};
 }
@@ -559,14 +558,14 @@ unless ($define{HAS_MMAP}) {
 if ($define{HAS_SIGACTION}) {
     ++$skip{PL_sig_trapped};
 
-    if ($ARGS{PLATFORM} eq 'vms') {
+    if (PLATFORM eq 'vms') {
         # FAKE_PERSISTENT_SIGNAL_HANDLERS defined as !defined(HAS_SIGACTION)
         ++$skip{PL_sig_ignoring};
         ++$skip{PL_sig_handlers_initted} unless $define{KILL_BY_SIGPRC};
     }
 }
 
-if ($ARGS{PLATFORM} eq 'vms' && !$define{KILL_BY_SIGPRC}) {
+if (PLATFORM eq 'vms' && !$define{KILL_BY_SIGPRC}) {
     # FAKE_DEFAULT_SIGNAL_HANDLERS defined as KILL_BY_SIGPRC
     ++$skip{Perl_csighandler_init};
     ++$skip{Perl_my_kill};
@@ -592,18 +591,21 @@ unless ($define{USE_LOCALE_COLLATE}) {
                     PL_strxfrm_NUL_replacement
                     PL_strxfrm_is_behaved
                     PL_strxfrm_max_cp
+		    PL_in_utf8_COLLATE_locale
 			 );
 }
 
 unless ($define{USE_LOCALE_NUMERIC}) {
     ++$skip{$_} foreach qw(
-		    PL_numeric_local
-		    PL_numeric_name
-		    PL_numeric_radix_sv
-		    PL_numeric_standard
-                    PL_numeric_underlying
-                    PL_numeric_underlying_is_standard
                     PL_underlying_numeric_obj
+			 );
+}
+
+unless ($define{USE_LOCALE_CTYPE}) {
+    ++$skip{$_} foreach qw(
+		    PL_ctype_name
+                    PL_in_utf8_CTYPE_locale
+                    PL_in_utf8_turkic_locale
 			 );
 }
 
@@ -623,18 +625,6 @@ unless ($define{HAVE_INTERP_INTERN}) {
 
 if ($define{HAS_SIGNBIT}) {
     ++$skip{Perl_signbit};
-}
-
-if ($define{'PERL_GLOBAL_STRUCT'}) {
-    readvar('perlvars.h', \%skip);
-    # This seems like the least ugly way to cope with the fact that PL_sh_path
-    # is mentioned in perlvar.h and globvar.sym, and always exported.
-    delete $skip{PL_sh_path};
-    ++$export{Perl_GetVars};
-    try_symbols(qw(PL_Vars PL_VarsPtr))
-      unless $ARGS{CCTYPE} eq 'GCC' || $define{PERL_GLOBAL_STRUCT_PRIVATE};
-} else {
-    ++$skip{$_} foreach qw(Perl_init_global_struct Perl_free_global_struct);
 }
 
 ++$skip{PL_op_exec_cnt}
@@ -727,9 +717,6 @@ my @layer_syms = qw(
 		    Perl_PerlIO_unread
 		    Perl_PerlIO_write
 );
-if ($ARGS{PLATFORM} eq 'netware') {
-    push(@layer_syms,'PL_def_layerlist','PL_known_layers','PL_perlio');
-}
 
 # Export the symbols that make up the PerlIO abstraction, regardless
 # of its implementation - read from a file
@@ -744,6 +731,18 @@ unless ($define{'USE_QUADMATH'}) {
   ++$skip{Perl_quadmath_format_single};
 }
 
+unless ($Config{d_mbrlen}) {
+    ++$skip{PL_mbrlen_ps};
+}
+
+unless ($Config{d_mbrtowc}) {
+    ++$skip{PL_mbrtowc_ps};
+}
+
+unless ($Config{d_wcrtomb}) {
+    ++$skip{PL_wcrtomb_ps};
+}
+
 ###############################################################################
 
 # At this point all skip lists should be completed, as we are about to test
@@ -751,13 +750,15 @@ unless ($define{'USE_QUADMATH'}) {
 
 {
     my %seen;
-    my ($embed) = setup_embed($ARGS{TARG_DIR});
-    my $excludedre = $define{'NO_MATHOMS'} ? qr/[xmib]/ : qr/[xmi]/;
+    my ($embed_array) = setup_embed($ARGS{TARG_DIR});
+    my $excludedre = $define{'NO_MATHOMS'} ? qr/[emiIsb]/ : qr/[emiIs]/;
 
-    foreach (@$embed) {
-	my ($flags, $retval, $func, @args) = @$_;
+    foreach (@$embed_array) {
+        my $embed= $_->{embed}
+            or next;
+	my ($flags, $retval, $func, $args) = @{$embed}{qw(flags return_type name args)};
 	next unless $func;
-	if (($flags =~ /[AX]/ && $flags !~ $excludedre)
+	if (($flags =~ /[AXC]/ && $flags !~ $excludedre)
             || (!$define{'NO_MATHOMS'} && $flags =~ /b/))
         {
 	    # public API, so export
@@ -768,7 +769,7 @@ unless ($define{'USE_QUADMATH'}) {
 	    # mean "don't export"
 	    next if $seen{$func}++;
 	    # Should we also skip adding the Perl_ prefix if $flags =~ /o/ ?
-	    $func = "Perl_$func" if ($flags =~ /[pX]/ && $func !~ /^Perl_/);
+	    $func = "Perl_$func" if ($flags =~ /[psX]/ && $func !~ /^Perl_/);
 	    ++$export{$func} unless exists $skip{$func};
 	}
     }
@@ -786,20 +787,9 @@ foreach (@syms) {
 
 # variables
 
-if ($define{'MULTIPLICITY'} && $define{PERL_GLOBAL_STRUCT}) {
-    readvar('perlvars.h', \%export, sub { "Perl_" . $_[1] . $_[2] . "_ptr" });
-    # XXX AIX seems to want the perlvars.h symbols, for some reason
-    if ($ARGS{PLATFORM} eq 'aix' or $ARGS{PLATFORM} eq 'os2') {	# OS/2 needs PL_thr_key
-	readvar('perlvars.h', \%export);
-    }
-}
-else {
-    unless ($define{'PERL_GLOBAL_STRUCT'}) {
-	readvar('perlvars.h', \%export);
-    }
-    unless ($define{MULTIPLICITY}) {
-	readvar('intrpvar.h', \%export);
-    }
+readvar('perlvars.h', \%export);
+unless ($define{MULTIPLICITY}) {
+    readvar('intrpvar.h', \%export);
 }
 
 # Oddities from PerlIO
@@ -813,179 +803,172 @@ try_symbols(qw(
 		    PerlIO_tmpfile
 	     ));
 
-if ($ARGS{PLATFORM} eq 'win32') {
+if (PLATFORM eq 'win32') {
     try_symbols(qw(
-				 win32_free_childdir
-				 win32_free_childenv
-				 win32_get_childdir
-				 win32_get_childenv
-				 win32_spawnvp
+		    win32_free_childdir
+		    win32_free_childenv
+		    win32_get_childdir
+		    win32_get_childenv
+		    win32_spawnvp
+		    Perl_init_os_extras
+		    Perl_win32_init
+		    Perl_win32_term
+		    RunPerl
+		    win32_async_check
+		    win32_errno
+		    win32_environ
+		    win32_abort
+		    win32_fstat
+		    win32_stat
+		    win32_pipe
+		    win32_popen
+		    win32_pclose
+		    win32_rename
+		    win32_setmode
+		    win32_chsize
+		    win32_lseek
+		    win32_tell
+		    win32_dup
+		    win32_dup2
+		    win32_open
+		    win32_close
+		    win32_eof
+		    win32_isatty
+		    win32_read
+		    win32_write
+		    win32_mkdir
+		    win32_rmdir
+		    win32_chdir
+		    win32_flock
+		    win32_execv
+		    win32_execvp
+		    win32_htons
+		    win32_ntohs
+		    win32_htonl
+		    win32_ntohl
+		    win32_inet_addr
+		    win32_inet_ntoa
+		    win32_socket
+		    win32_bind
+		    win32_listen
+		    win32_accept
+		    win32_connect
+		    win32_send
+		    win32_sendto
+		    win32_recv
+		    win32_recvfrom
+		    win32_shutdown
+		    win32_closesocket
+		    win32_ioctlsocket
+		    win32_setsockopt
+		    win32_getsockopt
+		    win32_getpeername
+		    win32_getsockname
+		    win32_gethostname
+		    win32_gethostbyname
+		    win32_gethostbyaddr
+		    win32_getprotobyname
+		    win32_getprotobynumber
+		    win32_getservbyname
+		    win32_getservbyport
+		    win32_select
+		    win32_endhostent
+		    win32_endnetent
+		    win32_endprotoent
+		    win32_endservent
+		    win32_getnetent
+		    win32_getnetbyname
+		    win32_getnetbyaddr
+		    win32_getprotoent
+		    win32_getservent
+		    win32_sethostent
+		    win32_setnetent
+		    win32_setprotoent
+		    win32_setservent
+		    win32_getenv
+		    win32_putenv
+		    win32_perror
+		    win32_malloc
+		    win32_calloc
+		    win32_realloc
+		    win32_free
+		    win32_sleep
+		    win32_pause
+		    win32_times
+		    win32_access
+		    win32_alarm
+		    win32_chmod
+		    win32_open_osfhandle
+		    win32_get_osfhandle
+		    win32_ioctl
+		    win32_link
+		    win32_unlink
+		    win32_utime
+		    win32_gettimeofday
+		    win32_uname
+		    win32_wait
+		    win32_waitpid
+		    win32_kill
+		    win32_str_os_error
+		    win32_opendir
+		    win32_readdir
+		    win32_telldir
+		    win32_seekdir
+		    win32_rewinddir
+		    win32_closedir
+		    win32_longpath
+		    win32_ansipath
+		    win32_os_id
+		    win32_getpid
+		    win32_crypt
+		    win32_dynaload
+		    win32_clearenv
+		    win32_stdin
+		    win32_stdout
+		    win32_stderr
+		    win32_ferror
+		    win32_feof
+		    win32_strerror
+		    win32_fprintf
+		    win32_printf
+		    win32_vfprintf
+		    win32_vprintf
+		    win32_fread
+		    win32_fwrite
+		    win32_fopen
+		    win32_fdopen
+		    win32_freopen
+		    win32_fclose
+		    win32_fputs
+		    win32_fputc
+		    win32_ungetc
+		    win32_getc
+		    win32_fileno
+		    win32_clearerr
+		    win32_fflush
+		    win32_ftell
+		    win32_fseek
+		    win32_fgetpos
+		    win32_fsetpos
+		    win32_rewind
+		    win32_tmpfile
+		    win32_setbuf
+		    win32_setvbuf
+		    win32_flushall
+		    win32_fcloseall
+		    win32_fgets
+		    win32_gets
+		    win32_fgetc
+		    win32_putc
+		    win32_puts
+		    win32_getchar
+		    win32_putchar
+                    win32_symlink
+                    win32_lstat
+                    win32_readlink
 		 ));
 }
-
-if ($ARGS{PLATFORM} eq 'wince') {
-    ++$skip{'win32_isatty'}; # commit 4342f4d6df is win32-only
-}
-
-if ($ARGS{PLATFORM} =~ /^win(?:32|ce)$/) {
-    try_symbols(qw(
-			    Perl_init_os_extras
-			    Perl_thread_create
-			    Perl_win32_init
-			    Perl_win32_term
-			    RunPerl
-			    win32_async_check
-			    win32_errno
-			    win32_environ
-			    win32_abort
-			    win32_fstat
-			    win32_stat
-			    win32_pipe
-			    win32_popen
-			    win32_pclose
-			    win32_rename
-			    win32_setmode
-			    win32_chsize
-			    win32_lseek
-			    win32_tell
-			    win32_dup
-			    win32_dup2
-			    win32_open
-			    win32_close
-			    win32_eof
-			    win32_isatty
-			    win32_read
-			    win32_write
-			    win32_mkdir
-			    win32_rmdir
-			    win32_chdir
-			    win32_flock
-			    win32_execv
-			    win32_execvp
-			    win32_htons
-			    win32_ntohs
-			    win32_htonl
-			    win32_ntohl
-			    win32_inet_addr
-			    win32_inet_ntoa
-			    win32_socket
-			    win32_bind
-			    win32_listen
-			    win32_accept
-			    win32_connect
-			    win32_send
-			    win32_sendto
-			    win32_recv
-			    win32_recvfrom
-			    win32_shutdown
-			    win32_closesocket
-			    win32_ioctlsocket
-			    win32_setsockopt
-			    win32_getsockopt
-			    win32_getpeername
-			    win32_getsockname
-			    win32_gethostname
-			    win32_gethostbyname
-			    win32_gethostbyaddr
-			    win32_getprotobyname
-			    win32_getprotobynumber
-			    win32_getservbyname
-			    win32_getservbyport
-			    win32_select
-			    win32_endhostent
-			    win32_endnetent
-			    win32_endprotoent
-			    win32_endservent
-			    win32_getnetent
-			    win32_getnetbyname
-			    win32_getnetbyaddr
-			    win32_getprotoent
-			    win32_getservent
-			    win32_sethostent
-			    win32_setnetent
-			    win32_setprotoent
-			    win32_setservent
-			    win32_getenv
-			    win32_putenv
-			    win32_perror
-			    win32_malloc
-			    win32_calloc
-			    win32_realloc
-			    win32_free
-			    win32_sleep
-			    win32_pause
-			    win32_times
-			    win32_access
-			    win32_alarm
-			    win32_chmod
-			    win32_open_osfhandle
-			    win32_get_osfhandle
-			    win32_ioctl
-			    win32_link
-			    win32_unlink
-			    win32_utime
-			    win32_gettimeofday
-			    win32_uname
-			    win32_wait
-			    win32_waitpid
-			    win32_kill
-			    win32_str_os_error
-			    win32_opendir
-			    win32_readdir
-			    win32_telldir
-			    win32_seekdir
-			    win32_rewinddir
-			    win32_closedir
-			    win32_longpath
-			    win32_ansipath
-			    win32_os_id
-			    win32_getpid
-			    win32_crypt
-			    win32_dynaload
-			    win32_clearenv
-			    win32_stdin
-			    win32_stdout
-			    win32_stderr
-			    win32_ferror
-			    win32_feof
-			    win32_strerror
-			    win32_fprintf
-			    win32_printf
-			    win32_vfprintf
-			    win32_vprintf
-			    win32_fread
-			    win32_fwrite
-			    win32_fopen
-			    win32_fdopen
-			    win32_freopen
-			    win32_fclose
-			    win32_fputs
-			    win32_fputc
-			    win32_ungetc
-			    win32_getc
-			    win32_fileno
-			    win32_clearerr
-			    win32_fflush
-			    win32_ftell
-			    win32_fseek
-			    win32_fgetpos
-			    win32_fsetpos
-			    win32_rewind
-			    win32_tmpfile
-			    win32_setbuf
-			    win32_setvbuf
-			    win32_flushall
-			    win32_fcloseall
-			    win32_fgets
-			    win32_gets
-			    win32_fgetc
-			    win32_putc
-			    win32_puts
-			    win32_getchar
-			    win32_putchar
-		 ));
-}
-elsif ($ARGS{PLATFORM} eq 'vms') {
+elsif (PLATFORM eq 'vms') {
     try_symbols(qw(
 		      Perl_cando
 		      Perl_cando_by_name
@@ -1070,7 +1053,7 @@ elsif ($ARGS{PLATFORM} eq 'vms') {
 		      PerlIO_openn
 		 ));
 }
-elsif ($ARGS{PLATFORM} eq 'os2') {
+elsif (PLATFORM eq 'os2') {
     try_symbols(qw(
 		      ctermid
 		      get_sysinfo
@@ -1139,156 +1122,14 @@ elsif ($ARGS{PLATFORM} eq 'os2') {
 		      PL_do_undump
 		 ));
 }
-elsif ($ARGS{PLATFORM} eq 'netware') {
-    try_symbols(qw(
-			Perl_init_os_extras
-			Perl_thread_create
-			Perl_nw5_init
-			RunPerl
-			AllocStdPerl
-			FreeStdPerl
-			do_spawn2
-			do_aspawn
-			nw_uname
-			nw_stdin
-			nw_stdout
-			nw_stderr
-			nw_feof
-			nw_ferror
-			nw_fopen
-			nw_fclose
-			nw_clearerr
-			nw_getc
-			nw_fgets
-			nw_fputc
-			nw_fputs
-			nw_fflush
-			nw_ungetc
-			nw_fileno
-			nw_fdopen
-			nw_freopen
-			nw_fread
-			nw_fwrite
-			nw_setbuf
-			nw_setvbuf
-			nw_vfprintf
-			nw_ftell
-			nw_fseek
-			nw_rewind
-			nw_tmpfile
-			nw_fgetpos
-			nw_fsetpos
-			nw_dup
-			nw_access
-			nw_chmod
-			nw_chsize
-			nw_close
-			nw_dup2
-			nw_flock
-			nw_isatty
-			nw_link
-			nw_lseek
-			nw_stat
-			nw_mktemp
-			nw_open
-			nw_read
-			nw_rename
-			nw_setmode
-			nw_unlink
-			nw_utime
-			nw_write
-			nw_chdir
-			nw_rmdir
-			nw_closedir
-			nw_opendir
-			nw_readdir
-			nw_rewinddir
-			nw_seekdir
-			nw_telldir
-			nw_htonl
-			nw_htons
-			nw_ntohl
-			nw_ntohs
-			nw_accept
-			nw_bind
-			nw_connect
-			nw_endhostent
-			nw_endnetent
-			nw_endprotoent
-			nw_endservent
-			nw_gethostbyaddr
-			nw_gethostbyname
-			nw_gethostent
-			nw_gethostname
-			nw_getnetbyaddr
-			nw_getnetbyname
-			nw_getnetent
-			nw_getpeername
-			nw_getprotobyname
-			nw_getprotobynumber
-			nw_getprotoent
-			nw_getservbyname
-			nw_getservbyport
-			nw_getservent
-			nw_getsockname
-			nw_getsockopt
-			nw_inet_addr
-			nw_listen
-			nw_socket
-			nw_recv
-			nw_recvfrom
-			nw_select
-			nw_send
-			nw_sendto
-			nw_sethostent
-			nw_setnetent
-			nw_setprotoent
-			nw_setservent
-			nw_setsockopt
-			nw_inet_ntoa
-			nw_shutdown
-			nw_crypt
-			nw_execvp
-			nw_kill
-			nw_Popen
-			nw_Pclose
-			nw_Pipe
-			nw_times
-			nw_waitpid
-			nw_getpid
-			nw_spawnvp
-			nw_os_id
-			nw_open_osfhandle
-			nw_get_osfhandle
-			nw_abort
-			nw_sleep
-			nw_wait
-			nw_dynaload
-			nw_strerror
-			fnFpSetMode
-			fnInsertHashListAddrs
-			fnGetHashListAddrs
-			Perl_deb
-			Perl_sv_setsv
-			Perl_sv_catsv
-			Perl_sv_catpvn
-			Perl_sv_2pv
-			nw_freeenviron
-			Remove_Thread_Ctx
-		 ));
-}
 
-# When added this code was only run for Win32 and WinCE
+# When added this code was only run for Win32 (and WinCE at the time)
 # Currently only Win32 links static extensions into the shared library.
-# The WinCE makefile doesn't appear to support static extensions, so this code
-# can't have any effect there.
-# The NetWare Makefile doesn't support static extensions (and hardcodes the
-# list of dynamic extensions, and the rules to build them)
 # For *nix (and presumably OS/2) with a shared libperl, Makefile.SH compiles
 # static extensions with -fPIC, but links them to perl, not libperl.so
 # The VMS build scripts don't yet implement static extensions at all.
 
-if ($ARGS{PLATFORM} =~ /^win(?:32|ce)$/) {
+if (PLATFORM eq 'win32') {
     # records of type boot_module for statically linked modules (except Dynaloader)
     my $static_ext = $Config{static_ext} // "";
     $static_ext =~ s/\//__/g;
@@ -1297,7 +1138,7 @@ if ($ARGS{PLATFORM} =~ /^win(?:32|ce)$/) {
     try_symbols("init_Win32CORE") if $static_ext =~ /\bWin32CORE\b/;
 }
 
-if ($ARGS{PLATFORM} eq 'os2') {
+if (PLATFORM eq 'os2') {
     my (%mapped, @missing);
     open MAP, '<', 'miniperl.map' or die 'Cannot read miniperl.map';
     /^\s*[\da-f:]+\s+(\w+)/i and $mapped{$1}++ foreach <MAP>;
@@ -1315,18 +1156,18 @@ if ($ARGS{PLATFORM} eq 'os2') {
 
 # Start with platform specific headers:
 
-if ($ARGS{PLATFORM} =~ /^win(?:32|ce)$/) {
+if (PLATFORM eq 'win32') {
     my $dll = $define{PERL_DLL} ? $define{PERL_DLL} =~ s/\.dll$//ir
 	: "perl$Config{api_revision}$Config{api_version}";
     print "LIBRARY $dll\n";
     # The DESCRIPTION module definition file statement is not supported
     # by VC7 onwards.
-    if ($ARGS{CCTYPE} =~ /^(?:MSVC60|GCC)$/) {
+    if ($ARGS{CCTYPE} eq 'GCC') {
 	print "DESCRIPTION 'Perl interpreter'\n";
     }
     print "EXPORTS\n";
 }
-elsif ($ARGS{PLATFORM} eq 'os2') {
+elsif (PLATFORM eq 'os2') {
     (my $v = $]) =~ s/(\d\.\d\d\d)(\d\d)$/$1_$2/;
     $v .= '-thread' if $Config{archname} =~ /-thread/;
     (my $dll = $define{PERL_DLL}) =~ s/\.dll$//i;
@@ -1342,7 +1183,7 @@ DATA LOADONCALL NONSHARED MULTIPLE
 EXPORTS
 ---EOP---
 }
-elsif ($ARGS{PLATFORM} eq 'aix') {
+elsif (PLATFORM eq 'aix') {
     my $OSVER = `uname -v`;
     chop $OSVER;
     my $OSREL = `uname -r`;
@@ -1353,19 +1194,12 @@ elsif ($ARGS{PLATFORM} eq 'aix') {
 	print "#!\n";
     }
 }
-elsif ($ARGS{PLATFORM} eq 'netware') {
-	if ($ARGS{FILETYPE} eq 'def') {
-	print "LIBRARY perl$Config{api_revision}$Config{api_version}\n";
-	print "DESCRIPTION 'Perl interpreter for NetWare'\n";
-	print "EXPORTS\n";
-	}
-}
 
 # Then the symbols
 
 my @symbols = $fold ? sort {lc $a cmp lc $b} keys %export : sort keys %export;
 foreach my $symbol (@symbols) {
-    if (PLATFORM eq 'win32' || PLATFORM eq 'wince') {
+    if (PLATFORM eq 'win32') {
 	# Remembering the origin file of each symbol is an alternative to PL_ matching
 	if (substr($symbol, 0, 3) eq 'PL_') {
 	    print "\t$symbol DATA\n";
@@ -1381,9 +1215,6 @@ foreach my $symbol (@symbols) {
 	  qq("$exportperlmalloc{$symbol}" = "$symbol"),
 	  $ordinal{$exportperlmalloc{$symbol}} || ++$sym_ord
 	  if $exportperlmalloc and exists $exportperlmalloc{$symbol};
-    }
-    elsif (PLATFORM eq 'netware') {
-	print "\t$symbol,\n";
     } else {
 	print "$symbol\n";
     }
@@ -1391,7 +1222,7 @@ foreach my $symbol (@symbols) {
 
 # Then platform specific footers.
 
-if ($ARGS{PLATFORM} eq 'os2') {
+if (PLATFORM eq 'os2') {
     print <<EOP;
     dll_perlmain=main
     fill_extLibpath

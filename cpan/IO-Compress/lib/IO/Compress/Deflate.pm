@@ -8,16 +8,16 @@ use bytes;
 
 require Exporter ;
 
-use IO::Compress::RawDeflate 2.084 ();
-use IO::Compress::Adapter::Deflate 2.084 ;
+use IO::Compress::RawDeflate 2.204 ();
+use IO::Compress::Adapter::Deflate 2.204 ;
 
-use IO::Compress::Zlib::Constants 2.084 ;
-use IO::Compress::Base::Common  2.084 qw();
+use IO::Compress::Zlib::Constants 2.204 ;
+use IO::Compress::Base::Common  2.204 qw();
 
 
 our ($VERSION, @ISA, @EXPORT_OK, %EXPORT_TAGS, %DEFLATE_CONSTANTS, $DeflateError);
 
-$VERSION = '2.084';
+$VERSION = '2.204';
 $DeflateError = '';
 
 @ISA    = qw(IO::Compress::RawDeflate Exporter);
@@ -42,104 +42,41 @@ sub deflate
     return $obj->_def(@_);
 }
 
-
-sub bitmask($$$$)
-{
-    my $into  = shift ;
-    my $value  = shift ;
-    my $offset = shift ;
-    my $mask   = shift ;
-
-    return $into | (($value & $mask) << $offset ) ;
-}
-
-sub mkDeflateHdr($$$;$)
-{
-    my $method = shift ;
-    my $cinfo  = shift;
-    my $level  = shift;
-    my $fdict_adler = shift  ;
-
-    my $cmf = 0;
-    my $flg = 0;
-    my $fdict = 0;
-    $fdict = 1 if defined $fdict_adler;
-
-    $cmf = bitmask($cmf, $method, ZLIB_CMF_CM_OFFSET,    ZLIB_CMF_CM_BITS);
-    $cmf = bitmask($cmf, $cinfo,  ZLIB_CMF_CINFO_OFFSET, ZLIB_CMF_CINFO_BITS);
-
-    $flg = bitmask($flg, $fdict,  ZLIB_FLG_FDICT_OFFSET, ZLIB_FLG_FDICT_BITS);
-    $flg = bitmask($flg, $level,  ZLIB_FLG_LEVEL_OFFSET, ZLIB_FLG_LEVEL_BITS);
-
-    my $fcheck = 31 - ($cmf * 256 + $flg) % 31 ;
-    $flg = bitmask($flg, $fcheck, ZLIB_FLG_FCHECK_OFFSET, ZLIB_FLG_FCHECK_BITS);
-
-    my $hdr =  pack("CC", $cmf, $flg) ;
-    $hdr .= pack("N", $fdict_adler) if $fdict ;
-
-    return $hdr;
-}
-
-sub mkHeader 
+sub mkComp
 {
     my $self = shift ;
-    my $param = shift ;
+    my $got = shift ;
 
-    my $level = $param->getValue('level');
-    my $strategy = $param->getValue('strategy');
+    my ($obj, $errstr, $errno) = IO::Compress::Adapter::Deflate::mkCompObject1(
+                                                 $got->getValue('crc32'),
+                                                 $got->getValue('adler32'),
+                                                 $got->getValue('level'),
+                                                 $got->getValue('strategy')
+                                                 );
 
-    my $lflag ;
-    $level = 6 
-        if $level == Z_DEFAULT_COMPRESSION ;
+   return $self->saveErrorString(undef, $errstr, $errno)
+       if ! defined $obj;
 
-    if (ZLIB_VERNUM >= 0x1210)
-    {
-        if ($strategy >= Z_HUFFMAN_ONLY || $level < 2)
-         {  $lflag = ZLIB_FLG_LEVEL_FASTEST }
-        elsif ($level < 6)
-         {  $lflag = ZLIB_FLG_LEVEL_FAST }
-        elsif ($level == 6)
-         {  $lflag = ZLIB_FLG_LEVEL_DEFAULT }
-        else
-         {  $lflag = ZLIB_FLG_LEVEL_SLOWEST }
-    }
-    else
-    {
-        $lflag = ($level - 1) >> 1 ;
-        $lflag = 3 if $lflag > 3 ;
-    }
-
-     #my $wbits = (MAX_WBITS - 8) << 4 ;
-    my $wbits = 7;
-    mkDeflateHdr(ZLIB_CMF_CM_DEFLATED, $wbits, $lflag);
+   return $obj;
 }
 
-sub ckParams
+
+sub mkHeader
 {
     my $self = shift ;
-    my $got = shift;
-    
-    $got->setValue('adler32' => 1);
-    return 1 ;
+    return '';
 }
-
 
 sub mkTrailer
 {
     my $self = shift ;
-    return pack("N", *$self->{Compress}->adler32()) ;
+    return '';
 }
 
 sub mkFinalTrailer
 {
     return '';
 }
-
-#sub newHeader
-#{
-#    my $self = shift ;
-#    return *$self->{Header};
-#}
 
 sub getExtraParams
 {
@@ -149,6 +86,7 @@ sub getExtraParams
 
 sub getInverseClass
 {
+    no warnings 'once';
     return ('IO::Uncompress::Inflate',
                 \$IO::Uncompress::Inflate::InflateError);
 }
@@ -158,7 +96,7 @@ sub getFileInfo
     my $self = shift ;
     my $params = shift;
     my $file = shift ;
-    
+
 }
 
 
@@ -178,7 +116,7 @@ IO::Compress::Deflate - Write RFC 1950 files/buffers
     my $status = deflate $input => $output [,OPTS]
         or die "deflate failed: $DeflateError\n";
 
-    my $z = new IO::Compress::Deflate $output [,OPTS]
+    my $z = IO::Compress::Deflate->new( $output [,OPTS] )
         or die "deflate failed: $DeflateError\n";
 
     $z->print($string);
@@ -212,7 +150,6 @@ IO::Compress::Deflate - Write RFC 1950 files/buffers
     binmode $z
     fileno $z
     close $z ;
- 
 
 =head1 DESCRIPTION
 
@@ -239,7 +176,8 @@ The functional interface needs Perl5.005 or better.
 =head2 deflate $input_filename_or_reference => $output_filename_or_reference [, OPTS]
 
 C<deflate> expects at least two parameters,
-C<$input_filename_or_reference> and C<$output_filename_or_reference>.
+C<$input_filename_or_reference> and C<$output_filename_or_reference>
+and zero or more optional parameters (see L</Optional Parameters>)
 
 =head3 The C<$input_filename_or_reference> parameter
 
@@ -252,7 +190,7 @@ It can take one of the following forms:
 
 =item A filename
 
-If the <$input_filename_or_reference> parameter is a simple scalar, it is
+If the C<$input_filename_or_reference> parameter is a simple scalar, it is
 assumed to be a filename. This file will be opened for reading and the
 input data will be read from it.
 
@@ -348,9 +286,9 @@ in C<$output_filename_or_reference> as a concatenated series of compressed data 
 
 =head2 Optional Parameters
 
-Unless specified below, the optional parameters for C<deflate>,
-C<OPTS>, are the same as those used with the OO interface defined in the
-L</"Constructor Options"> section below.
+The optional parameters for the one-shot function C<deflate>
+are (for the most part) identical to those used with the OO interface defined in the
+L</"Constructor Options"> section. The exceptions are listed below
 
 =over 5
 
@@ -418,6 +356,22 @@ Defaults to 0.
 
 =head2 Examples
 
+Here are a few example that show the capabilities of the module.
+
+=head3 Streaming
+
+This very simple command line example demonstrates the streaming capabilities of the module.
+The code reads data from STDIN, compresses it, and writes the compressed data to STDOUT.
+
+    $ echo hello world | perl -MIO::Compress::Deflate=deflate -e 'deflate \*STDIN => \*STDOUT' >output.1950
+
+The special filename "-" can be used as a standin for both C<\*STDIN> and C<\*STDOUT>,
+so the above can be rewritten as
+
+    $ echo hello world | perl -MIO::Compress::Deflate=deflate -e 'deflate "-" => "-"' >output.1950
+
+=head3 Compressing a file from the filesystem
+
 To read the contents of the file C<file1.txt> and write the compressed
 data to the file C<file1.txt.1950>.
 
@@ -429,6 +383,8 @@ data to the file C<file1.txt.1950>.
     deflate $input => "$input.1950"
         or die "deflate failed: $DeflateError\n";
 
+=head3 Reading from a Filehandle and writing to an in-memory buffer
+
 To read from an existing Perl filehandle, C<$input>, and write the
 compressed data to a buffer, C<$buffer>.
 
@@ -437,11 +393,13 @@ compressed data to a buffer, C<$buffer>.
     use IO::Compress::Deflate qw(deflate $DeflateError) ;
     use IO::File ;
 
-    my $input = new IO::File "<file1.txt"
+    my $input = IO::File->new( "<file1.txt" )
         or die "Cannot open 'file1.txt': $!\n" ;
     my $buffer ;
     deflate $input => \$buffer
         or die "deflate failed: $DeflateError\n";
+
+=head3 Compressing multiple files
 
 To compress all files in the directory "/my/home" that match "*.txt"
 and store the compressed data in the same directory
@@ -472,7 +430,7 @@ and if you want to compress each file one at a time, this will do the trick
 
 The format of the constructor for C<IO::Compress::Deflate> is shown below
 
-    my $z = new IO::Compress::Deflate $output [,OPTS]
+    my $z = IO::Compress::Deflate->new( $output [,OPTS] )
         or die "IO::Compress::Deflate failed: $DeflateError\n";
 
 It returns an C<IO::Compress::Deflate> object on success and undef on failure.
@@ -517,7 +475,7 @@ return undef.
 
 =head2 Constructor Options
 
-C<OPTS> is any combination of the following options:
+C<OPTS> is any combination of zero or more the following options:
 
 =over 5
 
@@ -892,6 +850,12 @@ See L<IO::Compress::FAQ|IO::Compress::FAQ/"Apache::GZip Revisited">
 
 See L<IO::Compress::FAQ|IO::Compress::FAQ/"Compressed files and Net::FTP">
 
+=head1 SUPPORT
+
+General feedback/questions/bug reports should be sent to
+L<https://github.com/pmqs/IO-Compress/issues> (preferred) or
+L<https://rt.cpan.org/Public/Dist/Display.html?Name=IO-Compress>.
+
 =head1 SEE ALSO
 
 L<Compress::Zlib>, L<IO::Compress::Gzip>, L<IO::Uncompress::Gunzip>, L<IO::Uncompress::Inflate>, L<IO::Compress::RawDeflate>, L<IO::Uncompress::RawInflate>, L<IO::Compress::Bzip2>, L<IO::Uncompress::Bunzip2>, L<IO::Compress::Lzma>, L<IO::Uncompress::UnLzma>, L<IO::Compress::Xz>, L<IO::Uncompress::UnXz>, L<IO::Compress::Lzip>, L<IO::Uncompress::UnLzip>, L<IO::Compress::Lzop>, L<IO::Uncompress::UnLzop>, L<IO::Compress::Lzf>, L<IO::Uncompress::UnLzf>, L<IO::Compress::Zstd>, L<IO::Uncompress::UnZstd>, L<IO::Uncompress::AnyInflate>, L<IO::Uncompress::AnyUncompress>
@@ -903,15 +867,18 @@ L<Archive::Tar|Archive::Tar>,
 L<IO::Zlib|IO::Zlib>
 
 For RFC 1950, 1951 and 1952 see
-L<http://www.faqs.org/rfcs/rfc1950.html>,
-L<http://www.faqs.org/rfcs/rfc1951.html> and
-L<http://www.faqs.org/rfcs/rfc1952.html>
+L<https://datatracker.ietf.org/doc/html/rfc1950>,
+L<https://datatracker.ietf.org/doc/html/rfc1951> and
+L<https://datatracker.ietf.org/doc/html/rfc1952>
 
 The I<zlib> compression library was written by Jean-loup Gailly
 C<gzip@prep.ai.mit.edu> and Mark Adler C<madler@alumni.caltech.edu>.
 
 The primary site for the I<zlib> compression library is
 L<http://www.zlib.org>.
+
+The primary site for the I<zlib-ng> compression library is
+L<https://github.com/zlib-ng/zlib-ng>.
 
 The primary site for gzip is L<http://www.gzip.org>.
 
@@ -925,8 +892,7 @@ See the Changes file.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (c) 2005-2019 Paul Marquess. All rights reserved.
+Copyright (c) 2005-2023 Paul Marquess. All rights reserved.
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
-

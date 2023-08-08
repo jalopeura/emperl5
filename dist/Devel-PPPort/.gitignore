@@ -11,6 +11,14 @@ pm_to_blib
 /RealPPPort.*
 /ppport.h
 /*.o
+.DS_Store
 PPPort.bs
+/README
+/README.md
+/.travis.yml
 /Devel-PPPort-*.tar.gz
 /Devel-PPPort-*/
+/t/*.t
+!/Makefile.PL
+!/module2.c
+!/module3.c

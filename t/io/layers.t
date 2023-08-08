@@ -19,8 +19,7 @@ BEGIN {
 
 use Config;
 
-my $DOSISH    = $^O =~ /^(?:MSWin32|os2|dos|NetWare)$/ ? 1 : 0;
-   $DOSISH    = 1 if !$DOSISH and $^O =~ /^uwin/;
+my $DOSISH    = $^O =~ /^(?:MSWin32|os2)$/ ? 1 : 0;
 my $NONSTDIO  = exists $ENV{PERLIO} && $ENV{PERLIO} ne 'stdio'     ? 1 : 0;
 my $FASTSTDIO = $Config{d_faststdio} && $Config{usefaststdio}      ? 1 : 0;
 my $UTF8_STDIN;
@@ -35,7 +34,7 @@ if (${^UNICODE} & 1) {
 } else {
     $UTF8_STDIN = 0;
 }
-my $NTEST = 60 - (($DOSISH || !$FASTSTDIO) ? 7 : 0) - ($DOSISH ? 7 : 0)
+my $NTEST = 62 - (($DOSISH || !$FASTSTDIO) ? 7 : 0) - ($DOSISH ? 7 : 0)
     + $UTF8_STDIN;
 
 sub PerlIO::F_UTF8 () { 0x00008000 } # from perliol.h
@@ -191,6 +190,10 @@ __EOH__
     binmode(F);
 
     check([ PerlIO::get_layers(F) ],
+	  [ "stdio" ],
+	  "binmode");
+
+    check([ PerlIO::get_layers(*F{IO}) ],
 	  [ "stdio" ],
 	  "binmode");
 

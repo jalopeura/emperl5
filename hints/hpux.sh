@@ -160,7 +160,7 @@ case `$cc -v 2>&1`"" in
 	    ccversion=`what $cc_found | awk '/Compiler/{print $2}/Itanium/{print $6,$7}/for Integrity/{print $6,$7}'`
 	    case "$ccflags" in
                "-Ae "*) ;;
-		*)  ccflags="-Ae $cc_cppflags"
+		*)  ccflags="-Ae -Wp,-H150000 $cc_cppflags"
 		    # +vnocompatwarnings not known in 10.10 and older
 		    if [ $xxOsRev -ge 1020 ]; then
 			ccflags="$ccflags -Wl,+vnocompatwarnings"
@@ -486,7 +486,7 @@ case "$ccisgcc" in
 			# > cc --version
 			# cc: HP C/aC++ B3910B A.06.15 [May 16 2007]
 			# Has optimizing problems with +O2 for blead (5.17.4),
-			# see https://rt.perl.org:443/rt3/Ticket/Display.html?id=103668.
+			# see https://github.com/Perl/perl5/issues/11748.
 			#
 			# +O2 +Onolimit +Onoprocelim  +Ostore_ordering \
 			# +Onolibcalls=strcmp
@@ -805,13 +805,15 @@ case "$d_oldpthreads" in
 # and it seems to be buggy in HP-UX anyway.
 i_dbm=undef
 
-# In HP-UXes prior to 11.23 strtold() returned a HP-UX
-# specific union called long_double, not a C99 long double.
-case "`grep 'double strtold.const' /usr/include/stdlib.h`" in
-*"long double strtold"*) ;; # strtold should be safe.
-*) echo "Looks like your strtold() is non-standard..." >&4
-   d_strtold=undef ;;
-esac
+if [ "$xxOsRevMajor" -lt 11 ] || [ "$xxOsRevMajor" -eq 11 ] && [ "$xxOsRevMinor" -lt 23 ]; then
+    # In HP-UXes prior to 11.23 strtold() returned a HP-UX
+    # specific union called long_double, not a C99 long double.
+    case "`grep 'double strtold.const' /usr/include/stdlib.h`" in
+        *"long double strtold"*) ;; # strtold should be safe.
+        *) echo "Looks like your strtold() is non-standard..." >&4
+        d_strtold=undef ;;
+    esac
+fi
 
 # In pre-11 HP-UXes there really isn't isfinite(), despite what
 # Configure might think. (There is finite(), though.)
@@ -826,3 +828,7 @@ esac
 # needed, but for now simply undefine them
 d_mbrlen='undef'
 d_mbrtowc='undef'
+# And this one is not know on 11.11 (with HP C-ANSI-C)
+if [ "$xxOsRevMajor" -lt 11 ] || [ "$xxOsRevMinor" -lt 12 ]; then
+d_wcrtomb='undef'
+fi

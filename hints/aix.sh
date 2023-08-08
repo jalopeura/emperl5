@@ -566,7 +566,7 @@ fi
 # * Does not fully support the IEEE special numbers NaN and INF.
 # * Does not support IEEE status flags for overflow, underflow,
 #   and other conditions. These flags have no meaning for the 128-bit
-#   long double inplementation.
+#   long double implementation.
 # * The 128-bit long double data type does not support the following math
 #   APIs: atanhl, cbrtl, copysignl, exp2l, expm1l, fdiml, fmal, fmaxl,
 #   fminl, hypotl, ilogbl, llrintl, llroundl, log1pl, log2l, logbl,
@@ -670,7 +670,7 @@ EOF
            $cc -q64 -qlongdouble -o fmodl$$ fmodl$$.c -lm
            case `./fmodl$$` in
            2147483648)
-             echo "The -q64 did the trick, will use it." >& 4
+             echo "The -q64 did the trick, will use it." >&4
              ccflags="`echo $ccflags | sed -e 's@-q32@@g'`"
              ldflags="`echo $ldflags | sed -e 's@-q32@@g'`"
              ccflags="$ccflags -q64"

@@ -263,7 +263,7 @@ toke_cflags='optimize=-O2'
 esac
 
 # The patch 23787
-# http://perl5.git.perl.org/perl.git/commit/73cb726371990cd489597c4fee405a9815abf4da
+# https://github.com/Perl/perl5/commit/73cb726371990cd489597c4fee405a9815abf4da
 # broke things for gcc (at least gcc 3.3) so that many of the pack()
 # checksum tests for formats L, j, J, especially when combined
 # with the < and > specifiers, started to fail if compiled with plain -O3.
@@ -487,7 +487,7 @@ esac
 for p in $loclibpth
 do
 	if test -d $p; then
-	    echo "Appending $p to LD_LIBRARY_PATH." >& 4
+	    echo "Appending $p to LD_LIBRARY_PATH." >&4
 	    case "$LD_LIBRARY_PATH" in
 	    '') LD_LIBRARY_PATH=$p                  ;;
 	    *)  LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$p ;;
@@ -496,7 +496,7 @@ do
 done
 case "$LD_LIBRARY_PATH" in
 "$old_LD_LIBRARY_PATH") ;;
-*) echo "LD_LIBRARY_PATH is now $LD_LIBRARY_PATH." >& 4 ;;
+*) echo "LD_LIBRARY_PATH is now $LD_LIBRARY_PATH." >&4 ;;
 esac
 case "$LD_LIBRARY_PATH" in
 '') ;;

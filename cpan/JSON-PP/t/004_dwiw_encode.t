@@ -6,12 +6,11 @@
 # Authors: don
 
 use strict;
-use Test;
+use warnings;
+use Test::More tests => 5;
 
 # main
 {
-    BEGIN { plan tests => 5 }
-
     BEGIN { $ENV{PERL_JSON_BACKEND} = 0; }
 
 use JSON::PP;

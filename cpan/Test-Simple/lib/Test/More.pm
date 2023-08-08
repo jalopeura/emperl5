@@ -17,7 +17,7 @@ sub _carp {
     return warn @_, " at $file line $line\n";
 }
 
-our $VERSION = '1.302162';
+our $VERSION = '1.302194';
 
 use Test::Builder::Module;
 our @ISA    = qw(Test::Builder::Module);
@@ -394,8 +394,13 @@ different from some other value:
 
   isnt $obj, $clone, "clone() produces a different object";
 
-For those grammatical pedants out there, there's an C<isn't()>
-function which is an alias of C<isnt()>.
+Historically we supported an C<isn't()> function as an alias of
+C<isnt()>, however in Perl 5.37.9 support for the use of aprostrophe as
+a package separator was deprecated and by Perl 5.42.0 support for it
+will have been removed completely. Accordingly use of C<isn't()> is also
+deprecated, and will produce warnings when used unless 'deprecated'
+warnings are specifically disabled in the scope where it is used. You
+are strongly advised to migrate to using C<isnt()> instead.
 
 =cut
 
@@ -411,8 +416,25 @@ sub isnt ($$;$) {
     return $tb->isnt_eq(@_);
 }
 
-*isn't = \&isnt;
-# ' to unconfuse syntax higlighters
+# Historically it was possible to use apostrophes as a package
+# separator. make this available as isn't() for perl's that support it.
+# However in 5.37.9 the apostrophe as a package separator was
+# deprecated, so warn users of isn't() that they should use isnt()
+# instead. We assume that if they are calling isn::t() they are doing so
+# via isn't() as we have no way to be sure that they aren't spelling it
+# with a double colon. We only trigger the warning if deprecation
+# warnings are enabled, so the user can silence the warning if they
+# wish.
+sub isn::t {
+    local ($@, $!, $?);
+    if (warnings::enabled("deprecated")) {
+        _carp
+        "Use of apostrophe as package separator was deprecated in Perl 5.37.9,\n",
+        "and will be removed in Perl 5.42.0.  You should change code that uses\n",
+        "Test::More::isn't() to use Test::More::isnt() as a replacement";
+    }
+    goto &isnt;
+}
 
 =item B<like>
 
@@ -1402,13 +1424,22 @@ You then know the thing you had todo is done and can remove the
 TODO flag.
 
 The nice part about todo tests, as opposed to simply commenting out a
-block of tests, is it's like having a programmatic todo list.  You know
+block of tests, is that it is like having a programmatic todo list.  You know
 how much work is left to be done, you're aware of what bugs there are,
 and you'll know immediately when they're fixed.
 
 Once a todo test starts succeeding, simply move it outside the block.
 When the block is empty, delete it.
 
+Note that, if you leave $TODO unset or undef, Test::More reports failures
+as normal. This can be useful to mark the tests as expected to fail only
+in certain conditions, e.g.:
+
+    TODO: {
+        local $TODO = "$^O doesn't work yet. :(" if !_os_is_supported($^O);
+
+        ...
+    }
 
 =item B<todo_skip>
 
@@ -1761,8 +1792,8 @@ sub eq_set {
 Sometimes the Test::More interface isn't quite enough.  Fortunately,
 Test::More is built on top of L<Test::Builder> which provides a single,
 unified backend for any test library to use.  This means two test
-libraries which both use <Test::Builder> B<can> be used together in the
-same program>.
+libraries which both use L<Test::Builder> B<can> be used together in the
+same program.
 
 If you simply want to do a little tweaking of how the tests behave,
 you can access the underlying L<Test::Builder> object like so:
@@ -1848,7 +1879,7 @@ might get a "Wide character in print" warning.  Using
 C<< binmode STDOUT, ":utf8" >> will not fix it.
 L<Test::Builder> (which powers
 Test::More) duplicates STDOUT and STDERR.  So any changes to them,
-including changing their output disciplines, will not be seem by
+including changing their output disciplines, will not be seen by
 Test::More.
 
 One work around is to apply encodings to STDOUT and STDERR as early

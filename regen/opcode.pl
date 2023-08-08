@@ -16,29 +16,33 @@
 #
 # This script is normally invoked from regen.pl.
 
-use strict;
+use v5.26;
+use warnings;
+
+sub generate_opcode_h;
+sub generate_opcode_h_epilogue;
+sub generate_opcode_h_prologue;
+sub generate_opcode_h_defines;
+sub generate_opcode_h_opnames;
+sub generate_opcode_h_pl_check;
+sub generate_opcode_h_pl_opargs;
+sub generate_opcode_h_pl_ppaddr;
+
+sub generate_opnames_h;
+sub generate_opnames_h_opcode_enum;
+sub generate_opnames_h_epilogue;
+sub generate_opnames_h_opcode_predicates;
+
+sub generate_pp_proto_h;
+
+sub generate_b_op_private_pm;
+
+my $restrict_to_core = "if defined(PERL_CORE) || defined(PERL_EXT)";
 
 BEGIN {
     # Get function prototypes
     require './regen/regen_lib.pl';
 }
-
-my $oc = open_new('opcode.h', '>',
-		  {by => 'regen/opcode.pl', from => 'its data',
-		   file => 'opcode.h', style => '*',
-		   copyright => [1993 .. 2007]});
-
-my $on = open_new('opnames.h', '>',
-		  { by => 'regen/opcode.pl', from => 'its data', style => '*',
-		    file => 'opnames.h', copyright => [1999 .. 2008] });
-
-my $oprivpm = open_new('lib/B/Op_private.pm', '>',
-		  { by => 'regen/opcode.pl',
-                    from => "data in\nregen/op_private "
-                           ."and pod embedded in regen/opcode.pl",
-                    style => '#',
-		    file => 'lib/B/Op_private.pm',
-                    copyright => [2014 .. 2014] });
 
 # Read 'opcodes' data.
 
@@ -58,7 +62,7 @@ while (<OPS>) {
      if $seen{$desc} and $key !~ "concat|transr|(?:intro|clone)cv|lvref";
     die qq[Opcode "$key" duplicates $seen{$key}\n] if $seen{$key};
     die qq[Opcode "freed" is reserved for the slab allocator\n]
-	if $key eq 'freed';
+        if $key eq 'freed';
     $seen{$desc} = qq[description of opcode "$key"];
     $seen{$key} = qq[opcode "$key"];
 
@@ -71,99 +75,90 @@ while (<OPS>) {
     $args{$key} = $args;
 }
 
-# Set up aliases, and alternative funcs
+# Set up aliases
 
-my (%alias, %alts);
+my %alias;
 
 # Format is "this function" => "does these op names"
 my @raw_alias = (
-		 Perl_do_kv => [qw( keys values )],
-		 Perl_unimplemented_op => [qw(padany custom)],
-		 # All the ops with a body of { return NORMAL; }
-		 Perl_pp_null => [qw(scalar regcmaybe lineseq scope)],
+                 Perl_do_kv => [qw( keys values )],
+                 Perl_unimplemented_op => [qw(padany custom)],
+                 # All the ops with a body of { return NORMAL; }
+                 Perl_pp_null => [qw(scalar regcmaybe lineseq scope)],
 
-		 Perl_pp_goto => ['dump'],
-		 Perl_pp_require => ['dofile'],
-		 Perl_pp_untie => ['dbmclose'],
-		 Perl_pp_sysread => {read => '', recv => '#ifdef HAS_SOCKET'},
-		 Perl_pp_sysseek => ['seek'],
-		 Perl_pp_ioctl => ['fcntl'],
-		 Perl_pp_ssockopt => {gsockopt => '#ifdef HAS_SOCKET'},
-		 Perl_pp_getpeername => {getsockname => '#ifdef HAS_SOCKET'},
-		 Perl_pp_stat => ['lstat'],
-		 Perl_pp_ftrowned => [qw(fteowned ftzero ftsock ftchr ftblk
-					 ftfile ftdir ftpipe ftsuid ftsgid
- 					 ftsvtx)],
-		 Perl_pp_fttext => ['ftbinary'],
-		 Perl_pp_gmtime => ['localtime'],
-		 Perl_pp_semget => [qw(shmget msgget)],
-		 Perl_pp_semctl => [qw(shmctl msgctl)],
-		 Perl_pp_ghostent => [qw(ghbyname ghbyaddr)],
-		 Perl_pp_gnetent => [qw(gnbyname gnbyaddr)],
-		 Perl_pp_gprotoent => [qw(gpbyname gpbynumber)],
-		 Perl_pp_gservent => [qw(gsbyname gsbyport)],
-		 Perl_pp_gpwent => [qw(gpwnam gpwuid)],
-		 Perl_pp_ggrent => [qw(ggrnam ggrgid)],
-		 Perl_pp_ftis => [qw(ftsize ftmtime ftatime ftctime)],
-		 Perl_pp_chown => [qw(unlink chmod utime kill)],
-		 Perl_pp_link => ['symlink'],
-		 Perl_pp_ftrread => [qw(ftrwrite ftrexec fteread ftewrite
- 					fteexec)],
-		 Perl_pp_shmwrite => [qw(shmread msgsnd msgrcv semop)],
-		 Perl_pp_syswrite => {send => '#ifdef HAS_SOCKET'},
-		 Perl_pp_defined => [qw(dor dorassign)],
+                 Perl_pp_goto => ['dump'],
+                 Perl_pp_require => ['dofile'],
+                 Perl_pp_untie => ['dbmclose'],
+                 Perl_pp_sysread => {read => '', recv => '#ifdef HAS_SOCKET'},
+                 Perl_pp_sysseek => ['seek'],
+                 Perl_pp_ioctl => ['fcntl'],
+                 Perl_pp_ssockopt => {gsockopt => '#ifdef HAS_SOCKET'},
+                 Perl_pp_getpeername => {getsockname => '#ifdef HAS_SOCKET'},
+                 Perl_pp_stat => ['lstat'],
+                 Perl_pp_ftrowned => [qw(fteowned ftzero ftsock ftchr ftblk
+                                         ftfile ftdir ftpipe ftsuid ftsgid
+                                         ftsvtx)],
+                 Perl_pp_fttext => ['ftbinary'],
+                 Perl_pp_gmtime => ['localtime'],
+                 Perl_pp_semget => [qw(shmget msgget)],
+                 Perl_pp_semctl => [qw(shmctl msgctl)],
+                 Perl_pp_ghostent => [qw(ghbyname ghbyaddr)],
+                 Perl_pp_gnetent => [qw(gnbyname gnbyaddr)],
+                 Perl_pp_gprotoent => [qw(gpbyname gpbynumber)],
+                 Perl_pp_gservent => [qw(gsbyname gsbyport)],
+                 Perl_pp_gpwent => [qw(gpwnam gpwuid)],
+                 Perl_pp_ggrent => [qw(ggrnam ggrgid)],
+                 Perl_pp_ftis => [qw(ftsize ftmtime ftatime ftctime)],
+                 Perl_pp_chown => [qw(unlink chmod utime kill)],
+                 Perl_pp_link => ['symlink'],
+                 Perl_pp_ftrread => [qw(ftrwrite ftrexec fteread ftewrite
+                                        fteexec)],
+                 Perl_pp_shmwrite => [qw(shmread msgsnd msgrcv semop)],
+                 Perl_pp_syswrite => {send => '#ifdef HAS_SOCKET'},
+                 Perl_pp_defined => [qw(dor dorassign)],
                  Perl_pp_and => ['andassign'],
-		 Perl_pp_or => ['orassign'],
-		 Perl_pp_ucfirst => ['lcfirst'],
-		 Perl_pp_sle => [qw(slt sgt sge)],
-		 Perl_pp_print => ['say'],
-		 Perl_pp_index => ['rindex'],
-		 Perl_pp_oct => ['hex'],
-		 Perl_pp_shift => ['pop'],
-		 Perl_pp_sin => [qw(cos exp log sqrt)],
-		 Perl_pp_bit_or => ['bit_xor'],
-		 Perl_pp_nbit_or => ['nbit_xor'],
-		 Perl_pp_sbit_or => ['sbit_xor'],
-		 Perl_pp_rv2av => ['rv2hv'],
-		 Perl_pp_akeys => ['avalues'],
-		 Perl_pp_trans => [qw(trans transr)],
-		 Perl_pp_chop => [qw(chop chomp)],
-		 Perl_pp_schop => [qw(schop schomp)],
-		 Perl_pp_bind => {connect => '#ifdef HAS_SOCKET'},
-		 Perl_pp_preinc => ['i_preinc'],
-		 Perl_pp_predec => ['i_predec'],
-		 Perl_pp_postinc => ['i_postinc'],
-		 Perl_pp_postdec => ['i_postdec'],
-		 Perl_pp_ehostent => [qw(enetent eprotoent eservent
-					 spwent epwent sgrent egrent)],
-		 Perl_pp_shostent => [qw(snetent sprotoent sservent)],
-		 Perl_pp_aelemfast => ['aelemfast_lex'],
-		 Perl_pp_grepstart => ['mapstart'],
-
-		 # 2 i_modulo mappings: 2nd is alt, needs 1st (explicit default) to not override the default
-		 Perl_pp_i_modulo  => ['i_modulo'],
-		 Perl_pp_i_modulo_glibc_bugfix => {
-                     'i_modulo' =>
-                         '#if defined(__GLIBC__) && IVSIZE == 8 '.
-                         ' && ( __GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ < 8))' },
-		);
+                 Perl_pp_or => ['orassign'],
+                 Perl_pp_ucfirst => ['lcfirst'],
+                 Perl_pp_sle => [qw(slt sgt sge)],
+                 Perl_pp_print => ['say'],
+                 Perl_pp_index => ['rindex'],
+                 Perl_pp_oct => ['hex'],
+                 Perl_pp_shift => ['pop'],
+                 Perl_pp_sin => [qw(cos exp log sqrt)],
+                 Perl_pp_bit_or => ['bit_xor'],
+                 Perl_pp_nbit_or => ['nbit_xor'],
+                 Perl_pp_sbit_or => ['sbit_xor'],
+                 Perl_pp_rv2av => ['rv2hv'],
+                 Perl_pp_akeys => ['avalues'],
+                 Perl_pp_trans => [qw(trans transr)],
+                 Perl_pp_chop => [qw(chop chomp)],
+                 Perl_pp_schop => [qw(schop schomp)],
+                 Perl_pp_bind => {connect => '#ifdef HAS_SOCKET'},
+                 Perl_pp_preinc => ['i_preinc'],
+                 Perl_pp_predec => ['i_predec'],
+                 Perl_pp_postinc => ['i_postinc'],
+                 Perl_pp_postdec => ['i_postdec'],
+                 Perl_pp_ehostent => [qw(enetent eprotoent eservent
+                                         spwent epwent sgrent egrent)],
+                 Perl_pp_shostent => [qw(snetent sprotoent sservent)],
+                 Perl_pp_aelemfast => ['aelemfast_lex'],
+                 Perl_pp_grepstart => ['mapstart'],
+                );
 
 while (my ($func, $names) = splice @raw_alias, 0, 2) {
     if (ref $names eq 'ARRAY') {
-	foreach (@$names) {
-            defined $alias{$_}
-            ? $alts{$_} : $alias{$_} = [$func, ''];
-	}
+        foreach (@$names) {
+            $alias{$_} = [$func, ''];
+        }
     } else {
-	while (my ($opname, $cond) = each %$names) {
-            defined $alias{$opname}
-            ? $alts{$opname} : $alias{$opname} = [$func, $cond];
-	}
+        while (my ($opname, $cond) = each %$names) {
+            $alias{$opname} = [$func, $cond];
+        }
     }
 }
 
 foreach my $sock_func (qw(socket bind listen accept shutdown
-			  ssockopt getpeername)) {
+                          ssockopt getpeername)) {
     $alias{$sock_func} = ["Perl_pp_$sock_func", '#ifdef HAS_SOCKET'],
 }
 
@@ -828,9 +823,7 @@ sub print_PL_op_private_tables {
     print $fh <<EOF;
 START_EXTERN_C
 
-#ifndef PERL_GLOBAL_STRUCT_INIT
-
-#  ifndef DOINIT
+#ifndef DOINIT
 
 /* data about the flags in op_private */
 
@@ -840,7 +833,7 @@ EXTCONST char PL_op_private_labels[];
 EXTCONST I16  PL_op_private_bitfields[];
 EXTCONST U8   PL_op_private_valid[];
 
-#  else
+#else
 
 
 /* PL_op_private_labels[]: the short descriptions of private flags.
@@ -902,8 +895,7 @@ EXTCONST U8 PL_op_private_valid[] = {
 $PL_op_private_valid
 };
 
-#  endif /* !DOINIT */
-#endif /* !PERL_GLOBAL_STRUCT_INIT */
+#endif /* !DOINIT */
 
 END_EXTERN_C
 
@@ -929,350 +921,404 @@ require './regen/op_private';
 #use Data::Dumper;
 #print Dumper \%LABELS, \%DEFINES, \%FLAGS, \%BITFIELDS;
 
-
-# Emit defines.
-
-print $oc    "#ifndef PERL_GLOBAL_STRUCT_INIT\n\n";
-
-{
-    my $last_cond = '';
-    my @unimplemented;
-
-    sub unimplemented {
-	if (@unimplemented) {
-	    print $oc "#else\n";
-	    foreach (@unimplemented) {
-		print $oc "#define $_ Perl_unimplemented_op\n";
-	    }
-	    print $oc "#endif\n";
-	    @unimplemented = ();
-	}
-
-    }
-
-    for (@ops) {
-	my ($impl, $cond) = @{$alias{$_} || ["Perl_pp_$_", '']};
-	my $op_func = "Perl_pp_$_";
-
-	if ($cond ne $last_cond) {
-	    # A change in condition. (including to or from no condition)
-	    unimplemented();
-	    $last_cond = $cond;
-	    if ($last_cond) {
-		print $oc "$last_cond\n";
-	    }
-	}
-	push @unimplemented, $op_func if $last_cond;
-	print $oc "#define $op_func $impl\n" if $impl ne $op_func;
-    }
-    # If the last op was conditional, we need to close it out:
-    unimplemented();
-}
-
-print $on "typedef enum opcode {\n";
-
-my $i = 0;
-for (@ops) {
-      print $on "\t", tab(3,"OP_\U$_"), " = ", $i++, ",\n";
-}
-print $on "\t", tab(3,"OP_max"), "\n";
-print $on "} opcode;\n";
-print $on "\n#define MAXO ", scalar @ops, "\n";
-print $on "#define OP_FREED MAXO\n";
-
-# Emit op names and descriptions.
-
-print $oc <<'END';
-START_EXTERN_C
-
-#ifndef DOINIT
-EXTCONST char* const PL_op_name[];
-#else
-EXTCONST char* const PL_op_name[] = {
-END
-
-for (@ops) {
-    print $oc qq(\t"$_",\n);
-}
-
-print $oc <<'END';
-	"freed",
-};
-#endif
-
-#ifndef DOINIT
-EXTCONST char* const PL_op_desc[];
-#else
-EXTCONST char* const PL_op_desc[] = {
-END
-
-for (@ops) {
-    my($safe_desc) = $desc{$_};
-
-    # Have to escape double quotes and escape characters.
-    $safe_desc =~ s/([\\"])/\\$1/g;
-
-    print $oc qq(\t"$safe_desc",\n);
-}
-
-print $oc <<'END';
-	"freed op",
-};
-#endif
-
-END_EXTERN_C
-
-#endif /* !PERL_GLOBAL_STRUCT_INIT */
-END
-
-# Emit ppcode switch array.
-
-print $oc <<'END';
-
-START_EXTERN_C
-
-#ifdef PERL_GLOBAL_STRUCT_INIT
-#  define PERL_PPADDR_INITED
-static const Perl_ppaddr_t Gppaddr[]
-#elif !defined(PERL_GLOBAL_STRUCT)
-#  define PERL_PPADDR_INITED
-EXT Perl_ppaddr_t PL_ppaddr[] /* or perlvars.h */
-#endif /* PERL_GLOBAL_STRUCT */
-#if (defined(DOINIT) && !defined(PERL_GLOBAL_STRUCT)) || defined(PERL_GLOBAL_STRUCT_INIT)
-#  define PERL_PPADDR_INITED
-= {
-END
-
-for (@ops) {
-    my $op_func = "Perl_pp_$_";
-    my $name = $alias{$_};
-    if ($name && $name->[0] ne $op_func) {
-	print $oc "\t$op_func,\t/* implemented by $name->[0] */\n";
-    }
-    else {
-	print $oc "\t$op_func,\n";
-    }
-}
-
-print $oc <<'END';
-}
-#endif
-#ifdef PERL_PPADDR_INITED
-;
-#endif
-
-#ifdef PERL_GLOBAL_STRUCT_INIT
-#  define PERL_CHECK_INITED
-static const Perl_check_t Gcheck[]
-#elif !defined(PERL_GLOBAL_STRUCT)
-#  define PERL_CHECK_INITED
-EXT Perl_check_t PL_check[] /* or perlvars.h */
-#endif
-#if (defined(DOINIT) && !defined(PERL_GLOBAL_STRUCT)) || defined(PERL_GLOBAL_STRUCT_INIT)
-#  define PERL_CHECK_INITED
-= {
-END
-
-for (@ops) {
-    print $oc "\t", tab(3, "Perl_$check{$_},"), "\t/* $_ */\n";
-}
-
-print $oc <<'END';
-}
-#endif
-#ifdef PERL_CHECK_INITED
-;
-#endif /* #ifdef PERL_CHECK_INITED */
-
-#ifndef PERL_GLOBAL_STRUCT_INIT
-
-#ifndef DOINIT
-EXTCONST U32 PL_opargs[];
-#else
-EXTCONST U32 PL_opargs[] = {
-END
-
 # Emit allowed argument types.
 
 my $ARGBITS = 32;
 
 my %argnum = (
-    'S',  1,		# scalar
-    'L',  2,		# list
-    'A',  3,		# array value
-    'H',  4,		# hash value
-    'C',  5,		# code value
-    'F',  6,		# file value
-    'R',  7,		# scalar reference
+    'S',  1,        # scalar
+    'L',  2,        # list
+    'A',  3,        # array value
+    'H',  4,        # hash value
+    'C',  5,        # code value
+    'F',  6,        # file value
+    'R',  7,        # scalar reference
 );
 
 my %opclass = (
-    '0',  0,		# baseop
-    '1',  1,		# unop
-    '2',  2,		# binop
-    '|',  3,		# logop
-    '@',  4,		# listop
-    '/',  5,		# pmop
-    '$',  6,		# svop_or_padop
-    '#',  7,		# padop
-    '"',  8,		# pvop_or_svop
-    '{',  9,		# loop
-    ';',  10,		# cop
-    '%',  11,		# baseop_or_unop
-    '-',  12,		# filestatop
-    '}',  13,		# loopexop
-    '.',  14,		# methop
-    '+',  15,		# unop_aux
+    '0',  0,        # baseop
+    '1',  1,        # unop
+    '2',  2,        # binop
+    '|',  3,        # logop
+    '@',  4,        # listop
+    '/',  5,        # pmop
+    '$',  6,        # svop_or_padop
+    '#',  7,        # padop
+    '"',  8,        # pvop_or_svop
+    '{',  9,        # loop
+    ';',  10,       # cop
+    '%',  11,       # baseop_or_unop
+    '-',  12,       # filestatop
+    '}',  13,       # loopexop
+    '.',  14,       # methop
+    '+',  15,       # unop_aux
 );
 
 my %opflags = (
-    'm' =>   1,		# needs stack mark
-    'f' =>   2,		# fold constants
-    's' =>   4,		# always produces scalar
-    't' =>   8,		# needs target scalar
-    'T' =>   8 | 16,	# ... which may be lexical
-    'i' =>   0,		# always produces integer (unused since e7311069)
-    'I' =>  32,		# has corresponding int op
-    'd' =>  64,		# danger, make temp copy in list assignment
-    'u' => 128,		# defaults to $_
+    'm' =>   1,     # needs stack mark
+    'f' =>   2,     # fold constants
+    's' =>   4,     # always produces scalar
+    't' =>   8,     # needs target scalar
+    'T' =>   8 | 16,    # ... which may be lexical
+    'i' =>   0,     # always produces integer (unused since e7311069)
+    'I' =>  32,     # has corresponding int op
+    'd' =>  64,     # danger, make temp copy in list assignment
+    'u' => 128,     # defaults to $_
 );
 
-my %OP_IS_SOCKET;	# /Fs/
-my %OP_IS_FILETEST;	# /F-/
-my %OP_IS_FT_ACCESS;	# /F-+/
-my %OP_IS_NUMCOMPARE;	# /S</
-my %OP_IS_DIRHOP;	# /Fd/
-my %OP_IS_INFIX_BIT;	# /S\|/
-
-my $OCSHIFT = 8;
-my $OASHIFT = 12;
-
-for my $op (@ops) {
-    my $argsum = 0;
-    my $flags = $flags{$op};
-    for my $flag (keys %opflags) {
-	if ($flags =~ s/$flag//) {
-	    die "Flag collision for '$op' ($flags{$op}, $flag)\n"
-		if $argsum & $opflags{$flag};
-	    $argsum |= $opflags{$flag};
-	}
-    }
-    die qq[Opcode '$op' has no class indicator ($flags{$op} => $flags)\n]
-	unless exists $opclass{$flags};
-    $argsum |= $opclass{$flags} << $OCSHIFT;
-    my $argshift = $OASHIFT;
-    for my $arg (split(' ',$args{$op})) {
-	if ($arg =~ s/^D//) {
-	    # handle 1st, just to put D 1st.
-	    $OP_IS_DIRHOP{$op}   = $opnum{$op};
-	}
-	if ($arg =~ /^F/) {
-	    # record opnums of these opnames
-	    $OP_IS_SOCKET{$op}   = $opnum{$op} if $arg =~ s/s//;
-	    $OP_IS_FILETEST{$op} = $opnum{$op} if $arg =~ s/-//;
-	    $OP_IS_FT_ACCESS{$op} = $opnum{$op} if $arg =~ s/\+//;
-        }
-	elsif ($arg =~ /^S./) {
-	    $OP_IS_NUMCOMPARE{$op} = $opnum{$op} if $arg =~ s/<//;
-	    $OP_IS_INFIX_BIT {$op} = $opnum{$op} if $arg =~ s/\|//;
-	}
-	my $argnum = ($arg =~ s/\?//) ? 8 : 0;
-        die "op = $op, arg = $arg\n"
-	    unless exists $argnum{$arg};
-	$argnum += $argnum{$arg};
-	die "Argument overflow for '$op'\n"
-	    if $argshift >= $ARGBITS ||
-	       $argnum > ((1 << ($ARGBITS - $argshift)) - 1);
-	$argsum += $argnum << $argshift;
-	$argshift += 4;
-    }
-    $argsum = sprintf("0x%08x", $argsum);
-    print $oc "\t", tab(3, "$argsum,"), "/* $op */\n";
-}
-
-print $oc <<'END';
-};
-#endif
-
-#endif /* !PERL_GLOBAL_STRUCT_INIT */
-
-END_EXTERN_C
-END
-
-# Emit OP_IS_* macros
-
-print $on <<'EO_OP_IS_COMMENT';
-
-/* the OP_IS_* macros are optimized to a simple range check because
-    all the member OPs are contiguous in regen/opcodes table.
-    opcode.pl verifies the range contiguity, or generates an OR-equals
-    expression */
-EO_OP_IS_COMMENT
-
-gen_op_is_macro( \%OP_IS_SOCKET, 'OP_IS_SOCKET');
-gen_op_is_macro( \%OP_IS_FILETEST, 'OP_IS_FILETEST');
-gen_op_is_macro( \%OP_IS_FT_ACCESS, 'OP_IS_FILETEST_ACCESS');
-gen_op_is_macro( \%OP_IS_NUMCOMPARE, 'OP_IS_NUMCOMPARE');
-gen_op_is_macro( \%OP_IS_DIRHOP, 'OP_IS_DIRHOP');
-gen_op_is_macro( \%OP_IS_INFIX_BIT, 'OP_IS_INFIX_BIT');
+generate_opcode_h;
+generate_opnames_h;
+generate_pp_proto_h;
+generate_b_op_private_pm;
 
 sub gen_op_is_macro {
     my ($op_is, $macname) = @_;
     if (keys %$op_is) {
-	
-	# get opnames whose numbers are lowest and highest
-	my ($first, @rest) = sort {
-	    $op_is->{$a} <=> $op_is->{$b}
-	} keys %$op_is;
-	
-	my $last = pop @rest;	# @rest slurped, get its last
-	die "Invalid range of ops: $first .. $last\n" unless $last;
+        
+        # get opnames whose numbers are lowest and highest
+        my ($first, @rest) = sort {
+            $op_is->{$a} <=> $op_is->{$b}
+        } keys %$op_is;
+        
+        my $last = pop @rest;   # @rest slurped, get its last
+        die "Invalid range of ops: $first .. $last\n" unless $last;
 
-	print $on "\n#define $macname(op)	\\\n\t(";
+        print "\n#define $macname(op)   \\\n\t(";
 
-	# verify that op-ct matches 1st..last range (and fencepost)
-	# (we know there are no dups)
-	if ( $op_is->{$last} - $op_is->{$first} == scalar @rest + 1) {
-	    
-	    # contiguous ops -> optimized version
-	    print $on "(op) >= OP_" . uc($first)
-		. " && (op) <= OP_" . uc($last);
-	}
-	else {
-	    print $on join(" || \\\n\t ",
-			   map { "(op) == OP_" . uc() } sort keys %$op_is);
-	}
-	print $on ")\n";
+        # verify that op-ct matches 1st..last range (and fencepost)
+        # (we know there are no dups)
+        if ( $op_is->{$last} - $op_is->{$first} == scalar @rest + 1) {
+            
+            # contiguous ops -> optimized version
+            print "(op) >= OP_" . uc($first)
+                . " && (op) <= OP_" . uc($last);
+        }
+        else {
+            print join(" || \\\n\t ",
+                           map { "(op) == OP_" . uc() } sort keys %$op_is);
+        }
+        print ")\n";
     }
 }
 
-my $pp = open_new('pp_proto.h', '>',
-		  { by => 'opcode.pl', from => 'its data' });
+sub generate_opcode_h {
+    my $oc = open_new( 'opcode.h', '>', {
+        by        => 'regen/opcode.pl',
+        copyright => [1993 .. 2007],
+        file      => 'opcode.h',
+        from      => 'its data',
+        style     => '*',
+    });
 
-{
+    my $old = select $oc;
+
+    generate_opcode_h_prologue;
+    generate_opcode_h_defines;
+    generate_opcode_h_opnames;
+    generate_opcode_h_pl_ppaddr;
+    generate_opcode_h_pl_check;
+    generate_opcode_h_pl_opargs;
+    generate_opcode_h_epilogue;
+
+    select $old;
+}
+
+my @unimplemented;
+sub generate_opcode_h_defines {
+    my $last_cond = '';
+
+    sub unimplemented {
+        if (@unimplemented) {
+            print "#else\n";
+            foreach (@unimplemented) {
+                print "#define $_ Perl_unimplemented_op\n";
+            }
+            print "#endif\n";
+            @unimplemented = ();
+        }
+
+    }
+
+    for (@ops) {
+        my ($impl, $cond) = @{$alias{$_} || ["Perl_pp_$_", '']};
+        my $op_func = "Perl_pp_$_";
+
+        if ($cond ne $last_cond) {
+            # A change in condition. (including to or from no condition)
+            unimplemented();
+            $last_cond = $cond;
+            if ($last_cond) {
+                print "$last_cond\n";
+            }
+        }
+        push @unimplemented, $op_func if $last_cond;
+        print "#define $op_func $impl\n" if $impl ne $op_func;
+    }
+    # If the last op was conditional, we need to close it out:
+    unimplemented();
+
+    print "\n#endif /* End of $restrict_to_core */\n\n";
+}
+
+sub generate_opcode_h_epilogue {
+    print "\n\n";
+    OP_PRIVATE::print_defines(select);
+    OP_PRIVATE::print_PL_op_private_tables(select);
+    read_only_bottom_close_and_rename(select);
+}
+
+sub generate_opcode_h_prologue {
+    print "#$restrict_to_core\n\n";
+}
+
+sub generate_opcode_h_opnames {
+    # Emit op names and descriptions.
+    print <<~'END';
+    START_EXTERN_C
+
+    EXTCONST char* const PL_op_name[] INIT({
+    END
+
+    for (@ops) {
+        print qq(\t"$_",\n);
+    }
+
+    print <<~'END';
+            "freed",
+    });
+
+    EXTCONST char* const PL_op_desc[] INIT({
+    END
+
+    for (@ops) {
+        my($safe_desc) = $desc{$_};
+
+        # Have to escape double quotes and escape characters.
+        $safe_desc =~ s/([\\"])/\\$1/g;
+
+        print qq(\t"$safe_desc",\n);
+    }
+
+    print <<~'END';
+        "freed op",
+    });
+
+    END_EXTERN_C
+    END
+}
+
+sub generate_opcode_h_pl_check {
+    print <<~'END';
+
+    EXT Perl_check_t PL_check[] /* or perlvars.h */
+    INIT({
+    END
+
+    for (@ops) {
+        print "\t", tab(3, "Perl_$check{$_},"), "\t/* $_ */\n";
+    }
+
+    print <<~'END';
+    });
+    END
+}
+
+sub generate_opcode_h_pl_opargs {
+    my $OCSHIFT = 8;
+    my $OASHIFT = 12;
+
+    print <<~'END';
+
+    EXTCONST U32 PL_opargs[] INIT({
+    END
+
+    for my $op (@ops) {
+        my $argsum = 0;
+        my $flags = $flags{$op};
+        for my $flag (keys %opflags) {
+            if ($flags =~ s/$flag//) {
+                die "Flag collision for '$op' ($flags{$op}, $flag)\n"
+                    if $argsum & $opflags{$flag};
+                $argsum |= $opflags{$flag};
+            }
+        }
+        die qq[Opcode '$op' has no class indicator ($flags{$op} => $flags)\n]
+            unless exists $opclass{$flags};
+        $argsum |= $opclass{$flags} << $OCSHIFT;
+        my $argshift = $OASHIFT;
+        for my $arg (split(' ',$args{$op})) {
+            if ($arg =~ s/^D//) {
+                # handle 1st, just to put D 1st.
+            }
+            if ($arg =~ /^F/) {
+                # record opnums of these opnames
+                $arg =~ s/s//;
+                $arg =~ s/-//;
+                $arg =~ s/\+//;
+            } elsif ($arg =~ /^S./) {
+                $arg =~ s/<//;
+                $arg =~ s/\|//;
+            }
+            my $argnum = ($arg =~ s/\?//) ? 8 : 0;
+            die "op = $op, arg = $arg\n"
+                unless exists $argnum{$arg};
+            $argnum += $argnum{$arg};
+            die "Argument overflow for '$op'\n"
+                if $argshift >= $ARGBITS ||
+                $argnum > ((1 << ($ARGBITS - $argshift)) - 1);
+            $argsum += $argnum << $argshift;
+            $argshift += 4;
+        }
+        $argsum = sprintf("0x%08x", $argsum);
+        print "\t", tab(3, "$argsum,"), "/* $op */\n";
+    }
+
+    print <<~'END';
+    });
+
+    END_EXTERN_C
+    END
+}
+
+sub generate_opcode_h_pl_ppaddr {
+    # Emit ppcode switch array.
+
+    print <<~'END';
+
+    START_EXTERN_C
+
+    EXT Perl_ppaddr_t PL_ppaddr[] /* or perlvars.h */
+    INIT({
+    END
+
+    for (@ops) {
+        my $op_func = "Perl_pp_$_";
+        my $name = $alias{$_};
+        if ($name && $name->[0] ne $op_func) {
+            print "\t$op_func,\t/* implemented by $name->[0] */\n";
+        } else {
+            print "\t$op_func,\n";
+        }
+    }
+
+    print <<~'END';
+    });
+    END
+}
+
+sub generate_opnames_h {
+    my $on = open_new('opnames.h', '>', {
+        by => 'regen/opcode.pl',
+        from => 'its data',
+        style => '*',
+        file => 'opnames.h',
+        copyright => [1999 .. 2008],
+    });
+
+    my $old = select $on;
+
+    generate_opnames_h_opcode_enum;
+    generate_opnames_h_opcode_predicates;
+    generate_opnames_h_epilogue;
+
+    select $old;
+}
+
+sub generate_opnames_h_opcode_enum {
+    print "typedef enum opcode {\n";
+
+    my $i = 0;
+    for (@ops) {
+        print "\t", tab(3,"OP_\U$_"), " = ", $i++, ",\n";
+    }
+
+    print "\t", tab(3,"OP_max"), "\n";
+    print "} opcode;\n";
+    print "\n#define MAXO ", scalar @ops, "\n";
+    print "#define OP_FREED MAXO\n";
+}
+
+sub generate_opnames_h_epilogue {
+    read_only_bottom_close_and_rename(select);
+}
+
+sub generate_opnames_h_opcode_predicates {
+    # Emit OP_IS_* macros
+    print <<~'EO_OP_IS_COMMENT';
+
+    /* the OP_IS_* macros are optimized to a simple range check because
+        all the member OPs are contiguous in regen/opcodes table.
+        opcode.pl verifies the range contiguity, or generates an OR-equals
+        expression */
+    EO_OP_IS_COMMENT
+
+    my %OP_IS_SOCKET;                    # /Fs/
+    my %OP_IS_FILETEST;                  # /F-/
+    my %OP_IS_FT_ACCESS;                 # /F-+/
+    my %OP_IS_NUMCOMPARE;                # /S</
+    my %OP_IS_DIRHOP;                    # /Fd/
+    my %OP_IS_INFIX_BIT;                 # /S\|/
+
+    for my $op (@ops) {
+        for my $arg (split(' ',$args{$op})) {
+            if ($arg =~ s/^D//) {
+                # handle 1st, just to put D 1st.
+                $OP_IS_DIRHOP{$op}   = $opnum{$op};
+            }
+            if ($arg =~ /^F/) {
+                # record opnums of these opnames
+                $OP_IS_SOCKET{$op}   = $opnum{$op} if $arg =~ s/s//;
+                $OP_IS_FILETEST{$op} = $opnum{$op} if $arg =~ s/-//;
+                $OP_IS_FT_ACCESS{$op} = $opnum{$op} if $arg =~ s/\+//;
+            } elsif ($arg =~ /^S./) {
+                $OP_IS_NUMCOMPARE{$op} = $opnum{$op} if $arg =~ s/<//;
+                $OP_IS_INFIX_BIT {$op} = $opnum{$op} if $arg =~ s/\|//;
+            }
+        }
+    }
+
+    gen_op_is_macro( \%OP_IS_SOCKET, 'OP_IS_SOCKET');
+    gen_op_is_macro( \%OP_IS_FILETEST, 'OP_IS_FILETEST');
+    gen_op_is_macro( \%OP_IS_FT_ACCESS, 'OP_IS_FILETEST_ACCESS');
+    gen_op_is_macro( \%OP_IS_NUMCOMPARE, 'OP_IS_NUMCOMPARE');
+    gen_op_is_macro( \%OP_IS_DIRHOP, 'OP_IS_DIRHOP');
+    gen_op_is_macro( \%OP_IS_INFIX_BIT, 'OP_IS_INFIX_BIT');
+}
+
+sub generate_pp_proto_h {
+    my $pp = open_new('pp_proto.h', '>', {
+        by => 'opcode.pl',
+        from => 'its data',
+    });
+
+    my $old = select $pp;
+
     my %funcs;
     for (@ops) {
-	my $name = $alias{$_} ? $alias{$_}[0] : "Perl_pp_$_";
-	++$funcs{$name};
+        my $name = $alias{$_} ? $alias{$_}[0] : "pp_$_";
+        $name =~ s/^Perl_//;
+        ++$funcs{$name};
     }
-    print $pp "PERL_CALLCONV OP *$_(pTHX);\n" foreach sort keys %funcs;
 
-    print $pp "\n/* alternative functions */\n" if keys %alts;
-    for my $fn (sort keys %alts) {
-        my ($x, $cond) = @{$alts{$fn}};
-        print $pp "$cond\n" if $cond;
-        print $pp "PERL_CALLCONV OP *$x(pTHX);\n";
-        print $pp "#endif\n" if $cond;
+    for (sort keys %funcs) {
+        print $pp qq{PERL_CALLCONV PP($_) __attribute__visibility__("hidden");\n};
     }
+
+    read_only_bottom_close_and_rename(select);
+
+    select $old;
 }
 
-print $oc "\n\n";
-OP_PRIVATE::print_defines($oc);
-OP_PRIVATE::print_PL_op_private_tables($oc);
+sub generate_b_op_private_pm {
+    my $oprivpm = open_new('lib/B/Op_private.pm', '>', {
+        by          => 'regen/opcode.pl',
+        from        => "data in\nregen/op_private and pod embedded in regen/opcode.pl",
+        style       => '#',
+        file        => 'lib/B/Op_private.pm',
+        copyright   => [2014 .. 2014],
+    });
 
-OP_PRIVATE::print_B_Op_private($oprivpm);
+    OP_PRIVATE::print_B_Op_private($oprivpm);
 
-foreach ($oc, $on, $pp, $oprivpm) {
-    read_only_bottom_close_and_rename($_);
+    read_only_bottom_close_and_rename($oprivpm);
 }
-

@@ -14,7 +14,8 @@ static const struct mro_alg c3_alg =
 =for apidoc mro_get_linear_isa_c3
 
 Returns the C3 linearization of C<@ISA>
-the given stash.  The return value is a read-only AV*.
+the given stash.  The return value is a read-only AV*
+whose values are string SVs giving class names.
 C<level> should be 0 (it is used internally in this
 function's recursion).
 
@@ -63,8 +64,9 @@ S_mro_get_linear_isa_c3(pTHX_ HV* stash, U32 level)
 
     /* For a better idea how the rest of this works, see the much clearer
        pure perl version in Algorithm::C3 0.01:
-       http://search.cpan.org/src/STEVAN/Algorithm-C3-0.01/lib/Algorithm/C3.pm
-       (later versions go about it differently than this code for speed reasons)
+       https://fastapi.metacpan.org/source/STEVAN/Algorithm-C3-0.01/lib/Algorithm/C3.pm
+       (later versions of this module go about it differently than this code
+       for speed reasons)
     */
 
     if(isa && AvFILLp(isa) >= 0) {
@@ -162,16 +164,7 @@ S_mro_get_linear_isa_c3(pTHX_ HV* stash, U32 level)
 		     */
                     HE* const he = hv_fetch_ent(tails, seqitem, 1, 0);
                     if(he) {
-                        SV* const val = HeVAL(he);
-                        /* For 5.8.0 and later, sv_inc() with increment undef to
-			   an IV of 1, which is what we want for a newly created
-			   entry.  However, for 5.6.x it will become an NV of
-			   1.0, which confuses the SvIVX() checks above.  */
-			if(SvIOK(val)) {
-			    SvIV_set(val, SvIVX(val) + 1);
-			} else {
-			    sv_setiv(val, 1);
-			}
+                        sv_inc_nomg(HeVAL(he));
                     }
                 }
             }
@@ -253,13 +246,13 @@ S_mro_get_linear_isa_c3(pTHX_ HV* stash, U32 level)
                hierarchy is not C3-incompatible */
             if(!winner) {
                 SV *errmsg;
-                I32 i;
+                Size_t i;
 
                 errmsg = newSVpvf(
                            "Inconsistent hierarchy during C3 merge of class '%" HEKf "':\n\t"
                             "current merge results [\n",
                             HEKfARG(stashhek));
-                for (i = 0; i <= av_tindex(retval); i++) {
+                for (i = 0; i < av_count(retval); i++) {
                     SV **elem = av_fetch(retval, i, 0);
                     sv_catpvf(errmsg, "\t\t%" SVf ",\n", SVfARG(*elem));
                 }
@@ -512,7 +505,6 @@ mro__nextcan(...)
         cxix = __dopoptosub_at(ccstack, cxix);
         for (;;) {
 	    GV* cvgv;
-	    STRLEN fq_subname_len;
 
             /* we may be in a higher stacklevel, so dig down deeper */
             while (cxix < 0) {
@@ -553,19 +545,14 @@ mro__nextcan(...)
 
 	    if(SvPOK(sv)) {
 		fq_subname = SvPVX(sv);
-		fq_subname_len = SvCUR(sv);
-
-                subname_utf8 = SvUTF8(sv) ? 1 : 0;
 		subname = strrchr(fq_subname, ':');
-	    } else {
-		subname = NULL;
-	    }
-
+            }
             if(!subname)
                 Perl_croak(aTHX_ "next::method/next::can/maybe::next::method cannot find enclosing method");
 
+            subname_utf8 = SvUTF8(sv) ? 1 : 0;
             subname++;
-            subname_len = fq_subname_len - (subname - fq_subname);
+            subname_len = SvCUR(sv) - (subname - fq_subname);
             if(memEQs(subname, subname_len, "__ANON__")) {
                 cxix = __dopoptosub_at(ccstack, cxix - 1);
                 continue;

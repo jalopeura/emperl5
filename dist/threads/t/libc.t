@@ -9,6 +9,9 @@ BEGIN {
         skip_all(q/Perl not compiled with 'useithreads'/);
     }
 
+    # Guard against bugs that result in deadlock
+    watchdog(1 * 60);
+
     plan(11);
 }
 

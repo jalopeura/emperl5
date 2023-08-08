@@ -101,8 +101,20 @@ get_regex_charset(const U32 flags)
 
 /* Mask of the above bits.  These need to be transferred from op_pmflags to
  * re->extflags during compilation */
-#define RXf_PMf_COMPILETIME    (RXf_PMf_MULTILINE|RXf_PMf_SINGLELINE|RXf_PMf_FOLD|RXf_PMf_EXTENDED|RXf_PMf_EXTENDED_MORE|RXf_PMf_KEEPCOPY|RXf_PMf_NOCAPTURE|RXf_PMf_CHARSET|RXf_PMf_STRICT)
-#define RXf_PMf_FLAGCOPYMASK   (RXf_PMf_COMPILETIME|RXf_PMf_SPLIT)
+#define RXf_PMf_COMPILETIME \
+    ( RXf_PMf_MULTILINE     \
+    | RXf_PMf_SINGLELINE    \
+    | RXf_PMf_FOLD          \
+    | RXf_PMf_EXTENDED      \
+    | RXf_PMf_EXTENDED_MORE \
+    | RXf_PMf_KEEPCOPY      \
+    | RXf_PMf_NOCAPTURE     \
+    | RXf_PMf_CHARSET       \
+    | RXf_PMf_STRICT )
+
+#define RXf_PMf_FLAGCOPYMASK    \
+    ( RXf_PMf_COMPILETIME       \
+    | RXf_PMf_SPLIT )
 
 /* Temporary to get Jenkins happy again
  * See thread starting at http://nntp.perl.org/group/perl.perl5.porters/220710
@@ -137,8 +149,8 @@ get_regex_charset(const U32 flags)
  *  directly in the #define because doing so confuses regcomp.pl.
  *  (2**n - 1) is n 1 bits, so the below gets the contiguous bits between the
  *  beginning and ending shifts */
-#if RXf_PMf_COMPILETIME != (((1 << (_RXf_PMf_SHIFT_COMPILETIME))-1) \
-                            & (~((1 << RXf_PMf_STD_PMMOD_SHIFT)-1)))
+#if RXf_PMf_COMPILETIME != ((nBIT_MASK(_RXf_PMf_SHIFT_COMPILETIME)) \
+                        & (~(nBIT_MASK( RXf_PMf_STD_PMMOD_SHIFT))))
 #   error RXf_PMf_COMPILETIME is invalid
 #endif
 

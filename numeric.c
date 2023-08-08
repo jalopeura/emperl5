@@ -16,9 +16,6 @@
  */
 
 /*
-=head1 Numeric functions
-
-=cut
 
 This file contains all the stuff needed by perl for manipulating numeric
 values, including such things as replacements for the OS's atof() function
@@ -66,6 +63,8 @@ S_strtod(pTHX_ const char * const s, char ** e)
 
     result = strtod(s, e);
 
+#  else
+#    error No strtod() equivalent found
 #  endif
 
     RESTORE_LC_NUMERIC();
@@ -88,14 +87,14 @@ It properly handles the locale radix character, meaning it expects a dot except
 when called from within the scope of S<C<use locale>>, in which case the radix
 character should be that specified by the current locale.
 
-The synonym Strod() may be used instead.
+The synonym Strtod() may be used instead.
 
 =cut
 
 */
 
 NV
-my_strtod(const char * const s, char **e)
+Perl_my_strtod(const char * const s, char **e)
 {
     dTHX;
 
@@ -109,14 +108,14 @@ my_strtod(const char * const s, char **e)
 
     {
         NV result;
-        char ** end_ptr = NULL;
+        char * end_ptr;
 
-        *end_ptr = my_atof2(s, &result);
+        end_ptr = my_atof2(s, &result);
         if (e) {
-            *e = *end_ptr;
+            *e = end_ptr;
         }
 
-        if (! *end_ptr) {
+        if (! end_ptr) {
             result = 0.0;
         }
 
@@ -206,24 +205,31 @@ Perl_cast_uv(NV f)
 
 converts a string representing a binary number to numeric form.
 
-On entry C<start> and C<*len> give the string to scan, C<*flags> gives
-conversion flags, and C<result> should be C<NULL> or a pointer to an NV.
-The scan stops at the end of the string, or the first invalid character.
-Unless C<PERL_SCAN_SILENT_ILLDIGIT> is set in C<*flags>, encountering an
-invalid character will also trigger a warning.
-On return C<*len> is set to the length of the scanned string,
-and C<*flags> gives output flags.
+On entry C<start> and C<*len_p> give the string to scan, C<*flags> gives
+conversion flags, and C<result> should be C<NULL> or a pointer to an NV.  The
+scan stops at the end of the string, or at just before the first invalid
+character.  Unless C<PERL_SCAN_SILENT_ILLDIGIT> is set in C<*flags>,
+encountering an invalid character (except NUL) will also trigger a warning.  On
+return C<*len_p> is set to the length of the scanned string, and C<*flags>
+gives output flags.
 
 If the value is <= C<UV_MAX> it is returned as a UV, the output flags are clear,
 and nothing is written to C<*result>.  If the value is > C<UV_MAX>, C<grok_bin>
 returns C<UV_MAX>, sets C<PERL_SCAN_GREATER_THAN_UV_MAX> in the output flags,
-and writes the value to C<*result> (or the value is discarded if C<result>
-is NULL).
+and writes an approximation of the correct value into C<*result> (which is an
+NV; or the approximation is discarded if C<result> is NULL).
 
 The binary number may optionally be prefixed with C<"0b"> or C<"b"> unless
-C<PERL_SCAN_DISALLOW_PREFIX> is set in C<*flags> on entry.  If
-C<PERL_SCAN_ALLOW_UNDERSCORES> is set in C<*flags> then the binary
-number may use C<"_"> characters to separate digits.
+C<PERL_SCAN_DISALLOW_PREFIX> is set in C<*flags> on entry.
+
+If C<PERL_SCAN_ALLOW_UNDERSCORES> is set in C<*flags> then any or all pairs of
+digits may be separated from each other by a single underscore; also a single
+leading underscore is accepted.
+
+=for apidoc Amnh||PERL_SCAN_ALLOW_UNDERSCORES
+=for apidoc Amnh||PERL_SCAN_DISALLOW_PREFIX
+=for apidoc Amnh||PERL_SCAN_GREATER_THAN_UV_MAX
+=for apidoc Amnh||PERL_SCAN_SILENT_ILLDIGIT
 
 =cut
 
@@ -235,93 +241,9 @@ on this platform.
 UV
 Perl_grok_bin(pTHX_ const char *start, STRLEN *len_p, I32 *flags, NV *result)
 {
-    const char *s = start;
-    STRLEN len = *len_p;
-    UV value = 0;
-    NV value_nv = 0;
-
-    const UV max_div_2 = UV_MAX / 2;
-    const bool allow_underscores = cBOOL(*flags & PERL_SCAN_ALLOW_UNDERSCORES);
-    bool overflowed = FALSE;
-    char bit;
-
     PERL_ARGS_ASSERT_GROK_BIN;
 
-    if (!(*flags & PERL_SCAN_DISALLOW_PREFIX)) {
-        /* strip off leading b or 0b.
-           for compatibility silently suffer "b" and "0b" as valid binary
-           numbers. */
-        if (len >= 1) {
-            if (isALPHA_FOLD_EQ(s[0], 'b')) {
-                s++;
-                len--;
-            }
-            else if (len >= 2 && s[0] == '0' && (isALPHA_FOLD_EQ(s[1], 'b'))) {
-                s+=2;
-                len-=2;
-            }
-        }
-    }
-
-    for (; len-- && (bit = *s); s++) {
-        if (bit == '0' || bit == '1') {
-            /* Write it in this wonky order with a goto to attempt to get the
-               compiler to make the common case integer-only loop pretty tight.
-               With gcc seems to be much straighter code than old scan_bin.  */
-          redo:
-            if (!overflowed) {
-                if (value <= max_div_2) {
-                    value = (value << 1) | (bit - '0');
-                    continue;
-                }
-                /* Bah. We're just overflowed.  */
-		/* diag_listed_as: Integer overflow in %s number */
-		Perl_ck_warner_d(aTHX_ packWARN(WARN_OVERFLOW),
-				 "Integer overflow in binary number");
-                overflowed = TRUE;
-                value_nv = (NV) value;
-            }
-            value_nv *= 2.0;
-	    /* If an NV has not enough bits in its mantissa to
-	     * represent a UV this summing of small low-order numbers
-	     * is a waste of time (because the NV cannot preserve
-	     * the low-order bits anyway): we could just remember when
-	     * did we overflow and in the end just multiply value_nv by the
-	     * right amount. */
-            value_nv += (NV)(bit - '0');
-            continue;
-        }
-        if (bit == '_' && len && allow_underscores && (bit = s[1])
-            && (bit == '0' || bit == '1'))
-	    {
-		--len;
-		++s;
-                goto redo;
-	    }
-        if (!(*flags & PERL_SCAN_SILENT_ILLDIGIT))
-            Perl_ck_warner(aTHX_ packWARN(WARN_DIGIT),
-			   "Illegal binary digit '%c' ignored", *s);
-        break;
-    }
-
-    if (   ( overflowed && value_nv > 4294967295.0)
-#if UVSIZE > 4
-	|| (!overflowed && value > 0xffffffff
-	    && ! (*flags & PERL_SCAN_SILENT_NON_PORTABLE))
-#endif
-	) {
-	Perl_ck_warner(aTHX_ packWARN(WARN_PORTABLE),
-		       "Binary number > 0b11111111111111111111111111111111 non-portable");
-    }
-    *len_p = s - start;
-    if (!overflowed) {
-        *flags = 0;
-        return value;
-    }
-    *flags = PERL_SCAN_GREATER_THAN_UV_MAX;
-    if (result)
-        *result = value_nv;
-    return UV_MAX;
+    return grok_bin(start, len_p, flags, result);
 }
 
 /*
@@ -330,119 +252,39 @@ Perl_grok_bin(pTHX_ const char *start, STRLEN *len_p, I32 *flags, NV *result)
 converts a string representing a hex number to numeric form.
 
 On entry C<start> and C<*len_p> give the string to scan, C<*flags> gives
-conversion flags, and C<result> should be C<NULL> or a pointer to an NV.
-The scan stops at the end of the string, or the first invalid character.
-Unless C<PERL_SCAN_SILENT_ILLDIGIT> is set in C<*flags>, encountering an
-invalid character will also trigger a warning.
-On return C<*len> is set to the length of the scanned string,
-and C<*flags> gives output flags.
+conversion flags, and C<result> should be C<NULL> or a pointer to an NV.  The
+scan stops at the end of the string, or at just before the first invalid
+character.  Unless C<PERL_SCAN_SILENT_ILLDIGIT> is set in C<*flags>,
+encountering an invalid character (except NUL) will also trigger a warning.  On
+return C<*len_p> is set to the length of the scanned string, and C<*flags>
+gives output flags.
 
 If the value is <= C<UV_MAX> it is returned as a UV, the output flags are clear,
 and nothing is written to C<*result>.  If the value is > C<UV_MAX>, C<grok_hex>
 returns C<UV_MAX>, sets C<PERL_SCAN_GREATER_THAN_UV_MAX> in the output flags,
-and writes the value to C<*result> (or the value is discarded if C<result>
-is C<NULL>).
+and writes an approximation of the correct value into C<*result> (which is an
+NV; or the approximation is discarded if C<result> is NULL).
 
 The hex number may optionally be prefixed with C<"0x"> or C<"x"> unless
-C<PERL_SCAN_DISALLOW_PREFIX> is set in C<*flags> on entry.  If
-C<PERL_SCAN_ALLOW_UNDERSCORES> is set in C<*flags> then the hex
-number may use C<"_"> characters to separate digits.
+C<PERL_SCAN_DISALLOW_PREFIX> is set in C<*flags> on entry.
+
+If C<PERL_SCAN_ALLOW_UNDERSCORES> is set in C<*flags> then any or all pairs of
+digits may be separated from each other by a single underscore; also a single
+leading underscore is accepted.
 
 =cut
 
-Not documented yet because experimental is C<PERL_SCAN_SILENT_NON_PORTABLE
+Not documented yet because experimental is C<PERL_SCAN_SILENT_NON_PORTABLE>
 which suppresses any message for non-portable numbers, but which are valid
-on this platform.
+on this platform.  But, C<*flags>  will have the corresponding flag bit set.
  */
 
 UV
 Perl_grok_hex(pTHX_ const char *start, STRLEN *len_p, I32 *flags, NV *result)
 {
-    const char *s = start;
-    STRLEN len = *len_p;
-    UV value = 0;
-    NV value_nv = 0;
-    const UV max_div_16 = UV_MAX / 16;
-    const bool allow_underscores = cBOOL(*flags & PERL_SCAN_ALLOW_UNDERSCORES);
-    bool overflowed = FALSE;
-
     PERL_ARGS_ASSERT_GROK_HEX;
 
-    if (!(*flags & PERL_SCAN_DISALLOW_PREFIX)) {
-        /* strip off leading x or 0x.
-           for compatibility silently suffer "x" and "0x" as valid hex numbers.
-        */
-        if (len >= 1) {
-            if (isALPHA_FOLD_EQ(s[0], 'x')) {
-                s++;
-                len--;
-            }
-            else if (len >= 2 && s[0] == '0' && (isALPHA_FOLD_EQ(s[1], 'x'))) {
-                s+=2;
-                len-=2;
-            }
-        }
-    }
-
-    for (; len-- && *s; s++) {
-        if (isXDIGIT(*s)) {
-            /* Write it in this wonky order with a goto to attempt to get the
-               compiler to make the common case integer-only loop pretty tight.
-               With gcc seems to be much straighter code than old scan_hex.  */
-          redo:
-            if (!overflowed) {
-                if (value <= max_div_16) {
-                    value = (value << 4) | XDIGIT_VALUE(*s);
-                    continue;
-                }
-                /* Bah. We're just overflowed.  */
-		/* diag_listed_as: Integer overflow in %s number */
-		Perl_ck_warner_d(aTHX_ packWARN(WARN_OVERFLOW),
-				 "Integer overflow in hexadecimal number");
-                overflowed = TRUE;
-                value_nv = (NV) value;
-            }
-            value_nv *= 16.0;
-	    /* If an NV has not enough bits in its mantissa to
-	     * represent a UV this summing of small low-order numbers
-	     * is a waste of time (because the NV cannot preserve
-	     * the low-order bits anyway): we could just remember when
-	     * did we overflow and in the end just multiply value_nv by the
-	     * right amount of 16-tuples. */
-            value_nv += (NV) XDIGIT_VALUE(*s);
-            continue;
-        }
-        if (*s == '_' && len && allow_underscores && s[1]
-		&& isXDIGIT(s[1]))
-	    {
-		--len;
-		++s;
-                goto redo;
-	    }
-        if (!(*flags & PERL_SCAN_SILENT_ILLDIGIT))
-            Perl_ck_warner(aTHX_ packWARN(WARN_DIGIT),
-                        "Illegal hexadecimal digit '%c' ignored", *s);
-        break;
-    }
-
-    if (   ( overflowed && value_nv > 4294967295.0)
-#if UVSIZE > 4
-	|| (!overflowed && value > 0xffffffff
-	    && ! (*flags & PERL_SCAN_SILENT_NON_PORTABLE))
-#endif
-	) {
-	Perl_ck_warner(aTHX_ packWARN(WARN_PORTABLE),
-		       "Hexadecimal number > 0xffffffff non-portable");
-    }
-    *len_p = s - start;
-    if (!overflowed) {
-        *flags = 0;
-        return value;
-    }
-    *flags = PERL_SCAN_GREATER_THAN_UV_MAX;
-    if (result)
-        *result = value_nv;
-    return UV_MAX;
+    return grok_hex(start, len_p, flags, result);
 }
 
 /*
@@ -450,22 +292,26 @@ Perl_grok_hex(pTHX_ const char *start, STRLEN *len_p, I32 *flags, NV *result)
 
 converts a string representing an octal number to numeric form.
 
-On entry C<start> and C<*len> give the string to scan, C<*flags> gives
-conversion flags, and C<result> should be C<NULL> or a pointer to an NV.
-The scan stops at the end of the string, or the first invalid character.
-Unless C<PERL_SCAN_SILENT_ILLDIGIT> is set in C<*flags>, encountering an
-8 or 9 will also trigger a warning.
-On return C<*len> is set to the length of the scanned string,
-and C<*flags> gives output flags.
+On entry C<start> and C<*len_p> give the string to scan, C<*flags> gives
+conversion flags, and C<result> should be C<NULL> or a pointer to an NV.  The
+scan stops at the end of the string, or at just before the first invalid
+character.  Unless C<PERL_SCAN_SILENT_ILLDIGIT> is set in C<*flags>,
+encountering an invalid character (except NUL) will also trigger a warning.  On
+return C<*len_p> is set to the length of the scanned string, and C<*flags>
+gives output flags.
 
 If the value is <= C<UV_MAX> it is returned as a UV, the output flags are clear,
 and nothing is written to C<*result>.  If the value is > C<UV_MAX>, C<grok_oct>
 returns C<UV_MAX>, sets C<PERL_SCAN_GREATER_THAN_UV_MAX> in the output flags,
-and writes the value to C<*result> (or the value is discarded if C<result>
-is C<NULL>).
+and writes an approximation of the correct value into C<*result> (which is an
+NV; or the approximation is discarded if C<result> is NULL).
 
-If C<PERL_SCAN_ALLOW_UNDERSCORES> is set in C<*flags> then the octal
-number may use C<"_"> characters to separate digits.
+If C<PERL_SCAN_ALLOW_UNDERSCORES> is set in C<*flags> then any or all pairs of
+digits may be separated from each other by a single underscore; also a single
+leading underscore is accepted.
+
+The C<PERL_SCAN_DISALLOW_PREFIX> flag is always treated as being set for
+this function.
 
 =cut
 
@@ -477,76 +323,277 @@ on this platform.
 UV
 Perl_grok_oct(pTHX_ const char *start, STRLEN *len_p, I32 *flags, NV *result)
 {
-    const char *s = start;
-    STRLEN len = *len_p;
-    UV value = 0;
-    NV value_nv = 0;
-    const UV max_div_8 = UV_MAX / 8;
-    const bool allow_underscores = cBOOL(*flags & PERL_SCAN_ALLOW_UNDERSCORES);
-    bool overflowed = FALSE;
-
     PERL_ARGS_ASSERT_GROK_OCT;
 
-    for (; len-- && *s; s++) {
-        if (isOCTAL(*s)) {
+    return grok_oct(start, len_p, flags, result);
+}
+
+STATIC void
+S_output_non_portable(pTHX_ const U8 base)
+{
+    /* Display the proper message for a number in the given input base not
+     * fitting in 32 bits */
+    const char * which = (base == 2)
+                      ? "Binary number > 0b11111111111111111111111111111111"
+                      : (base == 8)
+                        ? "Octal number > 037777777777"
+                        : "Hexadecimal number > 0xffffffff";
+
+    PERL_ARGS_ASSERT_OUTPUT_NON_PORTABLE;
+
+    /* Also there are listings for the other two.  That's because, since they
+     * are the first word, it would be hard for a user to find them there
+     * starting with a %s */
+    /* diag_listed_as: Hexadecimal number > 0xffffffff non-portable */
+    Perl_ck_warner(aTHX_ packWARN(WARN_PORTABLE), "%s non-portable", which);
+}
+
+UV
+Perl_grok_bin_oct_hex(pTHX_ const char *start,
+                        STRLEN *len_p,
+                        I32 *flags,
+                        NV *result,
+                        const unsigned shift, /* 1 for binary; 3 for octal;
+                                                 4 for hex */
+                        const U8 class_bit,
+                        const char prefix
+                     )
+
+{
+    const char *s0 = start;
+    const char *s;
+    STRLEN len = *len_p;
+    STRLEN bytes_so_far;    /* How many real digits have been processed */
+    UV value = 0;
+    NV value_nv = 0;
+    const PERL_UINT_FAST8_T base = 1 << shift;  /* 2, 8, or 16 */
+    const UV max_div= UV_MAX / base;    /* Value above which, the next digit
+                                           processed would overflow */
+    const I32 input_flags = *flags;
+    const bool allow_underscores =
+                                cBOOL(input_flags & PERL_SCAN_ALLOW_UNDERSCORES);
+    bool overflowed = FALSE;
+
+    /* In overflows, this keeps track of how much to multiply the overflowed NV
+     * by as we continue to parse the remaining digits */
+    NV factor = 0;
+
+    /* This function unifies the core of grok_bin, grok_oct, and grok_hex.  It
+     * is optimized for hex conversion.  For example, it uses XDIGIT_VALUE to
+     * find the numeric value of a digit.  That requires more instructions than
+     * OCTAL_VALUE would, but gives the same result for the narrowed range of
+     * octal digits; same for binary.  If it were ever critical to squeeze more
+     * performance from this, the function could become grok_hex, and a regen
+     * perl script could scan it and write out two edited copies for the other
+     * two functions.  That would improve the performance of all three
+     * somewhat.  Besides eliminating XDIGIT_VALUE for the other two, extra
+     * parameters are now passed to this to avoid conditionals.  Those could
+     * become declared consts, like:
+     *      const U8 base = 16;
+     *      const U8 base = 8;
+     *      ...
+     */
+
+    PERL_ARGS_ASSERT_GROK_BIN_OCT_HEX;
+
+    ASSUME(inRANGE(shift, 1, 4) && shift != 2);
+
+    /* Clear output flags; unlikely to find a problem that sets them */
+    *flags = 0;
+
+    if (!(input_flags & PERL_SCAN_DISALLOW_PREFIX)) {
+
+        /* strip off leading b or 0b; x or 0x.
+           for compatibility silently suffer "b" and "0b" as valid binary; "x"
+           and "0x" as valid hex numbers. */
+        if (len >= 1) {
+            if (isALPHA_FOLD_EQ(s0[0], prefix)) {
+                s0++;
+                len--;
+            }
+            else if (len >= 2 && s0[0] == '0' && (isALPHA_FOLD_EQ(s0[1], prefix))) {
+                s0+=2;
+                len-=2;
+            }
+        }
+    }
+
+    s = s0; /* s0 potentially advanced from 'start' */
+
+    /* Unroll the loop so that the first 8 digits are branchless except for the
+     * switch.  A ninth hex one overflows a 32 bit word. */
+    switch (len) {
+      case 0:
+          return 0;
+      default:
+          if (UNLIKELY(! generic_isCC_(*s, class_bit)))  break;
+          value = (value << shift) | XDIGIT_VALUE(*s);
+          s++;
+          /* FALLTHROUGH */
+      case 7:
+          if (UNLIKELY(! generic_isCC_(*s, class_bit)))  break;
+          value = (value << shift) | XDIGIT_VALUE(*s);
+          s++;
+          /* FALLTHROUGH */
+      case 6:
+          if (UNLIKELY(! generic_isCC_(*s, class_bit)))  break;
+          value = (value << shift) | XDIGIT_VALUE(*s);
+          s++;
+          /* FALLTHROUGH */
+      case 5:
+          if (UNLIKELY(! generic_isCC_(*s, class_bit)))  break;
+          value = (value << shift) | XDIGIT_VALUE(*s);
+          s++;
+          /* FALLTHROUGH */
+      case 4:
+          if (UNLIKELY(! generic_isCC_(*s, class_bit)))  break;
+          value = (value << shift) | XDIGIT_VALUE(*s);
+          s++;
+          /* FALLTHROUGH */
+      case 3:
+          if (UNLIKELY(! generic_isCC_(*s, class_bit)))  break;
+          value = (value << shift) | XDIGIT_VALUE(*s);
+          s++;
+          /* FALLTHROUGH */
+      case 2:
+          if (UNLIKELY(! generic_isCC_(*s, class_bit)))  break;
+          value = (value << shift) | XDIGIT_VALUE(*s);
+          s++;
+          /* FALLTHROUGH */
+      case 1:
+          if (UNLIKELY(! generic_isCC_(*s, class_bit)))  break;
+          value = (value << shift) | XDIGIT_VALUE(*s);
+
+          if (LIKELY(len <= 8)) {
+              return value;
+          }
+
+          s++;
+          break;
+    }
+
+    bytes_so_far = s - s0;
+    factor = shift << bytes_so_far;
+    len -= bytes_so_far;
+
+    for (; len--; s++) {
+        if (generic_isCC_(*s, class_bit)) {
             /* Write it in this wonky order with a goto to attempt to get the
                compiler to make the common case integer-only loop pretty tight.
-            */
+               With gcc seems to be much straighter code than old scan_hex.
+               (khw suspects that adding a LIKELY() just above would do the
+               same thing) */
           redo:
-            if (!overflowed) {
-                if (value <= max_div_8) {
-                    value = (value << 3) | OCTAL_VALUE(*s);
-                    continue;
-                }
-                /* Bah. We're just overflowed.  */
-		/* diag_listed_as: Integer overflow in %s number */
-		Perl_ck_warner_d(aTHX_ packWARN(WARN_OVERFLOW),
-			       "Integer overflow in octal number");
-                overflowed = TRUE;
-                value_nv = (NV) value;
+            if (LIKELY(value <= max_div)) {
+                value = (value << shift) | XDIGIT_VALUE(*s);
+                    /* Note XDIGIT_VALUE() is branchless, works on binary
+                     * and octal as well, so can be used here, without
+                     * slowing those down */
+                factor *= 1 << shift;
+                continue;
             }
-            value_nv *= 8.0;
-	    /* If an NV has not enough bits in its mantissa to
-	     * represent a UV this summing of small low-order numbers
-	     * is a waste of time (because the NV cannot preserve
-	     * the low-order bits anyway): we could just remember when
-	     * did we overflow and in the end just multiply value_nv by the
-	     * right amount of 8-tuples. */
-            value_nv += (NV) OCTAL_VALUE(*s);
+
+            /* Bah. We are about to overflow.  Instead, add the unoverflowed
+             * value to an NV that contains an approximation to the correct
+             * value.  Each time through the loop we have increased 'factor' so
+             * that it gives how much the current approximation needs to
+             * effectively be shifted to make room for this new value */
+            value_nv *= factor;
+            value_nv += (NV) value;
+
+            /* Then we keep accumulating digits, until all are parsed.  We
+             * start over using the current input value.  This will be added to
+             * 'value_nv' eventually, either when all digits are gone, or we
+             * have overflowed this fresh start. */
+            value = XDIGIT_VALUE(*s);
+            factor = 1 << shift;
+
+            if (! overflowed) {
+                overflowed = TRUE;
+                if (   ! (input_flags & PERL_SCAN_SILENT_OVERFLOW)
+                    &&    ckWARN_d(WARN_OVERFLOW))
+                {
+                    Perl_warner(aTHX_ packWARN(WARN_OVERFLOW),
+                                       "Integer overflow in %s number",
+                                       (base == 16) ? "hexadecimal"
+                                                    : (base == 2)
+                                                      ? "binary"
+                                                      : "octal");
+                }
+            }
             continue;
         }
-        if (*s == '_' && len && allow_underscores && isOCTAL(s[1])) {
+
+        if (   *s == '_'
+            && len
+            && allow_underscores
+            && generic_isCC_(s[1], class_bit)
+
+                /* Don't allow a leading underscore if the only-medial bit is
+                 * set */
+            && (   LIKELY(s > s0)
+                || UNLIKELY((input_flags & PERL_SCAN_ALLOW_MEDIAL_UNDERSCORES)
+                                        != PERL_SCAN_ALLOW_MEDIAL_UNDERSCORES)))
+        {
             --len;
             ++s;
             goto redo;
         }
-        /* Allow \octal to work the DWIM way (that is, stop scanning
-         * as soon as non-octal characters are seen, complain only if
-         * someone seems to want to use the digits eight and nine.  Since we
-         * know it is not octal, then if isDIGIT, must be an 8 or 9). */
-        if (isDIGIT(*s)) {
-            if (!(*flags & PERL_SCAN_SILENT_ILLDIGIT))
-                Perl_ck_warner(aTHX_ packWARN(WARN_DIGIT),
-			       "Illegal octal digit '%c' ignored", *s);
+
+        if (*s) {
+            if (   ! (input_flags & PERL_SCAN_SILENT_ILLDIGIT)
+                &&    ckWARN(WARN_DIGIT))
+            {
+                if (base != 8) {
+                    Perl_warner(aTHX_ packWARN(WARN_DIGIT),
+                                           "Illegal %s digit '%c' ignored",
+                                           ((base == 2)
+                                            ? "binary"
+                                              : "hexadecimal"),
+                                            *s);
+                }
+                else if (isDIGIT(*s)) { /* octal base */
+
+                    /* Allow \octal to work the DWIM way (that is, stop
+                     * scanning as soon as non-octal characters are seen,
+                     * complain only if someone seems to want to use the digits
+                     * eight and nine.  Since we know it is not octal, then if
+                     * isDIGIT, must be an 8 or 9). */
+                    Perl_warner(aTHX_ packWARN(WARN_DIGIT),
+                                       "Illegal octal digit '%c' ignored", *s);
+                }
+            }
+
+            if (input_flags & PERL_SCAN_NOTIFY_ILLDIGIT) {
+                *flags |= PERL_SCAN_NOTIFY_ILLDIGIT;
+            }
         }
+
         break;
     }
 
-    if (   ( overflowed && value_nv > 4294967295.0)
-#if UVSIZE > 4
-	|| (!overflowed && value > 0xffffffff
-	    && ! (*flags & PERL_SCAN_SILENT_NON_PORTABLE))
-#endif
-	) {
-	Perl_ck_warner(aTHX_ packWARN(WARN_PORTABLE),
-		       "Octal number > 037777777777 non-portable");
-    }
     *len_p = s - start;
-    if (!overflowed) {
-        *flags = 0;
+
+    if (LIKELY(! overflowed)) {
+#if UVSIZE > 4
+        if (      UNLIKELY(value > 0xffffffff)
+            && ! (input_flags & PERL_SCAN_SILENT_NON_PORTABLE))
+        {
+            output_non_portable(base);
+            *flags |= PERL_SCAN_SILENT_NON_PORTABLE;
+        }
+#endif
         return value;
     }
-    *flags = PERL_SCAN_GREATER_THAN_UV_MAX;
+
+    /* Overflowed: Calculate the final overflow approximation */
+    value_nv *= factor;
+    value_nv += (NV) value;
+
+    output_non_portable(base);
+
+    *flags |= PERL_SCAN_GREATER_THAN_UV_MAX
+           |  PERL_SCAN_SILENT_NON_PORTABLE;
     if (result)
         *result = value_nv;
     return UV_MAX;
@@ -676,6 +723,13 @@ If an infinity or a not-a-number is recognized, C<*sp> will point to
 one byte past the end of the recognized string.  If the recognition fails,
 zero is returned, and C<*sp> will not move.
 
+=for apidoc Amnh|bool|IS_NUMBER_GREATER_THAN_UV_MAX
+=for apidoc Amnh|bool|IS_NUMBER_INFINITY
+=for apidoc Amnh|bool|IS_NUMBER_IN_UV
+=for apidoc Amnh|bool|IS_NUMBER_NAN
+=for apidoc Amnh|bool|IS_NUMBER_NEG
+=for apidoc Amnh|bool|IS_NUMBER_NOT_INT
+
 =cut
 */
 
@@ -717,36 +771,29 @@ Perl_grok_infnan(pTHX_ const char** sp, const char* send)
         s++; if (s == send || isALPHA_FOLD_NE(*s, 'N')) return 0;
         s++; if (s == send) return 0;
         if (isALPHA_FOLD_EQ(*s, 'F')) {
-            s++;
+            flags |= IS_NUMBER_INFINITY | IS_NUMBER_NOT_INT;
+            *sp = ++s;
             if (s < send && (isALPHA_FOLD_EQ(*s, 'I'))) {
-                int fail =
-                    flags | IS_NUMBER_INFINITY | IS_NUMBER_NOT_INT | IS_NUMBER_TRAILING;
-                s++; if (s == send || isALPHA_FOLD_NE(*s, 'N')) return fail;
-                s++; if (s == send || isALPHA_FOLD_NE(*s, 'I')) return fail;
-                s++; if (s == send || isALPHA_FOLD_NE(*s, 'T')) return fail;
-                s++; if (s == send || isALPHA_FOLD_NE(*s, 'Y')) return fail;
-                s++;
+                int trail = flags | IS_NUMBER_TRAILING;
+                s++; if (s == send || isALPHA_FOLD_NE(*s, 'N')) return trail;
+                s++; if (s == send || isALPHA_FOLD_NE(*s, 'I')) return trail;
+                s++; if (s == send || isALPHA_FOLD_NE(*s, 'T')) return trail;
+                s++; if (s == send || isALPHA_FOLD_NE(*s, 'Y')) return trail;
+                *sp = ++s;
             } else if (odh) {
-                while (*s == '0') { /* 1.#INF00 */
+                while (s < send && *s == '0') { /* 1.#INF00 */
                     s++;
                 }
             }
-            while (s < send && isSPACE(*s))
-                s++;
-            if (s < send && *s) {
-                flags |= IS_NUMBER_TRAILING;
-            }
-            flags |= IS_NUMBER_INFINITY | IS_NUMBER_NOT_INT;
+            goto ok_check_space;
         }
         else if (isALPHA_FOLD_EQ(*s, 'D') && odh) { /* 1.#IND */
             s++;
             flags |= IS_NUMBER_NAN | IS_NUMBER_NOT_INT;
-            while (*s == '0') { /* 1.#IND00 */
+            while (s < send && *s == '0') { /* 1.#IND00 */
                 s++;
             }
-            if (*s) {
-                flags |= IS_NUMBER_TRAILING;
-            }
+            goto ok_check_space;
         } else
             return 0;
     }
@@ -762,9 +809,12 @@ Perl_grok_infnan(pTHX_ const char** sp, const char* send)
         if (isALPHA_FOLD_EQ(*s, 'N')) {
             s++; if (s == send || isALPHA_FOLD_NE(*s, 'A')) return 0;
             s++; if (s == send || isALPHA_FOLD_NE(*s, 'N')) return 0;
-            s++;
-
             flags |= IS_NUMBER_NAN | IS_NUMBER_NOT_INT;
+            *sp = ++s;
+
+            if (s == send) {
+                return flags;
+            }
 
             /* NaN can be followed by various stuff (NaNQ, NaNS), but
              * there are also multiple different NaN values, and some
@@ -775,22 +825,22 @@ Perl_grok_infnan(pTHX_ const char** sp, const char* send)
                 isALPHA_FOLD_EQ(*s, 's')) {
                 /* "nanq" or "nans" are ok, though generating
                  * these portably is tricky. */
-                s++;
+                *sp = ++s;
+                if (s == send) {
+                    return flags;
+                }
             }
             if (*s == '(') {
                 /* C99 style "nan(123)" or Perlish equivalent "nan($uv)". */
                 const char *t;
+                int trail = flags | IS_NUMBER_TRAILING;
                 s++;
-                if (s == send) {
-                    return flags | IS_NUMBER_TRAILING;
-                }
+                if (s == send) { return trail; }
                 t = s + 1;
                 while (t < send && *t && *t != ')') {
                     t++;
                 }
-                if (t == send) {
-                    return flags | IS_NUMBER_TRAILING;
-                }
+                if (t == send) { return trail; }
                 if (*t == ')') {
                     int nantype;
                     UV nanval;
@@ -829,10 +879,8 @@ Perl_grok_infnan(pTHX_ const char** sp, const char* send)
                          * be "trailing", so we need to double-check
                          * whether we had something dubious. */
                         for (u = s; u < t; u++) {
-                            if (!isDIGIT(*u)) {
-                                flags |= IS_NUMBER_TRAILING;
+                            if (!isDIGIT(*u))
                                 break;
-                            }
                         }
                         s = u;
                     }
@@ -840,80 +888,90 @@ Perl_grok_infnan(pTHX_ const char** sp, const char* send)
                     /* XXX Doesn't do octal: nan("0123").
                      * Probably not a big loss. */
 
+                    /* XXX the nanval is currently unused, that is,
+                     * not inserted as the NaN payload of the NV.
+                     * But the above code already parses the C99
+                     * nan(...)  format.  See below, and see also
+                     * the nan() in POSIX.xs.
+                     *
+                     * Certain configuration combinations where
+                     * NVSIZE is greater than UVSIZE mean that
+                     * a single UV cannot contain all the possible
+                     * NaN payload bits.  There would need to be
+                     * some more generic syntax than "nan($uv)".
+                     *
+                     * Issues to keep in mind:
+                     *
+                     * (1) In most common cases there would
+                     * not be an integral number of bytes that
+                     * could be set, only a certain number of bits.
+                     * For example for the common case of
+                     * NVSIZE == UVSIZE == 8 there is room for 52
+                     * bits in the payload, but the most significant
+                     * bit is commonly reserved for the
+                     * signaling/quiet bit, leaving 51 bits.
+                     * Furthermore, the C99 nan() is supposed
+                     * to generate quiet NaNs, so it is doubtful
+                     * whether it should be able to generate
+                     * signaling NaNs.  For the x86 80-bit doubles
+                     * (if building a long double Perl) there would
+                     * be 62 bits (s/q bit being the 63rd).
+                     *
+                     * (2) Endianness of the payload bits. If the
+                     * payload is specified as an UV, the low-order
+                     * bits of the UV are naturally little-endianed
+                     * (rightmost) bits of the payload.  The endianness
+                     * of UVs and NVs can be different. */
+
                     if ((nantype & IS_NUMBER_NOT_INT) ||
-                        !(nantype && IS_NUMBER_IN_UV)) {
-                        /* XXX the nanval is currently unused, that is,
-                         * not inserted as the NaN payload of the NV.
-                         * But the above code already parses the C99
-                         * nan(...)  format.  See below, and see also
-                         * the nan() in POSIX.xs.
-                         *
-                         * Certain configuration combinations where
-                         * NVSIZE is greater than UVSIZE mean that
-                         * a single UV cannot contain all the possible
-                         * NaN payload bits.  There would need to be
-                         * some more generic syntax than "nan($uv)".
-                         *
-                         * Issues to keep in mind:
-                         *
-                         * (1) In most common cases there would
-                         * not be an integral number of bytes that
-                         * could be set, only a certain number of bits.
-                         * For example for the common case of
-                         * NVSIZE == UVSIZE == 8 there is room for 52
-                         * bits in the payload, but the most significant
-                         * bit is commonly reserved for the
-                         * signaling/quiet bit, leaving 51 bits.
-                         * Furthermore, the C99 nan() is supposed
-                         * to generate quiet NaNs, so it is doubtful
-                         * whether it should be able to generate
-                         * signaling NaNs.  For the x86 80-bit doubles
-                         * (if building a long double Perl) there would
-                         * be 62 bits (s/q bit being the 63rd).
-                         *
-                         * (2) Endianness of the payload bits. If the
-                         * payload is specified as an UV, the low-order
-                         * bits of the UV are naturally little-endianed
-                         * (rightmost) bits of the payload.  The endianness
-                         * of UVs and NVs can be different. */
-                        return 0;
+                        !(nantype & IS_NUMBER_IN_UV)) {
+                        /* treat "NaN(invalid)" the same as "NaNgarbage" */
+                        return trail;
                     }
-                    if (s < t) {
-                        flags |= IS_NUMBER_TRAILING;
+                    else {
+                        /* allow whitespace between valid payload and ')' */
+                        while (s < t && isSPACE(*s))
+                            s++;
+                        /* but on anything else treat the whole '(...)' chunk
+                         * as trailing garbage */
+                        if (s < t)
+                            return trail;
+                        s = t + 1;
+                        goto ok_check_space;
                     }
                 } else {
                     /* Looked like nan(...), but no close paren. */
-                    flags |= IS_NUMBER_TRAILING;
+                    return trail;
                 }
             } else {
-                while (s < send && isSPACE(*s))
-                    s++;
-                if (s < send && *s) {
-                    /* Note that we here implicitly accept (parse as
-                     * "nan", but with warnings) also any other weird
-                     * trailing stuff for "nan".  In the above we just
-                     * check that if we got the C99-style "nan(...)",
-                     * the "..."  looks sane.
-                     * If in future we accept more ways of specifying
-                     * the nan payload, the accepting would happen around
-                     * here. */
-                    flags |= IS_NUMBER_TRAILING;
-                }
+                /* Note that we here implicitly accept (parse as
+                 * "nan", but with warnings) also any other weird
+                 * trailing stuff for "nan".  In the above we just
+                 * check that if we got the C99-style "nan(...)",
+                 * the "..."  looks sane.
+                 * If in future we accept more ways of specifying
+                 * the nan payload, the accepting would happen around
+                 * here. */
+                goto ok_check_space;
             }
-            s = send;
         }
         else
             return 0;
     }
+    NOT_REACHED; /* NOTREACHED */
 
+    /* We parsed something valid, s points after it, flags describes it */
+  ok_check_space:
     while (s < send && isSPACE(*s))
         s++;
+    *sp = s;
+    return flags | (s < send ? IS_NUMBER_TRAILING : 0);
 
 #else
     PERL_UNUSED_ARG(send);
-#endif /* #if defined(NV_INF) || defined(NV_NAN) */
     *sp = s;
     return flags;
+#endif /* #if defined(NV_INF) || defined(NV_NAN) */
 }
 
 /*
@@ -934,12 +992,14 @@ C<valuep> is non-C<NULL>, but no actual assignment (or SEGV) will occur.
 C<IS_NUMBER_NOT_INT> will be set with C<IS_NUMBER_IN_UV> if trailing decimals were
 seen (in which case C<*valuep> gives the true value truncated to an integer), and
 C<IS_NUMBER_NEG> if the number is negative (in which case C<*valuep> holds the
-absolute value).  C<IS_NUMBER_IN_UV> is not set if e notation was used or the
+absolute value).  C<IS_NUMBER_IN_UV> is not set if C<e> notation was used or the
 number is larger than a UV.
 
 C<flags> allows only C<PERL_SCAN_TRAILING>, which allows for trailing
 non-numeric text on an otherwise successful I<grok>, setting
 C<IS_NUMBER_TRAILING> on the result.
+
+=for apidoc Amnh||PERL_SCAN_TRAILING
 
 =for apidoc grok_number
 
@@ -968,109 +1028,153 @@ Perl_grok_number_flags(pTHX_ const char *pv, STRLEN len, UV *valuep, U32 flags)
 
   PERL_ARGS_ASSERT_GROK_NUMBER_FLAGS;
 
-  while (s < send && isSPACE(*s))
-    s++;
-  if (s == send) {
-    return 0;
-  } else if (*s == '-') {
-    s++;
-    numtype = IS_NUMBER_NEG;
+  if (UNLIKELY(isSPACE(*s))) {
+      s++;
+      while (s < send) {
+        if (LIKELY(! isSPACE(*s))) goto non_space;
+        s++;
+      }
+      return 0;
+    non_space: ;
   }
-  else if (*s == '+')
-    s++;
 
-  if (s == send)
-    return 0;
+  /* See if signed.  This assumes it is more likely to be unsigned, so
+   * penalizes signed by an extra conditional; rewarding unsigned by one fewer
+   * (because we detect '+' and '-' with a single test and then add a
+   * conditional to determine which) */
+  if (UNLIKELY((*s & ~('+' ^ '-')) == ('+' & '-') )) {
+
+    /* Here, on ASCII platforms, *s is one of: 0x29 = ')', 2B = '+', 2D = '-',
+     * 2F = '/'.  That is, it is either a sign, or a character that doesn't
+     * belong in a number at all (unless it's a radix character in a weird
+     * locale).  Given this, it's far more likely to be a minus than the
+     * others.  (On EBCDIC it is one of 42, 44, 46, 48, 4A, 4C, 4E,  (not 40
+     * because can't be a space)    60, 62, 64, 66, 68, 6A, 6C, 6E.  Again,
+     * only potentially a weird radix character, or 4E='+', or 60='-') */
+    if (LIKELY(*s == '-')) {
+        s++;
+        numtype = IS_NUMBER_NEG;
+    }
+    else if (LIKELY(*s == '+'))
+        s++;
+    else  /* Can't just return failure here, as it could be a weird radix
+             character */
+        goto done_sign;
+
+    if (UNLIKELY(s == send))
+        return 0;
+  done_sign: ;
+    }
 
   /* The first digit (after optional sign): note that might
    * also point to "infinity" or "nan", or "1.#INF". */
   d = s;
 
   /* next must be digit or the radix separator or beginning of infinity/nan */
-  if (isDIGIT(*s)) {
+  if (LIKELY(isDIGIT(*s))) {
     /* UVs are at least 32 bits, so the first 9 decimal digits cannot
        overflow.  */
-    UV value = *s - '0';
-    /* This construction seems to be more optimiser friendly.
-       (without it gcc does the isDIGIT test and the *s - '0' separately)
-       With it gcc on arm is managing 6 instructions (6 cycles) per digit.
-       In theory the optimiser could deduce how far to unroll the loop
-       before checking for overflow.  */
-    if (++s < send) {
-      int digit = *s - '0';
-      if (inRANGE(digit, 0, 9)) {
+    UV value = *s - '0';    /* Process this first (perhaps only) digit */
+    int digit;
+
+    s++;
+
+    switch(send - s) {
+      default:      /* 8 or more remaining characters */
+        digit = *s - '0';
+        if (UNLIKELY(! inRANGE(digit, 0, 9))) break;
         value = value * 10 + digit;
-        if (++s < send) {
-          digit = *s - '0';
-          if (inRANGE(digit, 0, 9)) {
-            value = value * 10 + digit;
-            if (++s < send) {
-              digit = *s - '0';
-              if (inRANGE(digit, 0, 9)) {
+        s++;
+        /* FALLTHROUGH */
+      case 7:
+        digit = *s - '0';
+        if (UNLIKELY(! inRANGE(digit, 0, 9))) break;
+        value = value * 10 + digit;
+        s++;
+        /* FALLTHROUGH */
+      case 6:
+        digit = *s - '0';
+        if (UNLIKELY(! inRANGE(digit, 0, 9))) break;
+        value = value * 10 + digit;
+        s++;
+        /* FALLTHROUGH */
+      case 5:
+        digit = *s - '0';
+        if (UNLIKELY(! inRANGE(digit, 0, 9))) break;
+        value = value * 10 + digit;
+        s++;
+        /* FALLTHROUGH */
+      case 4:
+        digit = *s - '0';
+        if (UNLIKELY(! inRANGE(digit, 0, 9))) break;
+        value = value * 10 + digit;
+        s++;
+        /* FALLTHROUGH */
+      case 3:
+        digit = *s - '0';
+        if (UNLIKELY(! inRANGE(digit, 0, 9))) break;
+        value = value * 10 + digit;
+        s++;
+        /* FALLTHROUGH */
+      case 2:
+        digit = *s - '0';
+        if (UNLIKELY(! inRANGE(digit, 0, 9))) break;
+        value = value * 10 + digit;
+        s++;
+        /* FALLTHROUGH */
+      case 1:
+        digit = *s - '0';
+        if (UNLIKELY(! inRANGE(digit, 0, 9))) break;
+        value = value * 10 + digit;
+        s++;
+        /* FALLTHROUGH */
+      case 0:       /* This case means the string consists of just the one
+                       digit we already have processed */
+
+        /* If we got here by falling through other than the default: case, we
+         * have processed the whole string, and know it consists entirely of
+         * digits, and can't have overflowed. */
+        if (s >= send) {
+            if (valuep)
+              *valuep = value;
+            return numtype|IS_NUMBER_IN_UV;
+        }
+
+        /* Here, there are extra characters beyond the first 9 digits.  Use a
+         * loop to accumulate any remaining digits, until we get a non-digit or
+         * would overflow.  Note that leading zeros could cause us to get here
+         * without being close to overflowing.
+         *
+         * (The conditional 's >= send' above could be eliminated by making the
+         * default: in the switch to instead be 'case 8:', and process longer
+         * strings separately by using the loop below.  This would penalize
+         * these inputs by the extra instructions needed for looping.  That
+         * could be eliminated by copying the unwound code from above to handle
+         * the firt 9 digits of these.  khw didn't think this saving of a
+         * single conditional was worth it.) */
+        do {
+            digit = *s - '0';
+            if (! inRANGE(digit, 0, 9)) goto mantissa_done;
+            if (       value < uv_max_div_10
+                || (   value == uv_max_div_10
+                    && digit <= uv_max_mod_10))
+            {
                 value = value * 10 + digit;
-		if (++s < send) {
-                  digit = *s - '0';
-                  if (inRANGE(digit, 0, 9)) {
-                    value = value * 10 + digit;
-                    if (++s < send) {
-                      digit = *s - '0';
-                      if (inRANGE(digit, 0, 9)) {
-                        value = value * 10 + digit;
-                        if (++s < send) {
-                          digit = *s - '0';
-                          if (inRANGE(digit, 0, 9)) {
-                            value = value * 10 + digit;
-                            if (++s < send) {
-                              digit = *s - '0';
-                              if (inRANGE(digit, 0, 9)) {
-                                value = value * 10 + digit;
-                                if (++s < send) {
-                                  digit = *s - '0';
-                                  if (inRANGE(digit, 0, 9)) {
-                                    value = value * 10 + digit;
-                                    if (++s < send) {
-                                      /* Now got 9 digits, so need to check
-                                         each time for overflow.  */
-                                      digit = *s - '0';
-                                      while (    inRANGE(digit, 0, 9)
-                                             && (value < uv_max_div_10
-                                                 || (value == uv_max_div_10
-                                                     && digit <= uv_max_mod_10))) {
-                                        value = value * 10 + digit;
-                                        if (++s < send)
-                                          digit = *s - '0';
-                                        else
-                                          break;
-                                      }
-                                      if (inRANGE(digit, 0, 9)
-                                          && (s < send)) {
-                                        /* value overflowed.
-                                           skip the remaining digits, don't
-                                           worry about setting *valuep.  */
-                                        do {
-                                          s++;
-                                        } while (s < send && isDIGIT(*s));
-                                        numtype |=
-                                          IS_NUMBER_GREATER_THAN_UV_MAX;
-                                        goto skip_value;
-                                      }
-                                    }
-                                  }
-				}
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
+                s++;
             }
-          }
-	}
-      }
-    }
+            else { /* value would overflow.  skip the remaining digits, don't
+                      worry about setting *valuep.  */
+                do {
+                    s++;
+                } while (s < send && isDIGIT(*s));
+                numtype |=
+                    IS_NUMBER_GREATER_THAN_UV_MAX;
+                goto skip_value;
+            }
+        } while (s < send);
+    }   /* End switch on input length */
+
+  mantissa_done:
     numtype |= IS_NUMBER_IN_UV;
     if (valuep)
       *valuep = value;
@@ -1081,7 +1185,7 @@ Perl_grok_number_flags(pTHX_ const char *pv, STRLEN len, UV *valuep, U32 flags)
       while (s < send && isDIGIT(*s))  /* optional digits after the radix */
         s++;
     }
-  }
+  } /* End of *s is a digit */
   else if (GROK_NUMERIC_RADIX(&s, send)) {
     numtype |= IS_NUMBER_NOT_INT | IS_NUMBER_IN_UV; /* valuep assigned below */
     /* no digits before the radix means we need digits after it */
@@ -1098,9 +1202,9 @@ Perl_grok_number_flags(pTHX_ const char *pv, STRLEN len, UV *valuep, U32 flags)
         return 0;
   }
 
-  if (s > d && s < send) {
+  if (LIKELY(s > d) && s < send) {
     /* we can have an optional exponent part */
-    if (isALPHA_FOLD_EQ(*s, 'e')) {
+    if (UNLIKELY(isALPHA_FOLD_EQ(*s, 'e'))) {
       s++;
       if (s < send && (*s == '-' || *s == '+'))
         s++;
@@ -1119,20 +1223,30 @@ Perl_grok_number_flags(pTHX_ const char *pv, STRLEN len, UV *valuep, U32 flags)
       numtype |= IS_NUMBER_NOT_INT;
     }
   }
-  while (s < send && isSPACE(*s))
+
+  while (s < send) {
+    if (LIKELY(! isSPACE(*s))) goto end_space;
     s++;
-  if (s >= send)
-    return numtype;
-  if (memEQs(pv, len, "0 but true")) {
+  }
+  return numtype;
+
+ end_space:
+
+  if (UNLIKELY(memEQs(pv, len, "0 but true"))) {
     if (valuep)
       *valuep = 0;
     return IS_NUMBER_IN_UV;
   }
+
   /* We could be e.g. at "Inf" or "NaN", or at the "#" of "1.#INF". */
-  if ((s + 2 < send) && strchr("inqs#", toFOLD(*s))) {
+  if ((s + 2 < send) && UNLIKELY(memCHRs("inqs#", toFOLD(*s)))) {
       /* Really detect inf/nan. Start at d, not s, since the above
        * code might have already consumed the "1." or "1". */
       const int infnan = Perl_grok_infnan(aTHX_ &d, send);
+
+      if ((infnan & IS_NUMBER_TRAILING) && !(flags & PERL_SCAN_TRAILING)) {
+          return 0;
+      }
       if ((infnan & IS_NUMBER_INFINITY)) {
           return (numtype | infnan); /* Keep sign for infinity. */
       }
@@ -1163,10 +1277,11 @@ no leading zeros).  Otherwise it returns TRUE, and sets C<*valptr> to that
 value.
 
 If you constrain the portion of C<pv> that is looked at by this function (by
-passing a non-NULL C<endptr>), and if the intial bytes of that portion form a
+passing a non-NULL C<endptr>), and if the initial bytes of that portion form a
 valid value, it will return TRUE, setting C<*endptr> to the byte following the
 final digit of the value.  But if there is no constraint at what's looked at,
-all of C<pv> must be valid in order for TRUE to be returned.
+all of C<pv> must be valid in order for TRUE to be returned.  C<*endptr> is
+unchanged from its value on input if FALSE is returned;
 
 The only characters this accepts are the decimal digits '0'..'9'.
 
@@ -1254,9 +1369,9 @@ S_mulexp10(NV value, I32 exponent)
     I32 bit;
 
     if (exponent == 0)
-	return value;
+        return value;
     if (value == 0)
-	return (NV)0;
+        return (NV)0;
 
     /* On OpenVMS VAX we by default use the D_FLOAT double format,
      * and that format does not have *easy* capabilities [1] for
@@ -1280,24 +1395,24 @@ S_mulexp10(NV value, I32 exponent)
 
 #if ((defined(VMS) && !defined(_IEEE_FP)) || defined(_UNICOS) || defined(DOUBLE_IS_VAX_FLOAT)) && defined(NV_MAX_10_EXP)
     STMT_START {
-	const NV exp_v = log10(value);
-	if (exponent >= NV_MAX_10_EXP || exponent + exp_v >= NV_MAX_10_EXP)
-	    return NV_MAX;
-	if (exponent < 0) {
-	    if (-(exponent + exp_v) >= NV_MAX_10_EXP)
-		return 0.0;
-	    while (-exponent >= NV_MAX_10_EXP) {
-		/* combination does not overflow, but 10^(-exponent) does */
-		value /= 10;
-		++exponent;
-	    }
-	}
+        const NV exp_v = log10(value);
+        if (exponent >= NV_MAX_10_EXP || exponent + exp_v >= NV_MAX_10_EXP)
+            return NV_MAX;
+        if (exponent < 0) {
+            if (-(exponent + exp_v) >= NV_MAX_10_EXP)
+                return 0.0;
+            while (-exponent >= NV_MAX_10_EXP) {
+                /* combination does not overflow, but 10^(-exponent) does */
+                value /= 10;
+                ++exponent;
+            }
+        }
     } STMT_END;
 #endif
 
     if (exponent < 0) {
-	negative = 1;
-	exponent = -exponent;
+        negative = 1;
+        exponent = -exponent;
 #ifdef NV_MAX_10_EXP
         /* for something like 1234 x 10^-309, the action of calculating
          * the intermediate value 10^309 then returning 1234 / (10^309)
@@ -1320,9 +1435,9 @@ S_mulexp10(NV value, I32 exponent)
 #  define FP_OVERFLOWS_TO_ZERO
 #endif
     for (bit = 1; exponent; bit <<= 1) {
-	if (exponent & bit) {
-	    exponent ^= bit;
-	    result *= power;
+        if (exponent & bit) {
+            exponent ^= bit;
+            result *= power;
 #ifdef FP_OVERFLOWS_TO_ZERO
             if (result == 0)
 # ifdef NV_INF
@@ -1331,12 +1446,12 @@ S_mulexp10(NV value, I32 exponent)
                 return value < 0 ? -FLT_MAX : FLT_MAX;
 # endif
 #endif
-	    /* Floating point exceptions are supposed to be turned off,
-	     *  but if we're obviously done, don't risk another iteration.
-	     */
-	     if (exponent == 0) break;
-	}
-	power *= power;
+            /* Floating point exceptions are supposed to be turned off,
+             *  but if we're obviously done, don't risk another iteration.
+             */
+             if (exponent == 0) break;
+        }
+        power *= power;
     }
     return negative ? value / result : value * result;
 }
@@ -1351,7 +1466,18 @@ S_mulexp10(NV value, I32 exponent)
 NV
 Perl_my_atof(pTHX_ const char* s)
 {
-    /* 's' must be NUL terminated */
+
+/*
+=for apidoc my_atof
+
+L<C<atof>(3)>, but properly works with Perl locale handling, accepting a dot
+radix character always, but also the current locale's radix character if and
+only if called from within the lexical scope of a Perl C<use locale> statement.
+
+N.B. C<s> must be NUL terminated.
+
+=cut
+*/
 
     NV x = 0.0;
 
@@ -1366,7 +1492,7 @@ Perl_my_atof(pTHX_ const char* s)
     {
         DECLARATION_FOR_LC_NUMERIC_MANIPULATION;
         STORE_LC_NUMERIC_SET_TO_NEEDED();
-        if (! (PL_numeric_radix_sv && IN_LC(LC_NUMERIC))) {
+        if (! IN_LC(LC_NUMERIC)) {
             ATOF(s,x);
         }
         else {
@@ -1406,16 +1532,15 @@ Perl_my_atof(pTHX_ const char* s)
 
 #if defined(NV_INF) || defined(NV_NAN)
 
-#ifdef USING_MSVC6
-#  pragma warning(push)
-#  pragma warning(disable:4756;disable:4056)
-#endif
 static char*
 S_my_atof_infnan(pTHX_ const char* s, bool negative, const char* send, NV* value)
 {
     const char *p0 = negative ? s - 1 : s;
     const char *p = p0;
     const int infnan = grok_infnan(&p, send);
+    /* We act like PERL_SCAN_TRAILING here to permit trailing garbage,
+     * it is not clear if that is desirable.
+     */
     if (infnan && p != p0) {
         /* If we can generate inf/nan directly, let's do so. */
 #ifdef NV_INF
@@ -1487,9 +1612,6 @@ S_my_atof_infnan(pTHX_ const char* s, bool negative, const char* send, NV* value
     }
     return NULL;
 }
-#ifdef USING_MSVC6
-#  pragma warning(pop)
-#endif
 
 #endif /* if defined(NV_INF) || defined(NV_NAN) */
 
@@ -1509,9 +1631,9 @@ Perl_my_atof3(pTHX_ const char* orig, NV* value, const STRLEN len)
     const char* send = s + ((len != 0)
                            ? len
                            : strlen(orig)); /* one past the last */
-    bool negative = 0;
 #endif
 #if defined(USE_PERL_ATOF) && !defined(Perl_strtod)
+    bool negative = 0;
     UV accumulator[2] = {0,0};	/* before/after dp */
     bool seen_digit = 0;
     I32 exp_adjust[2] = {0,0};
@@ -1529,15 +1651,25 @@ Perl_my_atof3(pTHX_ const char* orig, NV* value, const STRLEN len)
 
     /* leading whitespace */
     while (s < send && isSPACE(*s))
-	++s;
+        ++s;
+
+#  if defined(NV_INF) || defined(NV_NAN)
+    {
+        char* endp;
+        if ((endp = S_my_atof_infnan(aTHX_ s, FALSE, send, value)))
+            return endp;
+    }
+#  endif
 
     /* sign */
     switch (*s) {
-	case '-':
-	    negative = 1;
-	    /* FALLTHROUGH */
-	case '+':
-	    ++s;
+        case '-':
+#  if !defined(Perl_strtod)
+            negative = 1;
+#  endif
+            /* FALLTHROUGH */
+        case '+':
+            ++s;
     }
 #endif
 
@@ -1546,8 +1678,19 @@ Perl_my_atof3(pTHX_ const char* orig, NV* value, const STRLEN len)
         char* endp;
         char* copy = NULL;
 
-        if ((endp = S_my_atof_infnan(aTHX_ s, negative, send, value)))
-            return endp;
+        /* strtold() accepts 0x-prefixed hex and in POSIX implementations,
+           0b-prefixed binary numbers, which is backward incompatible
+        */
+        if ((len == 0 || len - (s-orig) >= 2) && *s == '0' &&
+            (isALPHA_FOLD_EQ(s[1], 'x') || isALPHA_FOLD_EQ(s[1], 'b'))) {
+            *value = 0;
+            return (char *)s+1;
+        }
+
+        /* We do not want strtod to parse whitespace after the sign, since
+         * that would give backward-incompatible results. So we rewind and
+         * let strtod handle the whitespace and sign character itself. */
+        s = orig;
 
         /* If the length is passed in, the input string isn't NUL-terminated,
          * and in it turns out the function below assumes it is; therefore we
@@ -1556,7 +1699,7 @@ Perl_my_atof3(pTHX_ const char* orig, NV* value, const STRLEN len)
             Newx(copy, len + 1, char);
             Copy(orig, copy, len, char);
             copy[len] = '\0';
-            s = copy + (s - orig);
+            s = copy;
         }
 
         result[2] = S_strtod(aTHX_ s, &endp);
@@ -1570,7 +1713,8 @@ Perl_my_atof3(pTHX_ const char* orig, NV* value, const STRLEN len)
         }
 
         if (s != endp) {
-            *value = negative ? -result[2] : result[2];
+            /* Note that negation is handled by strtod. */
+            *value = result[2];
             return endp;
         }
         return NULL;
@@ -1594,135 +1738,133 @@ Perl_my_atof3(pTHX_ const char* orig, NV* value, const STRLEN len)
  * both the first and last digit, since neither can hold all values from
  * 0..9; but for calculating the value we must examine those two digits.
  */
-#ifdef MAX_SIG_DIG_PLUS
+#  ifdef MAX_SIG_DIG_PLUS
     /* It is not necessarily the case that adding 2 to NV_DIG gets all the
        possible digits in a NV, especially if NVs are not IEEE compliant
        (e.g., long doubles on IRIX) - Allen <allens@cpan.org> */
-# define MAX_SIG_DIGITS (NV_DIG+MAX_SIG_DIG_PLUS)
-#else
-# define MAX_SIG_DIGITS (NV_DIG+2)
-#endif
+#   define MAX_SIG_DIGITS (NV_DIG+MAX_SIG_DIG_PLUS)
+#  else
+#   define MAX_SIG_DIGITS (NV_DIG+2)
+#  endif
 
 /* the max number we can accumulate in a UV, and still safely do 10*N+9 */
-#define MAX_ACCUMULATE ( (UV) ((UV_MAX - 9)/10))
-
-#if defined(NV_INF) || defined(NV_NAN)
-    {
-        char* endp;
-        if ((endp = S_my_atof_infnan(aTHX_ s, negative, send, value)))
-            return endp;
-    }
-#endif
+#  define MAX_ACCUMULATE ( (UV) ((UV_MAX - 9)/10))
 
     /* we accumulate digits into an integer; when this becomes too
      * large, we add the total to NV and start again */
 
     while (s < send) {
-	if (isDIGIT(*s)) {
-	    seen_digit = 1;
-	    old_digit = digit;
-	    digit = *s++ - '0';
-	    if (seen_dp)
-		exp_adjust[1]++;
+        if (isDIGIT(*s)) {
+            seen_digit = 1;
+            old_digit = digit;
+            digit = *s++ - '0';
+            if (seen_dp)
+                exp_adjust[1]++;
 
-	    /* don't start counting until we see the first significant
-	     * digit, eg the 5 in 0.00005... */
-	    if (!sig_digits && digit == 0)
-		continue;
+            /* don't start counting until we see the first significant
+             * digit, eg the 5 in 0.00005... */
+            if (!sig_digits && digit == 0)
+                continue;
 
-	    if (++sig_digits > MAX_SIG_DIGITS) {
-		/* limits of precision reached */
-	        if (digit > 5) {
-		    ++accumulator[seen_dp];
-		} else if (digit == 5) {
-		    if (old_digit % 2) { /* round to even - Allen */
-			++accumulator[seen_dp];
-		    }
-		}
-		if (seen_dp) {
-		    exp_adjust[1]--;
-		} else {
-		    exp_adjust[0]++;
-		}
-		/* skip remaining digits */
-		while (s < send && isDIGIT(*s)) {
-		    ++s;
-		    if (! seen_dp) {
-			exp_adjust[0]++;
-		    }
-		}
-		/* warn of loss of precision? */
-	    }
-	    else {
-		if (accumulator[seen_dp] > MAX_ACCUMULATE) {
-		    /* add accumulator to result and start again */
-		    result[seen_dp] = S_mulexp10(result[seen_dp],
-						 exp_acc[seen_dp])
-			+ (NV)accumulator[seen_dp];
-		    accumulator[seen_dp] = 0;
-		    exp_acc[seen_dp] = 0;
-		}
-		accumulator[seen_dp] = accumulator[seen_dp] * 10 + digit;
-		++exp_acc[seen_dp];
-	    }
-	}
-	else if (!seen_dp && GROK_NUMERIC_RADIX(&s, send)) {
-	    seen_dp = 1;
-	    if (sig_digits > MAX_SIG_DIGITS) {
-		while (s < send && isDIGIT(*s)) {
-		    ++s;
-		}
-		break;
-	    }
-	}
-	else {
-	    break;
-	}
+            if (++sig_digits > MAX_SIG_DIGITS) {
+                /* limits of precision reached */
+                if (digit > 5) {
+                    ++accumulator[seen_dp];
+                } else if (digit == 5) {
+                    if (old_digit % 2) { /* round to even - Allen */
+                        ++accumulator[seen_dp];
+                    }
+                }
+                if (seen_dp) {
+                    exp_adjust[1]--;
+                } else {
+                    exp_adjust[0]++;
+                }
+                /* skip remaining digits */
+                while (s < send && isDIGIT(*s)) {
+                    ++s;
+                    if (! seen_dp) {
+                        exp_adjust[0]++;
+                    }
+                }
+                /* warn of loss of precision? */
+            }
+            else {
+                if (accumulator[seen_dp] > MAX_ACCUMULATE) {
+                    /* add accumulator to result and start again */
+                    result[seen_dp] = S_mulexp10(result[seen_dp],
+                                                 exp_acc[seen_dp])
+                        + (NV)accumulator[seen_dp];
+                    accumulator[seen_dp] = 0;
+                    exp_acc[seen_dp] = 0;
+                }
+                accumulator[seen_dp] = accumulator[seen_dp] * 10 + digit;
+                ++exp_acc[seen_dp];
+            }
+        }
+        else if (!seen_dp && GROK_NUMERIC_RADIX(&s, send)) {
+            seen_dp = 1;
+            if (sig_digits > MAX_SIG_DIGITS) {
+                while (s < send && isDIGIT(*s)) {
+                    ++s;
+                }
+                break;
+            }
+        }
+        else {
+            break;
+        }
     }
 
     result[0] = S_mulexp10(result[0], exp_acc[0]) + (NV)accumulator[0];
     if (seen_dp) {
-	result[1] = S_mulexp10(result[1], exp_acc[1]) + (NV)accumulator[1];
+        result[1] = S_mulexp10(result[1], exp_acc[1]) + (NV)accumulator[1];
     }
 
     if (s < send && seen_digit && (isALPHA_FOLD_EQ(*s, 'e'))) {
-	bool expnegative = 0;
+        bool expnegative = 0;
 
-	++s;
-	switch (*s) {
-	    case '-':
-		expnegative = 1;
-		/* FALLTHROUGH */
-	    case '+':
-		++s;
-	}
-	while (s < send && isDIGIT(*s))
-	    exponent = exponent * 10 + (*s++ - '0');
-	if (expnegative)
-	    exponent = -exponent;
+        ++s;
+        switch (*s) {
+            case '-':
+                expnegative = 1;
+                /* FALLTHROUGH */
+            case '+':
+                ++s;
+        }
+        while (s < send && isDIGIT(*s))
+            exponent = exponent * 10 + (*s++ - '0');
+        if (expnegative)
+            exponent = -exponent;
     }
 
     /* now apply the exponent */
 
     if (seen_dp) {
-	result[2] = S_mulexp10(result[0],exponent+exp_adjust[0])
-		+ S_mulexp10(result[1],exponent-exp_adjust[1]);
+        result[2] = S_mulexp10(result[0],exponent+exp_adjust[0])
+                + S_mulexp10(result[1],exponent-exp_adjust[1]);
     } else {
-	result[2] = S_mulexp10(result[0],exponent+exp_adjust[0]);
+        result[2] = S_mulexp10(result[0],exponent+exp_adjust[0]);
     }
 
     /* now apply the sign */
     if (negative)
-	result[2] = -result[2];
-#endif /* USE_PERL_ATOF */
+        result[2] = -result[2];
     *value = result[2];
     return (char *)s;
+#else  /* USE_PERL_ATOF */
+    /* If you see this error you both don't have strtod (or configured -Ud_strtod or
+       or it's long double/quadmath equivalent) and disabled USE_PERL_ATOF, thus
+       removing any way for perl to convert strings to floating point numbers.
+    */
+#  error No mechanism to convert strings to numbers available
+#endif
 }
 
 /*
 =for apidoc isinfnan
 
-C<Perl_isinfnan()> is utility function that returns true if the NV
+C<Perl_isinfnan()> is a utility function that returns true if the NV
 argument is either an infinity or a C<NaN>, false otherwise.  To test
 in more detail, use C<Perl_isinf()> and C<Perl_isnan()>.
 
@@ -1746,11 +1888,15 @@ Perl_isinfnan(NV nv)
 }
 
 /*
-=for apidoc
+=for apidoc isinfnansv
 
 Checks whether the argument would be either an infinity or C<NaN> when used
 as a number, but is careful not to trigger non-numeric or uninitialized
 warnings.  it assumes the caller has done C<SvGETMAGIC(sv)> already.
+
+Note that this always accepts trailing garbage (similar to C<grok_number_flags>
+with C<PERL_SCAN_TRAILING>), so C<"inferior"> and C<"NAND gates"> will
+return true.
 
 =cut
 */

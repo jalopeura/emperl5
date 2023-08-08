@@ -13,17 +13,15 @@
 
 package Pod::ParseLink;
 
-use 5.006;
+use 5.010;
 use strict;
 use warnings;
 
-use vars qw(@EXPORT @ISA $VERSION);
-
 use Exporter;
-@ISA    = qw(Exporter);
-@EXPORT = qw(parselink);
 
-$VERSION = '4.11';
+our @ISA = qw(Exporter);
+our @EXPORT = qw(parselink);
+our $VERSION = '5.01';
 
 ##############################################################################
 # Implementation
@@ -167,11 +165,11 @@ L<perlpodspec> for more information.
 
 =head1 AUTHOR
 
-Russ Allbery <rra@cpan.org>.
+Russ Allbery <rra@cpan.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2001, 2008, 2009, 2014, 2018 Russ Allbery <rra@cpan.org>
+Copyright 2001, 2008, 2009, 2014, 2018-2019, 2022 Russ Allbery <rra@cpan.org>
 
 This program is free software; you may redistribute it and/or modify it
 under the same terms as Perl itself.

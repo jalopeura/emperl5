@@ -19,7 +19,7 @@ use Test::More;
 
 use Unicode::UCD qw(charinfo charprop charprops_all);
 
-my $expected_version = '12.1.0';
+my $expected_version = '15.0.0';
 my $current_version = Unicode::UCD::UnicodeVersion;
 my $v_unicode_version = pack "C*", split /\./, $current_version;
 my $unknown_script = ($v_unicode_version lt v5.0.0)
@@ -786,7 +786,7 @@ SKIP:
         skip("Latin range count will be wrong when using older Unicode release",
              2) if $current_version lt $expected_version;
         my $n1 = @$r1;
-        is($n1, 32, "number of ranges in Latin script (Unicode $expected_version)") if $::IS_ASCII;
+        is($n1, 39, "number of ranges in Latin script (Unicode $expected_version)") if $::IS_ASCII;
         shift @$r1 while @$r1;
         my $r2 = charscript('Latin');
         is(@$r2, $n1, "modifying results should not mess up internal caches");
@@ -800,6 +800,8 @@ SKIP:
 if ($v_unicode_version ge v4.1.0) {
     use Unicode::UCD qw(namedseq);
 
+    is(namedseq("KEYCAP DIGIT ZERO"), "0\x{FE0F}\x{20E3}",
+                "namedseq with char that varies under EBCDIC");
     is(namedseq("KATAKANA LETTER AINU P"), "\x{31F7}\x{309A}", "namedseq");
     is(namedseq("KATAKANA LETTER AINU Q"), undef);
     is(namedseq(), undef);
@@ -903,9 +905,6 @@ is(prop_aliases("Is_Is_Any"), undef,
 is(prop_aliases("ccc=vr"), undef,
                           "prop_aliases('ccc=vr') doesn't generate a warning");
 
-require 'utf8_heavy.pl';
-require "unicore/Heavy.pl";
-
 # Keys are lists of properties. Values are defined if have been tested.
 my %props;
 
@@ -943,7 +942,7 @@ while (<$props>) {
         # matching, which the tested function does on all inputs.
         my $mod_name = "$extra_chars$alias";
 
-        my $loose = &utf8::_loose_name(lc $alias);
+        my $loose = &Unicode::UCD::loose_name(lc $alias);
 
         # Indicate we have tested this.
         $props{$loose} = 1;
@@ -996,15 +995,15 @@ while (<$props>) {
 # official properties.  We have no way of knowing if mktables omitted a Perl
 # extension or not, but we do the best we can from its generated lists
 
-foreach my $alias (sort keys %utf8::loose_to_file_of) {
+foreach my $alias (sort keys %Unicode::UCD::loose_to_file_of) {
     next if $alias =~ /=/;
     my $lc_name = lc $alias;
-    my $loose = &utf8::_loose_name($lc_name);
+    my $loose = &Unicode::UCD::loose_name($lc_name);
     next if exists $props{$loose};  # Skip if already tested
     $props{$loose} = 1;
     my $mod_name = "$extra_chars$alias";    # Tests loose matching
     my @aliases = prop_aliases($mod_name);
-    my $found_it = grep { &utf8::_loose_name(lc $_) eq $lc_name } @aliases;
+    my $found_it = grep { &Unicode::UCD::loose_name(lc $_) eq $lc_name } @aliases;
     if ($found_it) {
         pass("prop_aliases: '$lc_name' is listed as an alias for '$mod_name'");
     }
@@ -1023,14 +1022,14 @@ foreach my $alias (sort keys %utf8::loose_to_file_of) {
         # returned as an alias, so having successfully stripped it off above,
         # try again.
         if ($stripped) {
-            $found_it = grep { &utf8::_loose_name(lc $_) eq $lc_name } @aliases;
+            $found_it = grep { &Unicode::UCD::loose_name(lc $_) eq $lc_name } @aliases;
         }
 
         # If that didn't work, it could be that it's a block, which is always
         # returned with a leading 'In_' to avoid ambiguity.  Try comparing
         # with that stripped off.
         if (! $found_it) {
-            $found_it = grep { &utf8::_loose_name(s/^In_(.*)/\L$1/r) eq $lc_name }
+            $found_it = grep { &Unicode::UCD::loose_name(s/^In_(.*)/\L$1/r) eq $lc_name }
                               @aliases;
             # Could check that is a real block, but tests for invmap will
             # likely pickup any errors, since this will be tested there.
@@ -1051,7 +1050,7 @@ for my $prop (qw(Alnum Blank Cntrl Digit Graph Print Word XDigit)) {
 }
 
 my $done_equals = 0;
-foreach my $alias (keys %utf8::stricter_to_file_of) {
+foreach my $alias (keys %Unicode::UCD::stricter_to_file_of) {
     if ($alias =~ /=/) {    # Only test one case where there is an equals
         next if $done_equals;
         $done_equals = 1;
@@ -1163,8 +1162,8 @@ while (<$propvalues>) {
         $fields[0] = $fields[1];
     }
     elsif ($fields[0] ne $fields[1]
-           && &utf8::_loose_name(lc $fields[0])
-               eq &utf8::_loose_name(lc $fields[1])
+           && &Unicode::UCD::loose_name(lc $fields[0])
+               eq &Unicode::UCD::loose_name(lc $fields[1])
            && $fields[1] !~ /[[:upper:]]/)
     {
         # Also, there is a bug in the file in which "n/a" is omitted, and
@@ -1180,7 +1179,7 @@ while (<$propvalues>) {
     # the short and full names, respectively.  See comments in input file.
     splice (@fields, 0, 0, splice(@fields, 1, 2)) if $prop eq 'ccc';
 
-    my $loose_prop = &utf8::_loose_name(lc $prop);
+    my $loose_prop = &Unicode::UCD::loose_name(lc $prop);
     my $suppressed = grep { $_ eq $loose_prop }
                           @Unicode::UCD::suppressed_properties;
     push @this_prop_values, $fields[0] unless $suppressed;
@@ -1189,7 +1188,7 @@ while (<$propvalues>) {
             is(prop_value_aliases($prop, $value), undef, "prop_value_aliases('$prop', '$value') returns undef for suppressed property $prop");
             next;
         }
-        elsif (grep { $_ eq ("$loose_prop=" . &utf8::_loose_name(lc $value)) } @Unicode::UCD::suppressed_properties) {
+        elsif (grep { $_ eq ("$loose_prop=" . &Unicode::UCD::loose_name(lc $value)) } @Unicode::UCD::suppressed_properties) {
             is(prop_value_aliases($prop, $value), undef, "prop_value_aliases('$prop', '$value') returns undef for suppressed property $prop=$value");
             next;
         }
@@ -1231,17 +1230,17 @@ while (<$propvalues>) {
         else {
             my @all_names = prop_value_aliases($mod_prop, $mod_value);
             is_deeply(\@all_names, \@names_via_short, "In '$prop', prop_value_aliases() returns the same list for both '$short_name' and '$mod_value'");
-            ok((grep { &utf8::_loose_name(lc $_) eq &utf8::_loose_name(lc $value) } prop_value_aliases($prop, $short_name)), "'$value' is listed as an alias for prop_value_aliases('$prop', '$short_name')");
+            ok((grep { &Unicode::UCD::loose_name(lc $_) eq &Unicode::UCD::loose_name(lc $value) } prop_value_aliases($prop, $short_name)), "'$value' is listed as an alias for prop_value_aliases('$prop', '$short_name')");
         }
 
-        $pva_tested{&utf8::_loose_name(lc $prop) . "=" . &utf8::_loose_name(lc $value)} = 1;
+        $pva_tested{&Unicode::UCD::loose_name(lc $prop) . "=" . &Unicode::UCD::loose_name(lc $value)} = 1;
         $count++;
     }
 }
 }   # End of SKIP block
 
 # And test as best we can, the non-official pva's that mktables generates.
-foreach my $hash (\%utf8::loose_to_file_of, \%utf8::stricter_to_file_of) {
+foreach my $hash (\%Unicode::UCD::loose_to_file_of, \%Unicode::UCD::stricter_to_file_of) {
     foreach my $test (sort keys %$hash) {
         next if exists $pva_tested{$test};  # Skip if already tested
 
@@ -1249,7 +1248,7 @@ foreach my $hash (\%utf8::loose_to_file_of, \%utf8::stricter_to_file_of) {
         next unless defined $value; # prop_value_aliases() requires an input
                                     # 'value'
         my $mod_value;
-        if ($hash == \%utf8::loose_to_file_of) {
+        if ($hash == \%Unicode::UCD::loose_to_file_of) {
 
             # Add extra characters to test loose-match rhs value
             $mod_value = "$extra_chars$value";
@@ -1285,7 +1284,7 @@ foreach my $hash (\%utf8::loose_to_file_of, \%utf8::stricter_to_file_of) {
             is_deeply(\@l_, \@LC, "prop_value_aliases('$mod_prop', '$mod_value) returns the same list as prop_value_aliases('gc', 'lc')");
         }
         else {
-            ok((grep { &utf8::_loose_name(lc $_) eq &utf8::_loose_name(lc $value) }
+            ok((grep { &Unicode::UCD::loose_name(lc $_) eq &Unicode::UCD::loose_name(lc $value) }
                 prop_value_aliases($mod_prop, $mod_value)),
                 "'$value' is listed as an alias for prop_value_aliases('$mod_prop', '$mod_value')");
         }
@@ -1300,7 +1299,7 @@ use Unicode::UCD qw(prop_invlist prop_invmap MAX_CP);
 
 # There were some problems with caching interfering with prop_invlist() vs
 # prop_invmap() on binary properties, and also between the 3 properties where
-# Perl used the same 'To' name as another property (see utf8_heavy.pl).
+# Perl used the same 'To' name as another property (see Unicode::UCD).
 # So, before testing all of prop_invlist(),
 #   1)  call prop_invmap() to try both orders of these name issues.  This uses
 #       up two of the 3 properties;  the third will be left so that invlist()
@@ -1431,11 +1430,11 @@ sub fail_with_diff ($$$$) {
     # For use below to output better messages
     my ($prop, $official, $constructed, $tested_function_name) = @_;
 
-    if (! $ENV{PERL_DIFF_TOOL}) {
+    if (! $ENV{PERL_TEST_DIFF}) {
 
         is($constructed, $official, "$tested_function_name('$prop')");
 
-        diag("Set environment variable PERL_DIFF_TOOL=diff_tool to see just "
+        diag("Set environment variable PERL_TEST_DIFF=diff_tool to see just "
            . "the differences.");
         return;
     }
@@ -1455,7 +1454,7 @@ sub fail_with_diff ($$$$) {
     close $gend || die "Can't close gend";
 
     my $diff = File::Temp->new();
-    system("$ENV{PERL_DIFF_TOOL} $off $gend > $diff");
+    system("$ENV{PERL_TEST_DIFF} $off $gend > $diff");
 
     open my $fh, "<", $diff || die "Can't open $diff";
     my @diffs = <$fh>;
@@ -1467,7 +1466,7 @@ my %tested_invlist;
 
 # Look at everything we think that mktables tells us exists, both loose and
 # strict
-foreach my $set_of_tables (\%utf8::stricter_to_file_of, \%utf8::loose_to_file_of)
+foreach my $set_of_tables (\%Unicode::UCD::stricter_to_file_of, \%Unicode::UCD::loose_to_file_of)
 {
     foreach my $table (sort keys %$set_of_tables) {
 
@@ -1476,7 +1475,7 @@ foreach my $set_of_tables (\%utf8::stricter_to_file_of, \%utf8::loose_to_file_of
         if (defined $value) {
 
             # If this is to be loose matched, add in characters to test that.
-            if ($set_of_tables == \%utf8::loose_to_file_of) {
+            if ($set_of_tables == \%Unicode::UCD::loose_to_file_of) {
                 $value = "$extra_chars$value";
             }
             else {  # Strict match
@@ -1498,7 +1497,7 @@ foreach my $set_of_tables (\%utf8::stricter_to_file_of, \%utf8::loose_to_file_of
 
             # Like above, use loose if required, and insert underscores
             # between digits if strict.
-            if ($set_of_tables == \%utf8::loose_to_file_of) {
+            if ($set_of_tables == \%Unicode::UCD::loose_to_file_of) {
                 $mod_table = "$extra_chars$table";
             }
             else {
@@ -1532,7 +1531,7 @@ foreach my $set_of_tables (\%utf8::stricter_to_file_of, \%utf8::loose_to_file_of
         # it being an actual file to read.  The file is an index in to the
         # array of the definitions
         if ($file =~ s!^#/!!) {
-            $official = $utf8::inline_definitions[$file];
+            $official = $Unicode::UCD::inline_definitions[$file];
         }
         else {
             $official = do "unicore/lib/$file.pl";
@@ -1599,45 +1598,9 @@ is(@list, 0, "prop_invmap('Perl_Charnames') returns <undef> since internal-Perl-
 @list = prop_invmap("Is_Is_Any");
 is(@list, 0, "prop_invmap('Is_Is_Any') returns <undef> since two is's");
 
-# The files for these properties are not used by Perl, but are retained for
-# backwards compatibility with applications that read them directly, with
-# comments in them that their use is deprecated.  Until such time as we remove
-# them completely, we test that they exist, are correct, and that their
-# formats haven't changed.  This hash contains the info needed to test them as
-# if they were regular properties.  'replaced_by' gives the equivalent
-# property now used by Perl.
-my %legacy_props = (
-            Legacy_Case_Folding =>        { replaced_by => 'cf',
-                                            file => 'To/Fold',
-                                            swash_name => 'ToFold'
-                                          },
-            Legacy_Lowercase_Mapping =>   { replaced_by => 'lc',
-                                            file => 'To/Lower',
-                                            swash_name => 'ToLower'
-                                          },
-            Legacy_Titlecase_Mapping =>   { replaced_by => 'tc',
-                                            file => 'To/Title',
-                                            swash_name => 'ToTitle'
-                                          },
-            Legacy_Uppercase_Mapping =>   { replaced_by => 'uc',
-                                            file => 'To/Upper',
-                                            swash_name => 'ToUpper'
-                                          },
-            Legacy_Perl_Decimal_Digit =>  { replaced_by => 'Perl_Decimal_Digit',
-                                            file => 'To/Digit',
-                                            swash_name => 'ToDigit'
-                                           },
-        );
-
-foreach my $legacy_prop (keys %legacy_props) {
-    @list = prop_invmap($legacy_prop);
-    is(@list, 0, "'$legacy_prop' is unknown to prop_invmap");
-}
-
 # The files for these properties shouldn't have their formats changed in case
 # applications use them (though such use is deprecated).
-my @legacy_file_format = (keys %legacy_props,
-                          qw( Bidi_Mirroring_Glyph
+my @legacy_file_format = (qw( Bidi_Mirroring_Glyph
                               NFKC_Casefold
                            )
                           );
@@ -1651,7 +1614,7 @@ my %tested_invmaps;
 # returned by the function with the tables that mktables generates.  Some of
 # these tables are directly stored as files on disk, in either the unicore or
 # unicore/To directories, and most should be listed in the mktables generated
-# hash %utf8::loose_property_to_file_of, with a few additional ones that this
+# hash %Unicode::UCD::loose_property_to_file_of, with a few additional ones that this
 # handles specially.  For these, the files are read in directly, massaged, and
 # compared with what invmap() returns.  The SPECIALS hash in some of these
 # files overrides values in the main part of the file.
@@ -1661,9 +1624,8 @@ my %tested_invmaps;
 # lists returned by prop_invlist(), which has already been tested.
 
 PROPERTY:
-foreach my $prop (sort(keys %props), sort keys %legacy_props) {
-    my $is_legacy = 0;
-    my $loose_prop = &utf8::_loose_name(lc $prop);
+foreach my $prop (sort(keys %props)) {
+    my $loose_prop = &Unicode::UCD::loose_name(lc $prop);
     my $suppressed = grep { $_ eq $loose_prop }
                           @Unicode::UCD::suppressed_properties;
 
@@ -1676,51 +1638,24 @@ foreach my $prop (sort(keys %props), sort keys %legacy_props) {
     if (! $name) {
 
         # Here, Perl doesn't know about this property.  It could be a
-        # suppressed one, or a legacy one.
-        if (grep { $prop eq $_ } keys %legacy_props) {
-
-            # For legacy properties, we look up the modern equivalent
-            # property instead; later massaging the results to look like the
-            # known format of the legacy property.  We add info about the
-            # legacy property to the data structures for the rest of the
-            # properties; this is to avoid more special cases for the legacies
-            # in the code below
-            $full_name = $name = $prop;
-            $actual_lookup_prop = $legacy_props{$prop}->{'replaced_by'};
-            my $base_file = $legacy_props{$prop}->{'file'};
-
-            # This legacy property is otherwise unknown to Perl; so shouldn't
-            # have any information about it already.
-            ok(! exists $utf8::loose_property_to_file_of{$loose_prop},
-               "There isn't a hash entry for file lookup of $prop");
-            $utf8::loose_property_to_file_of{$loose_prop} = $base_file;
-
-            ok(! exists $utf8::file_to_swash_name{$loose_prop},
-               "There isn't a hash entry for swash lookup of $prop");
-            $utf8::file_to_swash_name{$base_file}
-                                        = $legacy_props{$prop}->{'swash_name'};
-            $display_prop = $prop;
-            $is_legacy = 1;
-        }
-        else {
+        # suppressed one
             if (! $suppressed) {
                 fail("prop_invmap('$prop')");
                 diag("is unknown to prop_aliases(), and we need it in order to test prop_invmap");
             }
             next PROPERTY;
-        }
     }
 
     # Normalize the short name, as it is stored in the hashes under the
     # normalized version.
-    $name = &utf8::_loose_name(lc $name);
+    $name = &Unicode::UCD::loose_name(lc $name);
 
     # In the case of a combination property, both a map table and a match
     # table are generated.  For all the tests except prop_invmap(), this is
     # irrelevant, but for prop_invmap, having an 'is' prefix forces it to
     # return the match table; otherwise the map.  We thus need to distinguish
     # between the two forms.  The property name is what has this information.
-    $name = &utf8::_loose_name(lc $prop)
+    $name = &Unicode::UCD::loose_name(lc $prop)
                          if exists $Unicode::UCD::combination_property{$name};
 
     # Add in the characters that are supposed to be ignored to test loose
@@ -1730,49 +1665,6 @@ foreach my $prop (sort(keys %props), sort keys %legacy_props) {
 
     my ($invlist_ref, $invmap_ref, $format, $missing) = prop_invmap($actual_lookup_prop);
     my $return_ref = [ $invlist_ref, $invmap_ref, $format, $missing ];
-
-
-    # The legacy property files all are expanded out so that each range is 1
-    # element long.  That isn't true of the modern equivalent we use to check
-    # those files for correctness against.  So take the output of the proxy
-    # and expand it to match the legacy file.
-    if ($is_legacy) {
-        my @expanded_list;
-        my @expanded_map;
-        for my $i (0 .. @$invlist_ref - 1 - 1) {
-            if (ref $invmap_ref->[$i] || $invmap_ref->[$i] eq $missing) {
-
-                # No adjustments should be done for the default mapping and
-                # the multi-char ones.
-                push @expanded_list, $invlist_ref->[$i];
-                push @expanded_map, $invmap_ref->[$i];
-            }
-            else {
-
-                # Expand the range into separate elements for each item.
-                my $offset = 0;
-                for my $j ($invlist_ref->[$i] .. $invlist_ref->[$i+1] -1) {
-                    push @expanded_list, $j;
-                    push @expanded_map, $invmap_ref->[$i] + $offset;
-
-                    # The 'ae' format is for Legacy_Perl_Decimal_Digit; the
-                    # other 4 are kept with leading zeros in the file, so
-                    # convert to that.
-                    $expanded_map[-1] = sprintf("%04X", $expanded_map[-1])
-                                                            if $format ne 'ae';
-                    $offset++;
-                }
-            }
-        }
-
-        # Final element is taken as is.  The map should always be to the
-        # default value, so don't do a sprintf like we did above.
-        push @expanded_list, $invlist_ref->[-1];
-        push @expanded_map, $invmap_ref->[-1];
-
-        $invlist_ref = \@expanded_list;
-        $invmap_ref = \@expanded_map;
-    }
 
     # If have already tested this property under a different name, merely
     # compare the return from now with the saved one from before.
@@ -1864,11 +1756,6 @@ foreach my $prop (sort(keys %props), sort keys %legacy_props) {
                 next PROPERTY;
             }
         }
-        elsif ($missing ne "0" && ! grep { $prop eq $_ } keys %legacy_props) {
-            fail("prop_invmap('$display_prop')");
-            diag("The missings should be '0'; got '$missing'");
-            next PROPERTY;
-        }
     }
     elsif ($missing =~ /[<>]/) {
         fail("prop_invmap('$display_prop')");
@@ -1917,8 +1804,8 @@ foreach my $prop (sort(keys %props), sort keys %legacy_props) {
     if ($name ne 'na'
         && ($name eq 'blk'
             || defined
-                    ($base_file = $utf8::loose_property_to_file_of{$proxy_prop})
-            || exists $utf8::loose_to_file_of{$proxy_prop}
+                    ($base_file = $Unicode::UCD::loose_property_to_file_of{$proxy_prop})
+            || exists $Unicode::UCD::loose_to_file_of{$proxy_prop}
             || $name eq "dm"))
     {
         # In the above, blk is done unconditionally, as we need to test that
@@ -1988,7 +1875,7 @@ foreach my $prop (sort(keys %props), sort keys %legacy_props) {
             # work would be needed in the unlikely event that an inverted
             # property comes along without these characteristics
             if (!defined $base_file) {
-                $base_file = $utf8::loose_to_file_of{$proxy_prop};
+                $base_file = $Unicode::UCD::loose_to_file_of{$proxy_prop};
                 $is_binary = ($base_file =~ s/!//) ? -1 : 1;
                 $base_file = "lib/$base_file" unless $base_file =~ m!^#/!;
             }
@@ -1997,7 +1884,7 @@ foreach my $prop (sort(keys %props), sort keys %legacy_props) {
             # special case where the contents are in-lined with semi-colons
             # meaning new-lines, instead of it being an actual file to read.
             if ($base_file =~ s!^#/!!) {
-                $official = $utf8::inline_definitions[$base_file];
+                $official = $Unicode::UCD::inline_definitions[$base_file];
             }
             else {
                 $official = do "unicore/$base_file.pl";
@@ -2035,11 +1922,11 @@ foreach my $prop (sort(keys %props), sort keys %legacy_props) {
 
         # Get the format for the file, and if there are any special elements,
         # get a reference to them.
-        my $swash_name = $utf8::file_to_swash_name{$base_file};
+        my $swash_name = $Unicode::UCD::file_to_swash_name{$base_file};
         my $specials_ref;
         my $file_format;    # The 'format' given inside the file
         if ($swash_name) {
-            $specials_ref = $utf8::SwashInfo{$swash_name}{'specials_name'};
+            $specials_ref = $Unicode::UCD::SwashInfo{$swash_name}{'specials_name'};
             if ($specials_ref) {
 
                 # Convert from the name to the actual reference.
@@ -2047,7 +1934,7 @@ foreach my $prop (sort(keys %props), sort keys %legacy_props) {
                 $specials_ref = \%{$specials_ref};
             }
 
-            $file_format = $utf8::SwashInfo{$swash_name}{'format'};
+            $file_format = $Unicode::UCD::SwashInfo{$swash_name}{'format'};
         }
 
         # Leading zeros used to be used with the values in the files that give,
@@ -2063,21 +1950,18 @@ foreach my $prop (sort(keys %props), sort keys %legacy_props) {
                               ? "%04X"
                               : $file_range_format;
 
-        # Certain of the proxy properties have to be adjusted to match the
-        # real ones.
-        if ($full_name
-                 =~ /^(Legacy_)?(Case_Folding|(Lower|Title|Upper)case_Mapping)/)
+        # Combination properties, where the same file contains mappings to both
+        # the simple and full versions, have to be adjusted when looking at
+        # the full versions.
+        if ($full_name =~ /^ (   Case_Folding
+                              | (Lower|Title|Upper) case_Mapping )
+                           $ /x)
         {
-
-            # Here we have either
-            #   1) Case_Folding; or
-            #   2) a proxy that is a full mapping, which means that what the
-            #      real property is is the equivalent simple mapping.
-            # In both cases, the file will have a standard list containing
-            # simple mappings (to a single code point), and a specials hash
-            # which contains all the mappings that are to multiple code
-            # points.  First, extract a list containing all the file's simple
-            # mappings.
+            # The file will have a standard list containing simple mappings
+            # (to a single code point), and a specials hash which contains all
+            # the mappings that are to multiple code points.
+            #
+            # First, extract a list containing all the file's simple mappings.
             my @list;
             for (split "\n", $official) {
                 my ($start, $end, $value) = / ^ (.+?) \t (.*?) \t (.+?)
@@ -2457,22 +2341,36 @@ foreach my $prop (sort(keys %props), sort keys %legacy_props) {
 
         $official = do "unicore/Name.pl";
 
+        # Change the double \n format of the file back to single lines with a tab
+        $official =~ s/\n\n/\e/g;     # Use a control that shouldn't occur
+                                      # in the file
+        $official =~ s/\n/\t/g;
+        $official =~ s/\e/\n/g;
+
         # Get rid of the named sequences portion of the file.  These don't
         # have a tab before the first blank on a line.
         $official =~ s/ ^ [^\t]+ \  .*? \n //xmg;
 
         # And get rid of the controls.  These are named in the file, but
-        # shouldn't be in the property.  This gets rid of the two ranges in
-        # one fell swoop, and also all the Unicode1_Name values that may not
-        # be in Name_Alias.
+        # shouldn't be in the property.  On all supported platforms, there are
+        # two ranges of controls.  The first range extends from 0..SPACE-1.
+        # The second depends on the platform.
+        $official =~ s/ ^ 00000 .*? ( .{5} \t SPACE ) $ /$1/xms;
+        my $range_2_start;
+        my $range_2_end_next;
         if ($::IS_ASCII) {
-            $official =~ s/ 00000 \t .* 0001F .*? \n//xs;
-            $official =~ s/ 0007F \t .* 0009F .*? \n//xs;
+            $range_2_start    = '0007F';
+            $range_2_end_next = '000A0';
         }
-        elsif ($::IS_EBCDIC) { # Won't work for POSIX-BC
-            $official =~ s/ 00000 \t .* 0003F .*? \n//xs;
-            $official =~ s/ 000FF \t .* 000FF .*? \n//xs;
+        elsif (ord '^' == 106) { # POSIX-BC
+            $range_2_start    = '005F';
+            $range_2_end_next = '0060';
         }
+        else {
+            $range_2_start    = '00FF';
+            $range_2_end_next = '0100';
+        }
+        $official =~ s/ ^ $range_2_start .*? ( $range_2_end_next ) /$1/xms;
 
         # And remove the aliases.  We read in the Name_Alias property, and go
         # through them one by one.
@@ -2502,6 +2400,7 @@ foreach my $prop (sort(keys %props), sort keys %legacy_props) {
                 $official =~ s/$hex_code_point \t $alias \n //x;
             }
         }
+
         local $/ = "\n";
         chomp $official;
         $/ = $input_record_separator;

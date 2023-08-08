@@ -1,10 +1,6 @@
 #!./perl -w
 
 BEGIN {
-    unless (find PerlIO::Layer 'perlio') {
-	print "1..0 # Skip: not perlio\n";
-	exit 0;
-    }
     unless (eval { require Encode } ) {
 	print "1..0 # Skip: not Encode\n";
 	exit 0;
@@ -207,13 +203,10 @@ package Globber {
 # important.
 # We need a double eval, as scope unwinding will close the handle,
 # which croaks.
-# Under debugging builds with PERL_DESTRUCT_LEVEL set, we have to skip this
+# With PERL_DESTRUCT_LEVEL set, we have to skip this
 # test, as it triggers bug #115692, resulting in string table warnings.
-require Config;
 SKIP: {
-skip "produces string table warnings", 2
-  if "@{[Config::non_bincompat_options()]}" =~ /\bDEBUGGING\b/
-   && $ENV{PERL_DESTRUCT_LEVEL};
+skip "produces string table warnings", 2 if $ENV{PERL_DESTRUCT_LEVEL};
 
 eval { eval {
     open my $fh, ">:encoding(globber)", \$buf;

@@ -38,7 +38,7 @@
 #endif
 #endif
 
-#ifndef PERL_SEEN_HV_FUNC_H
+#ifndef PERL_SEEN_HV_FUNC_H_
 #if !defined(U64)
 #include <stdint.h>
 #define U64 uint64_t
@@ -72,41 +72,6 @@
 #ifndef STMT_START
 #define STMT_START do
 #define STMT_END while(0)
-#endif
-
-#ifndef ZAPHOD32_ALLOW_UNALIGNED_AND_LITTLE_ENDIAN
-/* ZAPHOD32_ALLOW_UNALIGNED_AND_LITTLE_ENDIAN only matters if nothing has defined U8TO64_LE etc,
- * and when built with Perl these should be defined before this file is loaded.
- */
-#ifdef U32_ALIGNMENT_REQUIRED
-#define ZAPHOD32_ALLOW_UNALIGNED_AND_LITTLE_ENDIAN 0
-#else
-#define ZAPHOD32_ALLOW_UNALIGNED_AND_LITTLE_ENDIAN 1
-#endif
-#endif
-
-#ifndef U8TO32_LE
-#if ZAPHOD32_ALLOW_UNALIGNED_AND_LITTLE_ENDIAN
-#define U8TO32_LE(ptr)  (*((const U32 *)(ptr)))
-#else
-#define U8TO32_LE(ptr)  (\
-    (U32)(ptr)[3] << 24 | \
-    (U32)(ptr)[2] << 16 | \
-    (U32)(ptr)[1] << 8  | \
-    (U32)(ptr)[0]         \
-)
-#endif
-#endif
-
-#ifndef U8TO16_LE
-#if ZAPHOD32_ALLOW_UNALIGNED_AND_LITTLE_ENDIAN
-#define U8TO16_LE(ptr)  (*((const U16 *)(ptr)))
-#else
-#define U8TO16_LE(ptr)  (\
-    (U16)(ptr)[1] << 8  | \
-    (U16)(ptr)[0]         \
-)
-#endif
 #endif
 
 /* This is two marsaglia xor-shift permutes, with a prime-multiple
@@ -168,19 +133,24 @@ void zaphod32_seed_state (
     const U32 *seed= (const U32 *)seed_ch;
     U32 *state= (U32 *)state_ch;
   
-    /* hex expansion of pi, skipping first two digits. pi= 3.2[43f6...]*/
-    /* pi value in hex from here:
-     * http://turner.faculty.swau.edu/mathematics/materialslibrary/pi/pibases.html*/
-    /* Ensure that the three state vectors are nonzero regardless of the seed. */
-    /* The idea of these two steps is to ensure that the 0 state comes from a seed
-     * utterly unlike that of the value we replace it with.*/
+    /* hex expansion of PI, skipping first two digits. PI= 3.2[43f6...]
+     *
+     * PI value in hex from here:
+     *
+     * http://turner.faculty.swau.edu/mathematics/materialslibrary/pi/pibases.html
+     *
+     * Ensure that the three state vectors are nonzero regardless of
+     * the seed. The idea of these two steps is to ensure that the 0
+     * state comes from a seed utterly unlike that of the value we
+     * replace it with.
+     */
     state[0]= seed[0] ^ 0x43f6a888;
     state[1]= seed[1] ^ 0x5a308d31;
     state[2]= seed[2] ^ 0x3198a2e0;
     if (!state[0]) state[0] = 1;
     if (!state[1]) state[1] = 2;
     if (!state[2]) state[2] = 4;
-    /* these are pseduo-randomly selected primes between 2**31 and 2**32
+    /* these are pseudo-randomly selected primes between 2**31 and 2**32
      * (I generated a big list and then randomly chose some from the list) */
     ZAPHOD32_SCRAMBLE32(state[0],0x9fade23b);
     ZAPHOD32_SCRAMBLE32(state[1],0xaa6f908d);
@@ -213,7 +183,7 @@ U32 zaphod32_hash_with_state(
     const U8 *key,
     const STRLEN key_len
 ) {
-    U32 *state= (U32 *)state_ch;
+    const U32 *state= (const U32 *)state_ch;
     const U8 *end;
     STRLEN len = key_len;
     U32 v0= state[0];

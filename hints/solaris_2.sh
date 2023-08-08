@@ -63,6 +63,10 @@ esac
 set `echo " $libswanted " | sed -e 's@ ld @ @' -e 's@ malloc @ @' -e 's@ ucb @ @' -e 's@ sec @ @' -e 's@ crypt @ @'`
 libswanted="$*"
 
+# Add libnsl for networking support
+set `echo " $libswanted " | sed -e 's@ inet @ inet nsl @'`
+libswanted="$*"
+
 # Look for architecture name.  We want to suggest a useful default.
 case "$archname" in
 '')
@@ -90,7 +94,8 @@ END
 `
 
 case "$cc" in
-'')    for i in `ls -r /opt/sol*studio*/bin/cc` /opt/SUNWspro/bin/cc
+'')    for i in `ls -r /opt/*studio*/bin/cc` /opt/SUNWspro/bin/cc \
+		`which gcc`
        do
 	       if test -f "$i"; then
 		       cc=$i
@@ -585,7 +590,7 @@ EOM
 		fi
 	    fi
 	    case "${cc:-cc} -v 2>/dev/null" in
-	    *gcc*)
+	    *gcc*|*g++*)
 		echo 'int main() { return 0; }' > try.c
 		case "`${cc:-cc} $ccflags -mcpu=v9 -m64 -S try.c 2>&1 | grep 'm64 is not supported by this configuration'`" in
 		*"m64 is not supported"*)
@@ -692,21 +697,6 @@ EOM
 	;;
 esac
 EOCBU
-
-#
-# If unsetenv is available, use it in conjunction with PERL_USE_SAFE_PUTENV to
-# work around Sun bugid 6333830.  Both unsetenv and 6333830 only appear in
-# Solaris 10, so we don't need to probe explicitly for an OS version.  We have
-# to append this test to the end of config.over as it needs to run after
-# Configure has probed for unsetenv, and this hints file is processed before
-# that has happened.
-#
-cat >> config.over <<'EOOVER'
-if test "$d_unsetenv" = "$define" -a \
-    `expr "$ccflags" : '.*-DPERL_USE_SAFE_PUTENV'` -eq 0; then
-        ccflags="$ccflags -DPERL_USE_SAFE_PUTENV"
-fi
-EOOVER
 
 rm -f try.c try.o try a.out
 

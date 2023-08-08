@@ -83,7 +83,7 @@ dlsrc='none'
 # Sys/Hostname Sys/Syslog threads threads/shared Tie/Hash/NamedCapture
 # Time/HiRes Time/Piece Unicode/Collate Unicode/Normalize XS/APItest XS/Typemap]  
 #TODO Later: Reinsert Storable after Socket, its Makefile seems to not work in our environment
-static_ext="attributes B Cwd Data/Dumper Devel/Peek Digest/MD5 Digest/SHA Encode Fcntl File/Glob Hash/Util I18N/Langinfo IO List/Util mro Opcode PerlIO/encoding PerlIO/scalar PerlIO/via POSIX re SDBM_File Socket Tie/Hash/NamedCapture Time/HiRes Time/Piece Unicode/Normalize WebPerl $EMPERL_STATIC_EXT"
+static_ext="attributes B Cwd Data/Dumper Devel/Peek Digest/MD5 Digest/SHA Encode Fcntl File/Glob Hash/Util I18N/Langinfo IO List/Util mro Opcode PerlIO/encoding PerlIO/scalar PerlIO/via POSIX SDBM_File Socket Time/HiRes Time/Piece Unicode/Normalize WebPerl $EMPERL_STATIC_EXT"
 dynamic_ext=''
 
 # It *looks* like shm*, sem* and a few others exist in Emscripten's libc,
@@ -111,20 +111,20 @@ d_getgrnam_r='define'
 # you'll see the unsupported stuff (as of 1.37.35):
 # signal() sigaction() sigprocmask() __libc_current_sigrtmin __libc_current_sigrtmax kill() killpg() siginterrupt() raise() pause()
 # plus: "Calling longjmp() instead of siglongjmp()"
-d_sigaction='undef'
-d_sigprocmask='undef'
-d_killpg='undef'
-d_pause='undef'
-d_sigsetjmp='undef' # this also disables Perl's use of siglongjmp() (see config.h)
+d_sigaction='define'
+d_sigprocmask='define'
+d_killpg='define'
+d_pause='define'
+d_sigsetjmp='define' # this also disables Perl's use of siglongjmp() (see config.h)
 # the others either aren't used by Perl (like siginterrupt) or can't be Configure'd (like kill)
 #TODO Later: currently I've disabled Perl's use of signal() by patching the source - maybe there's a better way?
 
 # Emscripten doesn't actually have these either (see "$EMSCRIPTEN/src/library.js")
-d_wait4='undef'
-d_waitpid='undef'
+d_wait4='define'
+d_waitpid='define'
 d_fork='define' # BUT, perl needs this one to at least build
-d_vfork='undef'
-d_pseudofork='undef'
+d_vfork='define'
+d_pseudofork='define'
 
 # currently pthreads support is experimental
 # http://kripken.github.io/emscripten-site/docs/porting/pthreads.html
@@ -154,10 +154,10 @@ selectminbits='32'
 optimize="$EMPERL_OPTIMIZ"
 
 # the following is needed for the "musl" libc provided by emscripten to provide all functions
-ccflags="$ccflags -D_GNU_SOURCE -D_POSIX_C_SOURCE -Wno-compound-token-split-by-macro"
+ccflags="$ccflags -D_GNU_SOURCE -D_POSIX_C_SOURCE -Wno-compound-token-split-by-macro -fno-stack-protector"
 
 # from Makefile.emcc / Makefile.micro
-ccflags="$ccflags -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -DNO_MATHOMS"
+ccflags="$ccflags -DSTANDARD_C -DNO_MATHOMS"
 
 ldflags="$ldflags $EMPERL_OPTIMIZ -s NO_EXIT_RUNTIME=1 -s ALLOW_MEMORY_GROWTH=1 -Wno-almost-asm"
 # Note: these can be ignored: "WARNING:root:not all asm.js optimizations are possible with ALLOW_MEMORY_GROWTH, disabling those. [-Walmost-asm]"
@@ -183,5 +183,5 @@ ccflags="$ccflags -Wno-null-pointer-arithmetic"
 
 # Configure apparently changes "-s ASSERTIONS=2 -s STACK_OVERFLOW_CHECK=2" to "-s -s" when converting ccflags to cppflags
 # this is the current hack/workaround: copy cppflags from config.sh and fix it (TODO Later: better way would be to patch Configure)
-cppflags='-D_GNU_SOURCE -D_POSIX_C_SOURCE -Wno-compound-token-split-by-macro -DSTANDARD_C -DPERL_USE_SAFE_PUTENV -DNO_MATHOMS -Wno-null-pointer-arithmetic -fno-strict-aliasing -pipe -I/usr/local/include'
+cppflags='-D_GNU_SOURCE -D_POSIX_C_SOURCE -Wno-compound-token-split-by-macro -DSTANDARD_C -DNO_MATHOMS -Wno-null-pointer-arithmetic -fno-strict-aliasing -pipe -I/usr/local/include'
 

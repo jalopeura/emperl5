@@ -10,19 +10,50 @@ BEGIN {
     set_up_inc( qw(. ../lib ) );
 }
 
-plan(5);
+plan(70);
 
 # [perl #130814] can reallocate lineptr while looking ahead for
 # "Missing $ on loop variable" diagnostic.
 my $result = fresh_perl(
-    " foreach m0\n\$" . ("0" x 0x2000),
+    " foreach my\n\$" . ("v" x 0x2000),
     { stderr => 1 },
 );
 is($result . "\n", <<EXPECT);
-syntax error at - line 3, near "foreach m0
-"
-Identifier too long at - line 3.
+Identifier too long at - line 2.
 EXPECT
+
+for my $var ('$00','${00}','$001','${001}','$01','${01}','$09324', '${09324}') {
+    for my $utf8 ("","use utf8;") {
+        for my $strict ("","use strict;") {
+            fresh_perl_is(
+                "${strict}${utf8}print $var;",
+                "Numeric variables with more than one digit may not start with '0' at - line 1.",
+                {},
+                sprintf("check %s is illegal%s%s", $var,
+                    $utf8   ? " under utf8" : "",
+                    $strict ? " under strict" : ""
+                ),
+            );
+        }
+    }
+}
+
+for my $var ('$0', '${0}', '$1', '${1}', '$10', '${10}', '$9324', '${9324}') {
+    for my $utf8 ("","use utf8;") {
+        for my $strict ("","use strict;") {
+            fresh_perl_is(
+                "${strict}${utf8} print '$var' if $var or !$var;",
+                $var,
+                {},
+                sprintf("check %s is legal%s%s", $var,
+                    $utf8   ? " under utf8" : "",
+                    $strict ? " under strict" : ""
+                )
+            );
+        }
+    }
+}
+
 
 fresh_perl_is(<<EOS, <<'EXPECT', {}, "linestart before bufptr");
 \${ \xB6eeeeeeeeeeee
@@ -54,6 +85,16 @@ Warning: Use of "-C-" without parentheses is ambiguous at - line 1.
 syntax error at - line 1, at EOF
 Execution of - aborted due to compilation errors.
 EXPECTED
+
+{
+    my $work = tempfile;
+    open my $fh, ">", $work or die;
+    binmode $fh;
+    print $fh +("\n" x 50_000), "1;\n";
+    close $fh;
+    fresh_perl_is('require "./' . $work .'"; print "ok\n";', "ok\n",
+                  {}, "many blank lines doesn't crash");
+}
 
 __END__
 # ex: set ts=8 sts=4 sw=4 et:

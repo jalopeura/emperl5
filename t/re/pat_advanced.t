@@ -7,8 +7,8 @@
 BEGIN {
     chdir 't' if -d 't';
     require './test.pl';
-    require './charset_tools.pl';
     set_up_inc(qw '../lib .');
+    require './charset_tools.pl';
     skip_all_if_miniperl("miniperl can't load Tie::Hash::NamedCapture, need for %+ and %-");
 }
 
@@ -934,6 +934,9 @@ sub run_tests {
         my $name = "foo\xDF";
         my $result = eval "'A${name}B'  =~ /^A\\N{$name}B\$/";
         ok !$@ && $result,  "Passthrough charname of non-ASCII, Latin1";
+        eval "qr/\\p{name=foo}/";
+        like($@, qr/Can't find Unicode property definition "name=foo"/,
+                '\p{name=} doesn\'t see a cumstom charnames translator');
         #
         # Why doesn't must_warn work here?
         #
@@ -990,14 +993,6 @@ sub run_tests {
             like ($@, qr/charnames alias definitions may not contain a sequence of multiple spaces/, "Multiple spaces in a row in a charnames alias is fatal");
             eval q [use utf8; () = "\N{TOO  MANY SPACES}"];
             like ($@, qr/charnames alias definitions may not contain a sequence of multiple spaces/,  "... same under utf8");
-        }
-
-        undef $w;
-        {
-            () = eval q ["\N{TRAILING SPACE }"];
-            like ($@, qr/charnames alias definitions may not contain trailing white-space/, "Trailing white-space in a charnames alias is fatal");
-            eval q [use utf8; () = "\N{TRAILING SPACE }"];
-            like ($@, qr/charnames alias definitions may not contain trailing white-space/, "... same under utf8");
         }
 
         undef $w;
@@ -1149,10 +1144,10 @@ sub run_tests {
 
     {
         my @ary = (
-            pack('U', 0x00F1), # n-tilde
-            '_'.pack('U', 0x00F1), # _ + n-tilde
+            pack('U', utf8::unicode_to_native(0x00F1)), # n-tilde
+            '_'.pack('U', utf8::unicode_to_native(0x00F1)), # _ + n-tilde
             'c'.pack('U', 0x0327),        # c + cedilla
-            pack('U*', 0x00F1, 0x0327),# n-tilde + cedilla
+            pack('U*', utf8::unicode_to_native(0x00F1), 0x0327),# n-tilde + cedilla
             pack('U', 0x0391),            # ALPHA
             pack('U', 0x0391).'2',        # ALPHA + 2
             pack('U', 0x0391).'_',        # ALPHA + _
@@ -1513,19 +1508,25 @@ sub run_tests {
     }
 
     {
-        my $res="";
+        no warnings 'uninitialized';
+        my $res = "";
 
         if ('1' =~ /(?|(?<digit>1)|(?<digit>2))/) {
             $res = "@{$- {digit}}";
         }
-        is($res, "1",
-	   "Check that (?|...) doesnt cause dupe entries in the names array");
+        is($res, "1 ",
+	   "Check that repeated named captures in branch reset (?|...) work as expected");
+        if ('2' =~ /(?|(?<digit>1)|(?<digit>2))/) {
+            $res = "@{$- {digit}}";
+        }
+        is($res, " 2",
+	   "Check that repeated named captures in branch reset (?|...) work as expected");
 
         $res = "";
         if ('11' =~ /(?|(?<digit>1)|(?<digit>2))(?&digit)/) {
             $res = "@{$- {digit}}";
         }
-        is($res, "1",
+        is($res, "1 ",
 	   "Check that (?&..) to a buffer inside a (?|...) goes to the leftmost");
     }
 
@@ -2143,8 +2144,8 @@ EOP
 
     {   # This was failing unless an explicit /d was added
         my $E0 = uni_to_native("\xE0");
+        utf8::upgrade($E0);
         my $p = qr/[_$E0]/i;
-        utf8::upgrade($p);
         like(uni_to_native("\xC0"), qr/$p/, "Verify \"\\xC0\" =~ /[\\xE0_]/i; pattern in utf8");
     }
 
@@ -2152,7 +2153,7 @@ EOP
         "Check TRIE does not overwrite EXACT following NOTHING at start - RT #111842";
 
     {
-        my $single = ":";
+        my $single = "z";
         my $upper = "\x{390}";  # Fold is 3 chars.
         my $multi = CORE::fc($upper);
 
@@ -2384,11 +2385,10 @@ EOF
         ok(1, $message);  # If it didn't crash, it worked.
     }
 
-    TODO: {   # Was looping
-        todo_skip('Triggers thread clone SEGV. See #86550')
-	  if $::running_as_thread && $::running_as_thread;
-        watchdog(10);   # Use a bigger value for busy systems
+    {   # Was looping
+        watchdog(10);
         like("\x{00DF}", qr/[\x{1E9E}_]*/i, "\"\\x{00DF}\" =~ /[\\x{1E9E}_]*/i was looping");
+        watchdog(0);
     }
 
     {   # Bug #90536, caused failed assertion
@@ -2424,7 +2424,7 @@ EOF
             like(chr(0x7FFF_FFFF_FFFF_FFFF), qr/^\p{Is_Portable_Super}$/,
                     "chr(0x7FFF_FFFF_FFFF_FFFF) can match a Unicode property");
 
-            my $p = qr/^[\x{7FFF_FFFF_FFFF_FFFF}]$/;
+            my $p = eval 'qr/^\x{7FFF_FFFF_FFFF_FFFF}$/';
             like(chr(0x7FFF_FFFF_FFFF_FFFF), qr/$p/,
                     "chr(0x7FFF_FFFF_FFFF_FFFF) can match itself in a [class]");
             like(chr(0x7FFF_FFFF_FFFF_FFFF), qr/$p/, # Tests any caching
@@ -2522,6 +2522,183 @@ EOF
     {   # [perl #134034]    Previously assertion failure
         fresh_perl_is('use utf8; q!Ȧिम한글💣΢ყაოსაა!=~/(?li)\b{wb}\B(*COMMIT)0/;',
                       "", {}, "*COMMIT caused positioning beyond EOS");
+    }
+
+    {   # [GH #17486]    Previously assertion failure
+        fresh_perl_is('0=~/(?iaa)ss\337(?0)|/',
+                      "", {}, "EXACTFUP node isn't changed into something else");
+    }
+
+    {   # [GH #17593]
+        fresh_perl_is('qr/((?+2147483647))/',
+                      "Invalid reference to group in regex; marked by <--"
+                    . " HERE in m/((?+2147483647) <-- HERE )/ at - line 1.",
+                      {}, "integer overflow, undefined behavior in ASAN");
+        fresh_perl_is('qr/((?-2147483647))/',
+                      "Reference to nonexistent group in regex; marked by <--"
+                    . " HERE in m/((?-2147483647) <-- HERE )/ at - line 1.",
+                      {}, "Large negative relative capture group");
+        fresh_perl_is('qr/((?+18446744073709551615))/',
+                      "Invalid reference to group in regex; marked by <--"
+                    . " HERE in m/((?+18446744073709551615 <-- HERE ))/ at -"
+                    . " line 1.",
+                      {}, "Too large relative group number");
+        fresh_perl_is('qr/((?-18446744073709551615))/',
+                      "Invalid reference to group in regex; marked by <--"
+                    . " HERE in m/((?-18446744073709551615 <-- HERE ))/ at -"
+                    . " line 1.",
+                      {}, "Too large negative relative group number");
+    }
+
+    {   # GH #17734, ASAN use after free
+        fresh_perl_like('no warnings "experimental::uniprop_wildcards";
+                         my $re = q<[[\p{name=/[Y-]+Z/}]]>;
+                         eval { "\N{BYZANTINE MUSICAL SYMBOL PSILI}"
+                                =~ /$re/ }; print $@ if $@; print "Done\n";',
+                         qr/Done/,
+                         {}, "GH #17734");
+    }
+
+    {   # GH $17278 assertion fails
+        fresh_perl_is('use locale;
+                       my $A_grave = "\N{LATIN CAPITAL LETTER A WITH GRAVE}";
+                       my $a_grave = "\N{LATIN SMALL LETTER A WITH GRAVE}";
+
+                       my $z="q!$a_grave! =~ m!(?^i)[$A_grave]!";
+                       print eval $z, "\n";',
+                       1,
+                       {}, "GH #17278");
+    }
+    
+    for my $try ( 1 .. 10 ) {
+        # GH $19350 assertion fails - run 10 times as this bug is a heisenbug
+        # and does not always fail, but should fail at least once in 10 tries.
+        fresh_perl_is('use re Debug=>"ALL";qr{(?{a})(?<b>\g{c}})',
+                      <<'EOF_DEBUG_OUT',
+Assembling pattern from 2 elements
+Compiling REx "(?{a})(?<b>\g{c}"
+Starting parse and generation
+<(?{a})(?<b>>...|   1|  reg    
+                |    |    brnc   
+                |    |      piec   
+                |    |        atom   
+<?{a})(?<b>\>...|    |          reg    
+<(?<b>\g{c}>    |   4|      piec   
+                |    |        atom   
+<?<b>\g{c}>     |    |          reg    
+                |    |            Setting open paren #1 to 4
+<\g{c}>         |   6|            brnc   
+                |    |              piec   
+                |    |                atom   
+<>              |   9|            tail~ OPEN1 'b' (4) -> REFN
+                |    |            Setting close paren #1 to 9
+                |  11|          lsbr~ tying lastbr REFN <1> (6) to ender CLOSE1 'b' (9) offset 3
+                |    |            tail~ REFN <1> (6) -> CLOSE
+Unmatched ( in regex; marked by <-- HERE in m/(?{a})( <-- HERE ?<b>\g{c}/ at - line 1.
+Freeing REx: "(?{a})(?<b>\g{c}"
+EOF_DEBUG_OUT
+                      {rtrim_result=>1},
+                      "Github Issue #19350, assert fail in "
+                          . "Debug => 'ALL' from malformed qr// (heisenbug try $try)");
+    }
+    {   # Related to GH $19350 but segfaults instead of asserts, and does so reliably, not randomly.
+        # use re Debug => "PARSE" is similar to "ALL", but does not include the optimize info, so we
+        # do not need to deal with normlazing memory addresses in the output.
+        fresh_perl_is(
+                      'use re Debug=>"PARSE";qr{(?<b>\g{c})(?<c>x)(?&b)}',
+                      <<'EOF_DEBUG_OUT',
+Assembling pattern from 1 elements
+Compiling REx "(?<b>\g{c})(?<c>x)(?&b)"
+Starting parse and generation
+<(?<b>\g{c})>...|   1|  reg    
+                |    |    brnc   
+                |    |      piec   
+                |    |        atom   
+<?<b>\g{c})(>...|    |          reg    
+<\g{c})(?<c>>...|   3|            brnc   
+                |    |              piec   
+                |    |                atom   
+<)(?<c>x)(?&b)> |   6|            tail~ OPEN1 'b' (1) -> REFN
+                |   8|          lsbr~ tying lastbr REFN <1> (3) to ender CLOSE1 'b' (6) offset 3
+                |    |            tail~ REFN <1> (3) -> CLOSE
+<(?<c>x)(?&b)>  |    |      piec   
+                |    |        atom   
+<?<c>x)(?&b)>   |    |          reg    
+<x)(?&b)>       |  10|            brnc
+                |    |              piec   
+                |    |                atom   
+<)(?&b)>        |  12|            tail~ OPEN2 'c' (8) -> EXACT
+                |  14|          lsbr~ tying lastbr EXACT <x> (10) to ender CLOSE2 'c' (12) offset 2
+                |    |            tail~ EXACT <x> (10) -> CLOSE
+<(?&b)>         |    |      tail~ OPEN1 'b' (1)  
+                |    |          ~ REFN <1> (3)
+                |    |          ~ CLOSE1 'b' (6) -> OPEN
+                |    |      piec   
+                |    |        atom   
+<?&b)>          |    |          reg    
+<>              |  17|      tail~ OPEN2 'c' (8)
+                |    |          ~ EXACT <x> (10)
+                |    |          ~ CLOSE2 'c' (12) -> GOSUB
+                |  18|  lsbr~ tying lastbr OPEN1 'b' (1) to ender END (17) offset 16
+                |    |    tail~ OPEN1 'b' (1)  
+                |    |        ~ REFN <1> (3)
+                |    |        ~ CLOSE1 'b' (6)
+                |    |        ~ OPEN2 'c' (8)
+                |    |        ~ EXACT <x> (10)
+                |    |        ~ CLOSE2 'c' (12)
+                |    |        ~ GOSUB1[+0:14] 'b' (14) -> END
+Need to redo parse
+Freeing REx: "(?<b>\g{c})(?<c>x)(?&b)"
+Starting parse and generation
+<(?<b>\g{c})>...|   1|  reg    
+                |    |    brnc   
+                |    |      piec   
+                |    |        atom   
+<?<b>\g{c})(>...|    |          reg    
+<\g{c})(?<c>>...|   3|            brnc   
+                |    |              piec   
+                |    |                atom   
+<)(?<c>x)(?&b)> |   6|            tail~ OPEN1 'b' (1) -> REFN
+                |   8|          lsbr~ tying lastbr REFN2 'c' <1> (3) to ender CLOSE1 'b' (6) offset 3
+                |    |            tail~ REFN2 'c' <1> (3) -> CLOSE
+<(?<c>x)(?&b)>  |    |      piec   
+                |    |        atom   
+<?<c>x)(?&b)>   |    |          reg    
+<x)(?&b)>       |  10|            brnc
+                |    |              piec   
+                |    |                atom   
+<)(?&b)>        |  12|            tail~ OPEN2 'c' (8) -> EXACT
+                |  14|          lsbr~ tying lastbr EXACT <x> (10) to ender CLOSE2 'c' (12) offset 2
+                |    |            tail~ EXACT <x> (10) -> CLOSE
+<(?&b)>         |    |      tail~ OPEN1 'b' (1)  
+                |    |          ~ REFN2 'c' <1> (3)
+                |    |          ~ CLOSE1 'b' (6) -> OPEN
+                |    |      piec   
+                |    |        atom   
+<?&b)>          |    |          reg    
+<>              |  17|      tail~ OPEN2 'c' (8)
+                |    |          ~ EXACT <x> (10)
+                |    |          ~ CLOSE2 'c' (12) -> GOSUB
+                |  18|  lsbr~ tying lastbr OPEN1 'b' (1) to ender END (17) offset 16
+                |    |    tail~ OPEN1 'b' (1)  
+                |    |        ~ REFN2 'c' <1> (3)
+                |    |        ~ CLOSE1 'b' (6)
+                |    |        ~ OPEN2 'c' (8)
+                |    |        ~ EXACT <x> (10)
+                |    |        ~ CLOSE2 'c' (12)
+                |    |        ~ GOSUB1[+0:14] 'b' (14) -> END
+Required size 17 nodes
+first at 3
+Freeing REx: "(?<b>\g{c})(?<c>x)(?&b)"
+EOF_DEBUG_OUT
+                      {rtrim_result=>1},
+                      "Related to Github Issue #19350, forward \\g{x} pattern segv under use re Debug => 'PARSE'");
+    }
+
+    {   # GH 20009
+        my $x = "awesome quotes";
+        utf8::upgrade($x);
+        $x =~ s/^[\x{0301}\x{030C}]+//;
     }
 
 

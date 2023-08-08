@@ -36,10 +36,6 @@ my $ext_dirs_re = '(?:' . join('|', @ext_dirs) . ')';
 # 
 #     make_ext.pl "MAKE=nmake -nologo" --dir=..\ext --target=clean
 # 
-#     make_ext.pl MAKE=dmake --dir=..\ext
-# 
-#     make_ext.pl MAKE=dmake --dir=..\ext --target=clean
-# 
 # Will skip building extensions which are marked with an '!' char.
 # Mostly because they still not ported to specified platform.
 # 
@@ -48,6 +44,20 @@ my $ext_dirs_re = '(?:' . join('|', @ext_dirs) . ')';
 # by an '!ext' and are appropriate to the type of building being done.
 # An extensions follows the format of Foo/Bar, which would be extension Foo::Bar
 
+# To fix dependency ordering, on *nix systems, edit Makefile.SH to create a
+# rule.  That isn't sufficient for other systems; you also have to do
+# something in this file.  See the code at
+#       '# XXX hack for dependency # ordering'
+# below.
+#
+# The basic logic is:
+#   1) if there's a Makefile.PL in git for the module, use it. and call make
+#   2) If not, auto-generate one (normally)
+#   3) unless the auto-generation code figures out that the extension is
+#      *really* simple, in which case don't.  This will be for pure perl
+#      modules, and all that is needed to be done is to copy from the source
+#      to the dest directories.
+#
 # It may be deleted in a later release of perl so try to
 # avoid using it for other purposes.
 
@@ -154,7 +164,7 @@ if (IS_WIN32) {
     $ENV{PATH} = "$topdir;$topdir\\win32\\bin;$ENV{PATH}";
     my $pl2bat = "$topdir\\win32\\bin\\pl2bat";
     unless (-f "$pl2bat.bat") {
-	my @args = ($perl, "-I$topdir\\lib", ("$pl2bat.pl") x 2);
+	my @args = ($perl, "-I$topdir\\lib", "-I$topdir\\cpan\\ExtUtils-PL2Bat\\lib", ("$pl2bat.pl") x 2);
 	print "@args\n" if $verbose;
 	system(@args) unless IS_CROSS;
     }
@@ -201,20 +211,23 @@ elsif (IS_VMS) {
     push @extspec, 'DynaLoader' if $dynaloader;
 }
 
-{
+{ # XXX hack for dependency ordering
     # Cwd needs to be built before Encode recurses into subdirectories.
-    # Pod::Simple needs to be built before Pod::Functions
+    # Pod::Simple needs to be built before Pod::Functions, but after 'if'
     # lib needs to be built before IO-Compress
     # This seems to be the simplest way to ensure this ordering:
-    my (@first, @other);
+    my (@first, @second, @other);
     foreach (@extspec) {
-	if ($_ eq 'Cwd' || $_ eq 'Pod/Simple' || $_ eq 'lib') {
+	if ($_ eq 'Cwd' || $_ eq 'if' || $_ eq 'lib') {
 	    push @first, $_;
+        }
+	elsif ($_ eq 'Pod/Simple') {
+	    push @second, $_;
 	} else {
 	    push @other, $_;
 	}
     }
-    @extspec = (@first, @other);
+    @extspec = (@first, @second, @other);
 }
 
 if ($Config{osname} eq 'catamount' and @extspec) {
@@ -509,6 +522,7 @@ EOM
 		'INSTALLMAN3DIR=none';
 	}
 	push @args, @$pass_through;
+	push @args, 'PERL=' . $perl if $perl; # use miniperl to run the Makefile later
 	_quote_args(\@args) if IS_VMS;
 	print join(' ', $perl, @args), "\n" if $verbose;
 	my $code = do {
@@ -644,6 +658,7 @@ sub just_pm_to_blib {
                             |README
                             |README\.patching
                             |README\.release
+                            |\.gitignore
                             )\z/xi; # /i to deal with case munging systems.
         if ($leaf eq "$last.pm") {
             ++$has_top;

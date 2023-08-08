@@ -10,6 +10,29 @@ BEGIN {
     }
 }
 
+my $no_taint_support = exists($Config::Config{taint_support})
+                     && !$Config::Config{taint_support};
+
+my %skip_fetch_count_when_no_taint = (
+    '<${$ts}> RT57012_OV' => 1,
+    '<use integer; ${$ts}> RT57012_OV' => 1,
+    '<do {&{$ts} for 1,2}> RT57012_OV' => 1,
+    '<use integer; do {&{$ts} for 1,2}> RT57012_OV' => 1,
+    '<*RT57012B = *{$ts}; our $RT57012B> RT57012_OV' => 1,
+    '<use integer; *RT57012B = *{$ts}; our $RT57012B> RT57012_OV' => 1,
+);
+
+sub is_if_taint_supported {
+    my ($got, $expected, $name, @mess) = @_;
+    if ($expected && $no_taint_support) {
+        return skip("your perl was built without taint support");
+    }
+    else {
+        return is($got, $expected, $name, @mess);
+    }
+}
+
+
 package Oscalar;
 use overload ( 
 				# Anonymous subroutines:
@@ -1077,7 +1100,7 @@ is("a$utfvar", "a".200.2.1); # 224 - overload via sv_2pv_flags
 # were to eval the overload code in the caller's namespace, the privatisation
 # would be quite transparent.
 package Hderef;
-use overload '%{}' => sub { (caller(0))[0] eq 'Foo' ? $_[0] : die "zap" };
+use overload '%{}' => sub { caller(0) eq 'Foo' ? $_[0] : die "zap" };
 package Foo;
 @Foo::ISA = 'Hderef';
 sub new { bless {}, shift }
@@ -1390,7 +1413,8 @@ foreach my $op (qw(<=> == != < <= > >=)) {
 }
 
 {
-    use Scalar::Util 'weaken';
+    no warnings 'experimental::builtin';
+    use builtin 'weaken';
 
     package Shklitza;
     use overload '""' => sub {"CLiK KLAK"};
@@ -1882,11 +1906,11 @@ foreach my $op (qw(<=> == != < <= > >=)) {
 
 	# eval should do tie, overload on its arg before checking taint */
 	push @tests, [ '1;', 'eval q(eval %s); $@ =~ /Insecure/',
-		'("")', '("")', [ 1, 2, 0 ], 0 ];
+		'("")', '("")', [ 1, 1, 0 ], 0 ];
 
 
 	for my $sub (keys %subs) {
-	    no warnings 'experimental::smartmatch';
+	    no warnings 'deprecated';
 	    my $term = $subs{$sub};
 	    my $t = sprintf $term, '$_[0][0]';
 	    my $e ="sub { \$funcs .= '($sub)'; my \$r; if (\$use_int) {"
@@ -1928,7 +1952,7 @@ foreach my $op (qw(<=> == != < <= > >=)) {
 				    ? "-\$_[0][0]"
 				    : "$_[3](\$_[0][0])";
 			my $r;
-			no warnings 'experimental::smartmatch';
+			no warnings 'deprecated';
 			if ($use_int) {
 			    use integer; $r = eval $e;
 			}
@@ -1975,10 +1999,12 @@ foreach my $op (qw(<=> == != < <= > >=)) {
 	    $use_int = ($int ne '');
 	    my $plain = $tainted_val;
 	    my $plain_term = $int . sprintf $sub_term, '$plain';
-	    my $exp = do {no warnings 'experimental::smartmatch'; eval $plain_term };
+	    my $exp = do {no warnings 'deprecated'; eval $plain_term };
 	    diag("eval of plain_term <$plain_term> gave <$@>") if $@;
-	    is(tainted($exp), $exp_taint,
-			"<$plain_term> taint of expected return");
+	    SKIP: {
+		is_if_taint_supported(tainted($exp), $exp_taint,
+		    "<$plain_term> taint of expected return");
+	    }
 
 	    for my $ov_pkg (qw(RT57012_OV RT57012_OV_FB)) {
 		next if $ov_pkg eq 'RT57012_OV_FB'
@@ -2003,14 +2029,16 @@ foreach my $op (qw(<=> == != < <= > >=)) {
 
 		    my $res_term  = $int . sprintf $sub_term, $var;
 		    my $desc =  "<$res_term> $ov_pkg" ;
-		    my $res = do { no warnings 'experimental::smartmatch'; eval $res_term };
+		    my $res = do { no warnings 'deprecated'; eval $res_term };
 		    diag("eval of res_term $desc gave <$@>") if $@;
 		    # uniquely, the inc/dec ops return the original
 		    # ref rather than a copy, so stringify it to
 		    # find out if its tainted
 		    $res = "$res" if $res_term =~ /\+\+|--/;
-		    is(tainted($res), $exp_taint,
+		    SKIP: {
+			is_if_taint_supported(tainted($res), $exp_taint,
 			    "$desc taint of result return");
+		    }
 		    is($res, $exp, "$desc return value");
 		    my $fns =($ov_pkg eq 'RT57012_OV_FB')
 				? $exp_fb_funcs : $exp_funcs;
@@ -2023,7 +2051,14 @@ foreach my $op (qw(<=> == != < <= > >=)) {
 		    next if $var eq '$oload';
 		    my $exp_fetch = ($var eq '$ts') ?
 			    $exp_fetch_s : $exp_fetch_a;
-		    is($fetches, $exp_fetch, "$desc FETCH count");
+		    SKIP: {
+			if ($skip_fetch_count_when_no_taint{$desc} && $no_taint_support) {
+			    skip("your perl was built without taint support");
+			}
+			else {
+			    is($fetches, $exp_fetch, "$desc FETCH count");
+			}
+		    }
 		    is($stores, $exp_store, "$desc STORE count");
 
 		}
@@ -3072,7 +3107,7 @@ package RT132827 {
 }
 
 # RT #132793
-# An arg like like "$b" in $overloaded .= "$b" should be stringified
+# An arg like "$b" in $overloaded .= "$b" should be stringified
 # before being passed to the method
 
 package RT132793 {

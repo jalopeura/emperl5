@@ -30,9 +30,6 @@ if ($^O eq 'VMS') {
     $Is_VMS_VAX = $hw_model < 1024 ? 1 : 0;
 }
 
-# No %Config.
-my $Is_Ultrix_VAX = $^O eq 'ultrix' && `uname -m` =~ /^VAX$/;
-
 # The most generic VAX catcher.
 my $Is_VAX_Float = (pack("d", 1) =~ /^[\x80\x10]\x40/);
 
@@ -55,7 +52,7 @@ while (<DATA>) {
         $data   =~ s/([eE])\-101$/${1}-56/;  # larger exponents
         $result =~ s/([eE])\-102$/${1}-57/;  #  "       "
     }
-    if ($Is_VMS_VAX || $Is_Ultrix_VAX || $Is_VAX_Float) {
+    if ($Is_VMS_VAX || $Is_VAX_Float) {
 	# VAX DEC C 5.3 at least since there is no
 	# ccflags =~ /float=ieee/ on VAX.
 	# AXP is unaffected whether or not it is using ieee.
@@ -133,7 +130,7 @@ for (@tests) {
             if ($cond =~ /^\d/) {
                 # >comment skip: hpux:10.20<
                 my $vsn = $cond;
-                # Only compare on the the first pair of digits, as numeric
+                # Only compare on the first pair of digits, as numeric
                 # compares do not like 2.6.10-3mdksmp or 2.6.8-24.10-default
                 s/^(\d+(\.\d+)?).*/$1/ for $osv, $vsn;
                 $skip = $vsn ? ($osv <= $vsn ? 1 : 0) : 1;
@@ -548,7 +545,7 @@ __END__
 >%#06.4o<   >18<          >  0022<        >0 flag with precision: no effect<
 >%d< >$p=sprintf('%p',$p);$p=~/^[0-9a-f]+$/< >1< >Coarse hack: hex from %p?<
 >%d< >$p=sprintf('%-8p',$p);$p=~/^[0-9a-f]+\s*$/< >1< >Coarse hack: hex from %p?<
->%#p<       >''<          >%#p INVALID<
+>%d< >$p=sprintf('%#p',$p);$p=~/^0x[0-9a-f]+\s*$/< >1< >Coarse hack: hex from %#p<
 >%q<        >''<          >%q INVALID<
 >%r<        >''<          >%r INVALID<
 >%s<        >[]<          > MISSING<

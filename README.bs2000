@@ -1,3 +1,5 @@
+# vim: syntax=pod
+
 This document is written in pod format hence there are punctuation
 characters in odd places.  Do not worry, you've apparently got the
 ASCII->EBCDIC translation worked out correctly.  You can read more
@@ -8,7 +10,7 @@ about pod in pod/perlpod.pod or the short summary in the INSTALL file.
 perlbs2000 - building and installing Perl for BS2000.
 
 B<This document needs to be updated, but we don't know what it should say.
-Please email comments to L<perlbug@perl.org|mailto:perlbug@perl.org>.>
+Please submit comments to L<https://github.com/Perl/perl5/issues>.>
 
 =head1 SYNOPSIS
 
@@ -137,7 +139,7 @@ instead:
 
 : # use perl
     eval 'exec /usr/local/bin/perl -S $0 ${1+"$@"}'
-        if $running_under_some_shell;
+        if 0; # ^ Run only under a shell
 
 =head2 Using Perl in "native" BS2000
 
@@ -227,12 +229,11 @@ To subscribe, send an empty message to perl-mvs-subscribe@perl.org.
 
 See also:
 
-    http://lists.perl.org/list/perl-mvs.html
+    https://lists.perl.org/list/perl-mvs.html
 
 There are web archives of the mailing list at:
 
-    http://www.xray.mpe.mpg.de/mailing-lists/perl-mvs/
-    http://archive.develooper.com/perl-mvs@perl.org/
+    https://www.nntp.perl.org/group/perl.mvs/
 
 =head1 HISTORY
 

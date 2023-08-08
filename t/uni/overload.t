@@ -2,11 +2,11 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    require Config; import Config;
     require './test.pl';
+    set_up_inc( '../lib' );
+    require Config; import Config;
     require './charset_tools.pl';
     require './loc_tools.pl';
-    set_up_inc( '../lib' );
 }
 
 plan(tests => 193);
@@ -97,7 +97,7 @@ $uc = ucfirst $u;
 is (length $uc, 1);
 is ($uc, $e_acute, "e acute -> E acute");
 
-my $have_setlocale = locales_enabled('LC_ALL');
+my $have_setlocale = locales_enabled( [ 'LC_ALL', 'LC_CTYPE' ] );
 
 SKIP: {
     if (!$have_setlocale) {

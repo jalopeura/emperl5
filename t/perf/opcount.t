@@ -20,8 +20,6 @@ BEGIN {
 use warnings;
 use strict;
 
-plan 2582;
-
 use B ();
 
 
@@ -268,7 +266,6 @@ test_opcount(0, 'barewords can be constant-folded',
              });
 
 {
-    no warnings 'experimental::signatures';
     use feature 'signatures';
 
     my @a;
@@ -663,3 +660,356 @@ test_opcount(0, "multiconcat: 4 adjacent consts",
                     concat      => 0,
                     sassign     => 0,
                 });
+
+# multiconcat shouldn't include the assign if the LHS has 'local'
+
+test_opcount(0, "multiconcat: local assign",
+                sub { our $global; local $global = "$global-X" },
+                {
+                    const       => 0,
+                    gvsv        => 2,
+                    multiconcat => 1,
+                    concat      => 0,
+                    sassign     => 1,
+                });
+
+{
+    use feature 'try';
+    no warnings 'experimental::try';
+
+    test_opcount(0, "try/catch: catch block is optimized",
+                    sub { my @a; try {} catch($e) { $a[0] } },
+                    {
+                        aelemfast_lex => 1,
+                        aelem         => 0,
+                    });
+}
+
+{
+    use feature 'defer';
+    no warnings 'experimental::defer';
+
+    test_opcount(0, "pushdefer: block is optimized",
+                    sub { my @a; defer { $a[0] } },
+                    {
+                        aelemfast_lex => 1,
+                        aelem         => 0,
+                    });
+}
+
+# builtin:: function calls should be replaced with efficient op implementations
+no warnings 'experimental::builtin';
+
+test_opcount(0, "builtin::true/false are replaced with constants",
+                sub { my $x = builtin::true(); my $y = builtin::false() },
+                {
+                    entersub => 0,
+                    const    => 2,
+                });
+
+test_opcount(0, "builtin::is_bool is replaced with direct opcode",
+                sub { my $x; my $y; $y = builtin::is_bool($x); },
+                {
+                    entersub => 0,
+                    is_bool  => 1,
+                    padsv    => 3,
+                    padsv_store  => 1,
+                });
+
+test_opcount(0, "builtin::is_bool gets constant-folded",
+                sub { builtin::is_bool(123); },
+                {
+                    entersub => 0,
+                    is_bool  => 0,
+                    const    => 1,
+                });
+
+test_opcount(0, "builtin::weaken is replaced with direct opcode",
+                sub { my $x = []; builtin::weaken($x); },
+                {
+                    entersub => 0,
+                    weaken   => 1,
+                });
+
+test_opcount(0, "builtin::unweaken is replaced with direct opcode",
+                sub { my $x = []; builtin::unweaken($x); },
+                {
+                    entersub => 0,
+                    unweaken => 1,
+                });
+
+test_opcount(0, "builtin::is_weak is replaced with direct opcode",
+                sub { builtin::is_weak([]); },
+                {
+                    entersub => 0,
+                    is_weak  => 1,
+                });
+
+test_opcount(0, "builtin::blessed is replaced with direct opcode",
+                sub { builtin::blessed([]); },
+                {
+                    entersub => 0,
+                    blessed  => 1,
+                });
+
+test_opcount(0, "builtin::refaddr is replaced with direct opcode",
+                sub { builtin::refaddr([]); },
+                {
+                    entersub => 0,
+                    refaddr  => 1,
+                });
+
+test_opcount(0, "builtin::reftype is replaced with direct opcode",
+                sub { builtin::reftype([]); },
+                {
+                    entersub => 0,
+                    reftype  => 1,
+                });
+
+my $one_point_five = 1.5;   # Prevent const-folding.
+test_opcount(0, "builtin::ceil is replaced with direct opcode",
+                sub { builtin::ceil($one_point_five); },
+                {
+                    entersub => 0,
+                    ceil     => 1,
+                });
+
+test_opcount(0, "builtin::floor is replaced with direct opcode",
+                sub { builtin::floor($one_point_five); },
+                {
+                    entersub => 0,
+                    floor    => 1,
+                });
+
+test_opcount(0, "builtin::is_tainted is replaced with direct opcode",
+                sub { builtin::is_tainted($0); },
+                {
+                    entersub   => 0,
+                    is_tainted => 1,
+                });
+
+# sassign + padsv combinations are replaced by padsv_store
+test_opcount(0, "sassign + padsv replaced by padsv_store",
+                sub { my $y; my $z = $y = 3; },
+                {
+                    padsv        => 1,
+                    padsv_store  => 2,
+                });
+
+# OPpTARGET_MY optimizations on undef
+test_opcount(0, "undef + padsv (undef my \$x) is reduced to undef",
+                sub { undef my $x },
+                {
+                    undef       => 1,
+                    padsv       => 0,
+                    padsv_store => 0,
+                    sassign     => 0,
+                });
+test_opcount(0, "undef + padsv + sassign (my \$x = undef) is reduced to undef",
+                sub { my $x = undef },
+                {
+                    undef       => 1,
+                    padsv       => 0,
+                    padsv_store => 0,
+                    sassign     => 0,
+                });
+test_opcount(0, "undef + padsv (undef \$x) is reduced to undef",
+                sub { my $x; undef $x },
+                {
+                    undef       => 1,
+                    padsv       => 1,
+                    padsv_store => 0,
+                    sassign     => 0,
+                });
+test_opcount(0, "undef + padsv + sassign (\$x = undef) is reduced to undef",
+                sub { my $x; $x = undef },
+                {
+                    undef       => 1,
+                    padsv       => 1,
+                    padsv_store => 0,
+                    sassign     => 0,
+                });
+# Additional test cases requested by demerphq
+test_opcount(0, 'my $y= 1; my @x= ($y= undef);',
+                sub { my $y= 1; my @x= ($y= undef); },
+                {
+                    undef       => 1,
+                    aassign     => 1,
+                    padav       => 1,
+                    padsv       => 0,
+                    padsv_store => 1,
+                    sassign     => 0,
+                });
+
+test_opcount(0, 'my $x= 1; sub f{} f($x=undef);',
+                sub { my $x= 1; sub f{} f($x=undef); },
+                {
+                    undef       => 1,
+                    gv          => 1,
+                    padsv       => 0,
+                    padsv_store => 1,
+                    sassign     => 0,
+                });
+
+test_opcount(0, 'my ($x,$p)=(1,2); sub g{} g(($x=undef),$p);',
+                sub { my ($x,$p)=(1,2); sub g{} g(($x=undef),$p); },
+                {
+                    undef       => 1,
+                    aassign     => 1,
+                    gv          => 1,
+                    padrange    => 1,
+                    padsv       => 3,
+                    padsv_store => 0,
+                    sassign     => 0,
+                });
+
+test_opcount(0, 'my $h= {}; my @k= keys %{($h=undef)||{}};',
+                sub { my $h= {}; my @k= keys %{($h=undef)||{}}; },
+                {
+                    undef       => 1,
+                    aassign     => 1,
+                    emptyavhv   => 2,
+                    padav       => 1,
+                    padsv       => 0,
+                    padsv_store => 0,
+                    sassign     => 0,
+                });
+
+test_opcount(0, 'my $y= 1; my @x= \($y= undef);',
+                sub { my $y= 1; my @x= \($y= undef); },
+                {
+                    undef       => 1,
+                    aassign     => 1,
+                    padav       => 1,
+                    padsv       => 0,
+                    padsv_store => 1,
+                    sassign     => 0,
+                    srefgen     => 1,
+                });
+
+# aelemfast_lex + sassign are replaced by a combined OP
+test_opcount(0, "simple aelemfast_lex + sassign replacement",
+                sub { my @x; $x[0] = "foo" },
+                {
+                    aelemfast_lex      => 0,
+                    aelemfastlex_store => 1,
+                    padav              => 1,
+                    sassign            => 0,
+                });
+
+# aelemfast_lex + sassign are not replaced by a combined OP
+# when key <0 (not handled, to keep the pp_ function simple
+test_opcount(0, "aelemfast_lex + sassign replacement with neg key",
+                sub { my @x = (1,2); $x[-1] = 7 },
+                {
+                    aelemfast_lex      => 0,
+                    aelemfastlex_store => 1,
+                    padav              => 1,
+                    sassign            => 0,
+                });
+
+# aelemfast_lex + sassign optimization does not disrupt multideref
+test_opcount(0, "no aelemfast_lex + sassign replacement with multideref",
+                sub { my @x = ([1,2]); $x[0][1] = 1; },
+                {
+                    aelemfast_lex      => 0,
+                    aelemfastlex_store => 0,
+                    multideref         => 1,
+                    padav              => 1,
+                    sassign            => 1,
+                });
+
+# emptyavhv optimizations
+
+test_opcount(0, "Empty anonlist",
+                sub { [] },
+                {
+                    anonlist  => 0,
+                    emptyavhv => 1,
+                    sassign   => 0,
+                });
+test_opcount(0, "Empty anonlist with global assignment",
+                sub { our $x; $x = [] },
+                {
+                    anonlist  => 0,
+                    emptyavhv => 1,
+                    gvsv      => 1,
+                    pushmark  => 0,
+                    sassign   => 1,
+                });
+test_opcount(0, "Empty anonlist and lexical assignment",
+                sub { my $x; $x = [] },
+                {
+                    anonlist  => 0,
+                    emptyavhv => 1,
+                    padsv     => 1,
+                    pushmark  => 0,
+                    sassign   => 0,
+                });
+test_opcount(0, "Empty anonlist and direct lexical assignment",
+                sub { my $x = [] },
+                {
+                    anonlist  => 0,
+                    emptyavhv => 1,
+                    padsv     => 0,
+                    pushmark  => 0,
+                    sassign   => 0,
+                });
+test_opcount(0, "Empty anonlist ref and direct lexical assignment",
+                sub { my $x = \[] },
+                {
+                    anonlist    => 0,
+                    emptyavhv   => 1,
+                    padsv       => 0,
+                    padsv_store => 1,
+                    pushmark    => 0,
+                    sassign     => 0,
+                    srefgen     => 1,
+                });
+test_opcount(0, "Empty anonhash",
+                sub { {} },
+                {
+                    anonhash  => 0,
+                    emptyavhv => 1,
+                    sassign   => 0,
+                });
+test_opcount(0, "Empty anonhash with global assignment",
+                sub { our $x; $x = {} },
+                {
+                    anonhash  => 0,
+                    emptyavhv => 1,
+                    gvsv      => 1,
+                    pushmark  => 0,
+                    sassign   => 1,
+                });
+test_opcount(0, "Empty anonhash and lexical assignment",
+                sub { my $x; $x = {} },
+                {
+                    anonhash  => 0,
+                    emptyavhv => 1,
+                    padsv     => 1,
+                    pushmark  => 0,
+                    sassign   => 0,
+                });
+test_opcount(0, "Empty anonhash and direct lexical assignment",
+                sub { my $x = {} },
+                {
+                    anonhash  => 0,
+                    emptyavhv => 1,
+                    padsv     => 0,
+                    pushmark  => 0,
+                    sassign   => 0,
+                });
+test_opcount(0, "Empty anonhash ref and direct lexical assignment",
+                sub { my $x = \{} },
+                {
+                    anonhash    => 0,
+                    emptyavhv   => 1,
+                    padsv       => 0,
+                    padsv_store => 1,
+                    pushmark    => 0,
+                    sassign     => 0,
+                    srefgen     => 1,
+                });
+
+done_testing();

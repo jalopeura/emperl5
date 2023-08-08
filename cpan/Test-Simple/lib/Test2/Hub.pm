@@ -2,7 +2,7 @@ package Test2::Hub;
 use strict;
 use warnings;
 
-our $VERSION = '1.302162';
+our $VERSION = '1.302194';
 
 
 use Carp qw/carp croak confess/;
@@ -351,7 +351,7 @@ sub process {
     $self->{+FAILED}++ if $fail && $f->{assert};
     $self->{+_PASSING} = 0 if $fail;
 
-    my $code = $f->{control}->{terminate};
+    my $code = $f->{control} ? $f->{control}->{terminate} : undef;
     my $count = $self->{+COUNT};
 
     if (my $plan = $f->{plan}) {
@@ -368,7 +368,7 @@ sub process {
         }
     }
 
-    $e->callback($self) if $f->{control}->{has_callback};
+    $e->callback($self) if $f->{control} && $f->{control}->{has_callback};
 
     $self->{+_FORMATTER}->write($e, $count, $f) if $self->{+_FORMATTER};
 
@@ -376,7 +376,7 @@ sub process {
         $_->{code}->($self, $e, $count, $f) for @{$self->{+_LISTENERS}};
     }
 
-    if ($f->{control}->{halt}) {
+    if ($f->{control} && $f->{control}->{halt}) {
         $code ||= 255;
         $self->set_bailed_out($e);
     }
@@ -813,7 +813,7 @@ Get the IPC object used by the hub.
 
 This can be used to disable auto-ending behavior for a hub. The auto-ending
 behavior is triggered by an end block and is used to cull IPC events, and
-output the final plan if the plan was 'no_plan'.
+output the final plan if the plan was 'NO PLAN'.
 
 =item $bool = $hub->active
 
@@ -861,7 +861,7 @@ pass/fail status.
 =item $plan = $hub->plan
 
 Get or set the plan. The plan must be an integer larger than 0, the string
-'no_plan', or the string 'skip_all'.
+'NO PLAN', or the string 'SKIP'.
 
 =item $bool = $hub->check_plan
 
@@ -899,7 +899,7 @@ F<http://github.com/Test-More/test-more/>.
 
 =head1 COPYRIGHT
 
-Copyright 2019 Chad Granum E<lt>exodist@cpan.orgE<gt>.
+Copyright 2020 Chad Granum E<lt>exodist@cpan.orgE<gt>.
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

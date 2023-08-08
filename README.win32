@@ -1,3 +1,5 @@
+# vim: syntax=pod
+
 If you read this file _as_is_, just ignore the funny characters you
 see. It is written in the POD format (see pod/perlpod.pod) which is
 specially designed to be readable as is.
@@ -8,7 +10,7 @@ perlwin32 - Perl under Windows
 
 =head1 SYNOPSIS
 
-These are instructions for building Perl under Windows 2000 and later.
+These are instructions for building Perl under Windows 7 and later.
 
 =head1 DESCRIPTION
 
@@ -37,12 +39,11 @@ port of Perl to the Windows platform.  This includes both 32-bit and
 64-bit Windows operating systems.  The resulting Perl requires no
 additional software to run (other than what came with your operating
 system).  Currently, this port is capable of using one of the
-following compilers on the Intel x86 architecture:
+following compilers on the Intel x86 and x86_64 architectures:
 
-      Microsoft Visual C++    version 6.0 or later
+      Microsoft Visual C++    version 12.0 or later
       Intel C++ Compiler      (experimental)
-      Gcc by mingw.org        gcc version 3.4.5 or later
-                              with runtime < 3.21
+      Gcc by mingw.org        gcc version 3.4.5-5.3.0
       Gcc by mingw-w64.org    gcc version 4.4.3 or later
 
 Note that the last two of these are actually competing projects both
@@ -50,11 +51,11 @@ delivering complete gcc toolchain for MS Windows:
 
 =over 4
 
-=item L<http://mingw.org>
+=item L<https://osdn.net/projects/mingw/>
 
-Delivers gcc toolchain targeting 32-bit Windows platform.
+Delivers gcc toolchain building 32-bit executables (which can be used both 32 and 64 bit Windows platforms)
 
-=item L<http://mingw-w64.org>
+=item L<https://mingw-w64.org>
 
 Delivers gcc toolchain targeting both 64-bit Windows and 32-bit Windows
 platforms (despite the project name "mingw-w64" they are not only 64-bit
@@ -63,22 +64,20 @@ that are also supported by perl's makefile.
 
 =back
 
-The Microsoft Visual C++ compilers are also now being given away free. They are
-available as "Visual C++ Toolkit 2003" or "Visual C++ 2005-2019 Express [or
-Community, from 2017] Edition" (and also as part of the ".NET Framework SDK")
-and are the same compilers that ship with "Visual C++ .NET 2003 Professional"
-or "Visual C++ 2005-2019 Professional" respectively.
+The Microsoft Visual C++ compilers are also now being given away free. They
+are available as "Visual C++ 2013-2022 Community Edition" and are the same
+compilers that ship with "Visual C++ 2013-2022 Professional".
 
-This port can also be built on IA64/AMD64 using:
+Visual C++ 2013 is capable of B<targeting> XP and Windows Server 2003 but the
+build host requirement is Windows 7/Windows Server 2012. For more details see
+https://docs.microsoft.com/en-us/visualstudio/productinfo/vs2013-compatibility-vs
+and
+https://docs.microsoft.com/en-us/visualstudio/productinfo/vs2013-sysrequirements-vs
 
-      Microsoft Platform SDK	Nov 2001 (64-bit compiler and tools)
-      MinGW64 compiler (gcc version 4.4.3 or later)
-
-The Windows SDK can be downloaded from L<http://www.microsoft.com/>.
-The MinGW64 compiler is available at L<http://mingw-w64.org>.
+The MinGW64 compiler is available at L<https://mingw-w64.org>.
 The latter is actually a cross-compiler targeting Win64. There's also a trimmed
 down compiler (no java, or gfortran) suitable for building perl available at:
-L<http://strawberryperl.com/package/kmx/64_gcctoolchain/>
+L<https://strawberryperl.com/package/kmx/64_gcctoolchain/>
 
 NOTE: If you're using a 32-bit compiler to build perl on a 64-bit Windows
 operating system, then you should set the WIN64 environment variable to "undef".
@@ -97,21 +96,10 @@ See L</Usage Hints for Perl on Windows> below for general hints about this.
 =item Make
 
 You need a "make" program to build the sources.  If you are using
-Visual C++ or the Windows SDK tools, you can use nmake supplied with Visual C++
-or Windows SDK. You may also use, for Visual C++ or Windows SDK, dmake or gmake
-instead of nmake.  dmake is open source software, but is not included with
-Visual C++ or Windows SDK.  Builds using gcc need dmake or gmake.  nmake is not
-supported for gcc builds.  Parallel building is only supported with dmake and
-gmake, not nmake.  When using dmake it is recommended to use dmake 4.13 or newer
-for parallel building.  Older dmakes, in parallel mode, have very high CPU usage
-and pound the disk/filing system with duplicate I/O calls in an aggressive
-polling loop.
-
-A port of dmake for Windows is available from:
-
-L<http://search.cpan.org/dist/dmake/>
-
-Fetch and install dmake somewhere on your path.
+Visual C++, you can use nmake supplied with Visual C++.
+You may also use gmake instead of nmake.  Builds using gcc need
+gmake. nmake is not supported for gcc builds.  Parallel building is only
+supported with gmake, not nmake.
 
 =item Command Shell
 
@@ -125,206 +113,60 @@ build usually works in this circumstance, but some tests will fail.
 
 =item Microsoft Visual C++
 
-The nmake that comes with Visual C++ will suffice for building. Visual C
-requires that certain things be set up in the console before Visual C will
-sucessfully run. To make a console box be able to run the C compiler, you will
-need to beforehand, run the C<vcvars32.bat> file to compile for x86-32 and for
-x86-64 C<vcvarsall.bat x64> or C<vcvarsamd64.bat>. On a typical install of a
-Microsoft C compiler product, these batch files will already be in your C<PATH>
+The nmake that comes with Visual C++ will suffice for building. Visual C++
+requires that certain things be set up in the console before Visual C++ will
+successfully run. To make a console box be able to run the C compiler, you will
+need to beforehand, run C<vcvarsall.bat x86> to compile for x86-32 and for
+x86-64 C<vcvarsall.bat amd64>. On a typical install of a Microsoft C++
+compiler product, these batch files will already be in your C<PATH>
 environment variable so you may just type them without an absolute path into
 your console. If you need to find the absolute path to the batch file, it is
-usually found somewhere like C:\Program Files\Microsoft Visual Studio\VC98\Bin.
-With some newer Micrsoft C products (released after ~2004), the installer will
+usually found somewhere like
+C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC.
+With some newer Microsoft C products (released after ~2004), the installer will
 put a shortcut in the start menu to launch a new console window with the
 console already set up for your target architecture (x86-32 or x86-64 or IA64).
 With the newer compilers, you may also use the older batch files if you choose
 so.
 
-=item Microsoft Visual C++ 2008-2019 Express/Community Edition
+=item Microsoft Visual C++ 2013-2022 Community Edition
 
-These free versions of Visual C++ 2008-2019 Professional contain the same
+These free versions of Visual C++ 2013-2022 Professional contain the same
 compilers and linkers that ship with the full versions, and also contain
-everything necessary to build Perl, rather than requiring a separate download
-of the Windows SDK like previous versions did.
+everything necessary to build Perl.
 
-These packages can be downloaded by searching in the Download Center at
-L<http://www.microsoft.com/downloads/search.aspx?displaylang=en>.  (Providing exact
-links to these packages has proven a pointless task because the links keep on
-changing so often.)
+These packages can be downloaded from L<https://visualstudio.microsoft.com/>.
 
-Install Visual C++ 2008-2019 Express/Community, then setup your environment
+Install Visual C++ 2013-2022 Community, then setup your environment
 using, e.g.
 
- C:\Program Files\Microsoft Visual Studio 12.0\Common7\Tools\vsvars32.bat
+F<C:\Program Files\Microsoft Visual Studio 12.0\Common7\Tools\vsvars32.bat>
 
 (assuming the default installation location was chosen).
 
-Perl should now build using the win32/Makefile.  You will need to edit that
-file to set CCTYPE to one of MSVC90-MSVC142 first.
+Perl should now build using the F<win32/Makefile>.  You will need to edit that
+file to set C<CCTYPE> to one of C<MSVC120>-C<MSVC143> first.
 
-=item Microsoft Visual C++ 2005 Express Edition
+=item Microsoft C++ Build Tools
 
-This free version of Visual C++ 2005 Professional contains the same compiler
-and linker that ship with the full version, but doesn't contain everything
-necessary to build Perl.
+There's also a standalone (IDE-less) version of the build tools mentioned
+above containing the MSVC compiler available for download from
+L<https://visualstudio.microsoft.com/visual-cpp-build-tools/>.
 
-You will also need to download the "Windows SDK" (the "Core SDK" and "MDAC
-SDK" components are required) for more header files and libraries.
-
-These packages can both be downloaded by searching in the Download Center at
-L<http://www.microsoft.com/downloads/search.aspx?displaylang=en>.  (Providing exact
-links to these packages has proven a pointless task because the links keep on
-changing so often.)
-
-Try to obtain the latest version of the Windows SDK.  Sometimes these packages
-contain a particular Windows OS version in their name, but actually work on
-other OS versions too.  For example, the "Windows Server 2003 R2 Platform SDK"
-also runs on Windows XP SP2 and Windows 2000.
-
-Install Visual C++ 2005 first, then the Platform SDK.  Setup your environment
-as follows (assuming default installation locations were chosen):
-
- SET PlatformSDKDir=C:\Program Files\Microsoft Platform SDK
-
- SET PATH=%SystemRoot%\system32;%SystemRoot%;C:\Program Files\Microsoft Visual Studio 8\Common7\IDE;C:\Program Files\Microsoft Visual Studio 8\VC\BIN;C:\Program Files\Microsoft Visual Studio 8\Common7\Tools;C:\Program Files\Microsoft Visual Studio 8\SDK\v2.0\bin;C:\WINDOWS\Microsoft.NET\Framework\v2.0.50727;C:\Program Files\Microsoft Visual Studio 8\VC\VCPackages;%PlatformSDKDir%\Bin
-
- SET INCLUDE=C:\Program Files\Microsoft Visual Studio 8\VC\INCLUDE;%PlatformSDKDir%\include
-
- SET LIB=C:\Program Files\Microsoft Visual Studio 8\VC\LIB;C:\Program Files\Microsoft Visual Studio 8\SDK\v2.0\lib;%PlatformSDKDir%\lib
-
- SET LIBPATH=C:\WINDOWS\Microsoft.NET\Framework\v2.0.50727
-
-(The PlatformSDKDir might need to be set differently depending on which version
-you are using. Earlier versions installed into "C:\Program Files\Microsoft SDK",
-while the latest versions install into version-specific locations such as
-"C:\Program Files\Microsoft Platform SDK for Windows Server 2003 R2".)
-
-Perl should now build using the win32/Makefile.  You will need to edit that
-file to set
-
- CCTYPE = MSVC80
-
-and to set CCHOME, CCINCDIR and CCLIBDIR as per the environment setup above.
-
-=item Microsoft Visual C++ Toolkit 2003
-
-This free toolkit contains the same compiler and linker that ship with
-Visual C++ .NET 2003 Professional, but doesn't contain everything
-necessary to build Perl.
-
-You will also need to download the "Platform SDK" (the "Core SDK" and "MDAC
-SDK" components are required) for header files, libraries and rc.exe, and
-".NET Framework SDK" for more libraries and nmake.exe.  Note that the latter
-(which also includes the free compiler and linker) requires the ".NET
-Framework Redistributable" to be installed first.  This can be downloaded and
-installed separately, but is included in the "Visual C++ Toolkit 2003" anyway.
-
-These packages can all be downloaded by searching in the Download Center at
-L<http://www.microsoft.com/downloads/search.aspx?displaylang=en>.  (Providing exact
-links to these packages has proven a pointless task because the links keep on
-changing so often.)
-
-Try to obtain the latest version of the Windows SDK.  Sometimes these packages
-contain a particular Windows OS version in their name, but actually work on
-other OS versions too.  For example, the "Windows Server 2003 R2 Platform SDK"
-also runs on Windows XP SP2 and Windows 2000.
-
-Install the Toolkit first, then the Platform SDK, then the .NET Framework SDK.
-Setup your environment as follows (assuming default installation locations
-were chosen):
-
- SET PlatformSDKDir=C:\Program Files\Microsoft Platform SDK
-
- SET PATH=%SystemRoot%\system32;%SystemRoot%;C:\Program Files\Microsoft Visual C++ Toolkit 2003\bin;%PlatformSDKDir%\Bin;C:\Program Files\Microsoft.NET\SDK\v1.1\Bin
-
- SET INCLUDE=C:\Program Files\Microsoft Visual C++ Toolkit 2003\include;%PlatformSDKDir%\include;C:\Program Files\Microsoft Visual Studio .NET 2003\Vc7\include
-
- SET LIB=C:\Program Files\Microsoft Visual C++ Toolkit 2003\lib;%PlatformSDKDir%\lib;C:\Program Files\Microsoft Visual Studio .NET 2003\Vc7\lib
-
-(The PlatformSDKDir might need to be set differently depending on which version
-you are using. Earlier versions installed into "C:\Program Files\Microsoft SDK",
-while the latest versions install into version-specific locations such as
-"C:\Program Files\Microsoft Platform SDK for Windows Server 2003 R2".)
-
-Several required files will still be missing:
-
-=over 4
-
-=item *
-
-cvtres.exe is required by link.exe when using a .res file.  It is actually
-installed by the .NET Framework SDK, but into a location such as the
-following:
-
- C:\WINDOWS\Microsoft.NET\Framework\v1.1.4322
-
-Copy it from there to %PlatformSDKDir%\Bin
-
-=item *
-
-lib.exe is normally used to build libraries, but link.exe with the /lib
-option also works, so change win32/config.vc to use it instead:
-
-Change the line reading:
-
-	ar='lib'
-
-to:
-
-	ar='link /lib'
-
-It may also be useful to create a batch file called lib.bat in
-C:\Program Files\Microsoft Visual C++ Toolkit 2003\bin containing:
-
-	@echo off
-	link /lib %*
-
-for the benefit of any naughty C extension modules that you might want to build
-later which explicitly reference "lib" rather than taking their value from
-$Config{ar}.
-
-=item *
-
-setargv.obj is required to build perlglob.exe (and perl.exe if the USE_SETARGV
-option is enabled).  The Platform SDK supplies this object file in source form
-in %PlatformSDKDir%\src\crt.  Copy setargv.c, cruntime.h and
-internal.h from there to some temporary location and build setargv.obj using
-
-	cl.exe /c /I. /D_CRTBLD setargv.c
-
-Then copy setargv.obj to %PlatformSDKDir%\lib
-
-Alternatively, if you don't need perlglob.exe and don't need to enable the
-USE_SETARGV option then you can safely just remove all mention of $(GLOBEXE)
-from win32/Makefile and setargv.obj won't be required anyway.
-
-=back
-
-Perl should now build using the win32/Makefile.  You will need to edit that
-file to set
-
-	CCTYPE = MSVC70FREE
-
-and to set CCHOME, CCINCDIR and CCLIBDIR as per the environment setup above.
-
-=item Microsoft Platform SDK 64-bit Compiler
-
-The nmake that comes with the Platform SDK will suffice for building
-Perl.  Make sure you are building within one of the "Build Environment"
-shells available after you install the Platform SDK from the Start Menu.
+This is also referred to as I<Build Tools for Visual Studio>.
 
 =item GCC
 
 Perl can be compiled with gcc from MinGW (version 3.4.5 or later) or from
 MinGW64 (version 4.4.3 or later).  It can be downloaded here:
 
-L<http://www.mingw.org/>
-L<http://www.mingw-w64.org/>
+L<https://osdn.net/projects/mingw/>
+L<https://www.mingw-w64.org/>
 
-You also need dmake or gmake.  See L</"Make"> above on how to get it.
+You also need gmake. Usually it comes with MinGW but its executable may have
+a different name, such as mingw32-make.exe.
 
-Note that the MinGW build currently requires a MinGW runtime version earlier
-than 3.21 (check __MINGW32_MAJOR_VERSION and __MINGW32_MINOR_VERSION).
+Note that the MinGW build currently fails with version 6.3.0 or later.
 
 Note also that the C++ mode build currently fails with MinGW 3.4.5 and 4.7.2
 or later, and with MinGW64 64-bit 6.3.0 or later.
@@ -332,11 +174,11 @@ or later, and with MinGW64 64-bit 6.3.0 or later.
 =item Intel C++ Compiler
 
 Experimental support for using Intel C++ Compiler has been added. Edit
-win32/Makefile and pick the correct CCTYPE for the Visual C that Intel C was
-installed into. Also uncomment __ICC to enable Intel C on Visual C support.
+F<win32/Makefile> and pick the correct C<CCTYPE> for the Visual C that Intel C
+was installed into. Also uncomment C<__ICC> to enable Intel C on Visual C support.
 To set up the build environment, from the Start Menu run
 IA-32 Visual Studio 20__ mode or Intel 64 Visual Studio 20__ mode as
-appropriate. Then run nmake as usually in that prompt box.
+appropriate. Then run C<nmake> as usual in that prompt box.
 
 Only Intel C++ Compiler v12.1 has been tested. Other versions probably will
 work. Using Intel C++ Compiler instead of Visual C has the benefit of C99
@@ -352,83 +194,72 @@ unlike GCC.
 
 =item *
 
-Make sure you are in the "win32" subdirectory under the perl toplevel.
-This directory contains a "Makefile" that will work with
-versions of nmake that come with Visual C++ or the Windows SDK, and
-a GNU make "GNUmakefile" or dmake "makefile.mk" that will work for all
-supported compilers.  The defaults in the gmake and dmake makefile are
-setup to build using MinGW/gcc.
+Make sure you are in the F<win32> subdirectory under the perl toplevel.
+This directory contains a F<Makefile> that will work with
+versions of C<nmake> that come with Visual C++, and
+a GNU make F<GNUmakefile> that will work for all supported compilers.
+The defaults in the C<gmake> makefile are set up to build with MinGW/gcc.
 
 =item *
 
-Edit the GNUmakefile, makefile.mk (or Makefile, if you're using nmake)
-and change the values of INST_DRV and INST_TOP.   You can also enable
-various build flags.  These are explained in the makefiles.
+Edit the F<GNUmakefile> (or F<Makefile>, if you're using F<nmake>) and change
+the values of I<INST_DRV> and C<INST_TOP>. You can also enable various build
+flags. These are explained in the makefiles.
 
-Note that it is generally not a good idea to try to build a perl with
-INST_DRV and INST_TOP set to a path that already exists from a previous
+Note that it is generally not a good idea to try to build a C<perl> with
+C<INST_DRV> and C<INST_TOP> set to a path that already exists from a previous
 build.  In particular, this may cause problems with the
-lib/ExtUtils/t/Embed.t test, which attempts to build a test program and
-may end up building against the installed perl's lib/CORE directory rather
-than the one being tested.
+F<lib/ExtUtils/t/Embed.t> test, which attempts to build a test program and
+may end up building against the installed C<perl>'s F<lib/CORE> directory
+rather than the one being tested.
 
-You will have to make sure that CCTYPE is set correctly and that
-CCHOME points to wherever you installed your compiler.  For GCC this
+You will have to make sure that C<CCTYPE> is set correctly and that
+C<CCHOME> points to wherever you installed your compiler.  For GCC this
 should be the directory that contains the F<bin>, F<include> and
 F<lib> directories.
 
 If building with the cross-compiler provided by
 mingw-w64.org you'll need to uncomment the line that sets
-GCCCROSS in the makefile.mk. Do this only if it's the cross-compiler - ie
-only if the bin folder doesn't contain a gcc.exe. (The cross-compiler
-does not provide a gcc.exe, g++.exe, ar.exe, etc. Instead, all of these
-executables are prefixed with 'x86_64-w64-mingw32-'.)
+C<GCCCROSS> in the F<GNUmakefile>. Do this only if it's the cross-compiler,
+ie. only if the F<bin> folder doesn't contain a F<gcc.exe>. (The cross-compiler
+does not provide a F<gcc.exe>, F<g++.exe>, F<ar.exe>, etc. Instead, all of these
+executables are prefixed with C<x86_64-w64-mingw32->.)
 
-The default value for CCHOME in the makefiles for Visual C++
+The default value for C<CCHOME> in the makefiles for Visual C++
 may not be correct for some versions.  Make sure the default exists
 and is valid.
 
-You may also need to comment out the C<DELAYLOAD = ...> line in the
-Makefile if you're using VC++ 6.0 without the latest service pack and
-the linker reports an internal error.
-
-If you want build some core extensions statically into perl's dll, specify
-them in the STATIC_EXT macro.
-
-NOTE: The USE_64_BIT_INT build option is not supported with the 32-bit
-Visual C++ 6.0 compiler.
+If you want build some core extensions statically into C<perl>'s DLL,
+specify them in the C<STATIC_EXT> macro.
 
 Be sure to read the instructions near the top of the makefiles carefully.
 
 =item *
 
-Type "dmake" ("gmake" for GNU make, or "nmake" if you are using that make).
+Type C<gmake> (or C<nmake> if you are using that version of C<make>).
 
-This should build everything.  Specifically, it will create perl.exe,
-perl530.dll at the perl toplevel, and various other extension dll's
-under the lib\auto directory.  If the build fails for any reason, make
+This should build everything.  Specifically, it will create F<perl.exe>,
+F<perl538.dll> at the perl toplevel, and various other extension DLL's
+under the F<lib\auto> directory.  If the build fails for any reason, make
 sure you have done the previous steps correctly.
 
-To try dmake's parallel mode, type "dmake -P2", where 2, is the maximum number
+To try C<gmake>'s parallel mode, type C<gmake -j2> where C<2> is the maximum number
 of parallel jobs you want to run. A number of things in the build process will
 run in parallel, but there are serialization points where you will see just 1
 CPU maxed out. This is normal.
 
-Similarly you can build in parallel with GNU make, type "gmake -j2" to
-build with two parallel jobs, or higher for more.
-
 If you are advanced enough with building C code, here is a suggestion to speed
-up building perl, and the later C<make test>. Try to keep your PATH environmental
+up building C<perl>, and the later C<make test>. Try to keep your C<PATH> environment
 variable with the least number of folders possible (remember to keep your C
-compiler's folders there). C<C:\WINDOWS\system32> or C<C:\WINNT\system32>
-depending on your OS version should be first folder in PATH, since "cmd.exe"
+compiler's folders there). F<C:\WINDOWS\system32> or F<C:\WINNT\system32>
+depending on your OS version should be first folder in C<PATH>, since C<cmd.exe>
 is the most commonly launched program during the build and later testing.
 
 =back
 
 =head2 Testing Perl on Windows
 
-Type "dmake test" (or "gmake test", "nmake test").  This will run most
+Type "gmake test" (or "nmake test").  This will run most
 of the tests from the testsuite (many tests will be skipped).
 
 There should be no test failures.
@@ -447,16 +278,16 @@ may crash (after all its tests have passed). This is due to a regression in the
 Universal CRT introduced in the Windows 10 April 2018 Update, and will be fixed
 in the May 2019 Update, as explained here: L<https://developercommunity.visualstudio.com/content/problem/519486/setlocalelc-numeric-iso-latin-16-fails-then-succee.html>.
 
-If you build with certain versions (e.g. 4.8.1) of gcc from www.mingw.org then
+If you build with certain versions (e.g. 4.8.1) of gcc from mingw then
 F<ext/POSIX/t/time.t> may fail test 17 due to a known bug in those gcc builds:
-see L<http://sourceforge.net/p/mingw/bugs/2152/>.
+see L<https://sourceforge.net/p/mingw/bugs/2152/>.
 
 Some test failures may occur if you use a command shell other than the
 native "cmd.exe", or if you are building from a path that contains
 spaces.  So don't do that.
 
 If you are running the tests from a emacs shell window, you may see
-failures in op/stat.t.  Run "dmake test-notty" in that case.
+failures in op/stat.t.  Run "gmake test-notty" in that case.
 
 Furthermore, you should make sure that during C<make test> you do not
 have any GNU tool packages in your path: some toolkits like Unixutils
@@ -475,7 +306,7 @@ Please report any other failures as described under L</BUGS AND CAVEATS>.
 
 =head2 Installation of Perl on Windows
 
-Type "dmake install" (or "gmake install", "nmake install").  This will
+Type "gmake install" ("nmake install").  This will
 put the newly built perl and the libraries under whatever C<INST_TOP>
 points to in the Makefile.  It will also install the pod documentation
 under C<$INST_TOP\$INST_VER\lib\pod> and HTML versions of the same
@@ -566,9 +397,9 @@ character is the double quote (").  It can be used to protect spaces
 and other special characters in arguments.
 
 The Windows documentation describes the shell parsing rules here:
-L<http://www.microsoft.com/resources/documentation/windows/xp/all/proddocs/en-us/cmd.mspx?mfr=true>
+L<https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/cmd>
 and the C runtime parsing rules here:
-L<http://msdn.microsoft.com/en-us/library/17w5ykft%28v=VS.100%29.aspx>.
+L<https://msdn.microsoft.com/en-us/library/17w5ykft%28v=VS.100%29.aspx>.
 
 Here are some further observations based on experiments: The C runtime
 breaks arguments at spaces and passes them to programs in argc/argv.
@@ -637,11 +468,11 @@ quoted.
 
 The Comprehensive Perl Archive Network (CPAN) offers a wealth
 of extensions, some of which require a C compiler to build.
-Look in L<http://www.cpan.org/> for more information on CPAN.
+Look in L<https://www.cpan.org/> for more information on CPAN.
 
 Note that not all of the extensions available from CPAN may work
 in the Windows environment; you should check the information at
-L<http://www.cpantesters.org/> before investing too much effort into
+L<https://www.cpantesters.org/> before investing too much effort into
 porting modules that don't readily build.
 
 Most extensions (whether they require a C compiler or not) can
@@ -658,25 +489,13 @@ may not provide a testsuite (so "$MAKE test" may not do anything or
 fail), but most serious ones do.
 
 It is important that you use a supported 'make' program, and
-ensure Config.pm knows about it.  If you don't have nmake, you can
-either get dmake from the location mentioned earlier or get an
-old version of nmake reportedly available from:
-
-L<http://download.microsoft.com/download/vc15/Patch/1.52/W95/EN-US/nmake15.exe>
-
-Another option is to use the make written in Perl, available from
-CPAN.
-
-L<http://www.cpan.org/modules/by-module/Make/>
-
-You may also use dmake or gmake.  See L</"Make"> above on how to get it.
+ensure Config.pm knows about it.
 
 Note that MakeMaker actually emits makefiles with different syntax
 depending on what 'make' it thinks you are using.  Therefore, it is
 important that one of the following values appears in Config.pm:
 
     make='nmake'	# MakeMaker emits nmake syntax
-    make='dmake'	# MakeMaker emits dmake syntax
     any other value	# MakeMaker emits generic make syntax
     			    (e.g GNU make, or Perl make)
 
@@ -691,8 +510,8 @@ or any invocation of make.
 If a module does not build for some reason, look carefully for
 why it failed, and report problems to the module author.  If
 it looks like the extension building support is at fault, report
-that with full details of how the build failed using the perlbug
-utility.
+that with full details of how the build failed using the GitHub
+issue tracker at L<https://github.com/Perl/perl5/issues>.
 
 =item Command-line Wildcard Expansion
 
@@ -880,16 +699,15 @@ executable built during the installation process.  Usage is exactly
 the same as normal C<perl> on Windows, except that options like C<-h>
 don't work (since they need a command-line window to print to).
 
-If you find bugs in perl, you can run C<perlbug> to create a
-bug report (you may have to send it manually if C<perlbug> cannot
-find a mailer on your system).
+If you find bugs in perl, you can report them to
+L<https://github.com/Perl/perl5/issues>.
 
 =head1 BUGS AND CAVEATS
 
 Norton AntiVirus interferes with the build process, particularly if
 set to "AutoProtect, All Files, when Opened". Unlike large applications
 the perl build process opens and modifies a lot of files. Having the
-the AntiVirus scan each and every one slows build the process significantly.
+AntiVirus scan each and every one slows build the process significantly.
 Worse, with PERLIO=stdio the build process fails with peculiar messages
 as the virus checker interacts badly with miniperl.exe writing configure
 files (it seems to either catch file part written and treat it as suspicious,
@@ -929,9 +747,9 @@ Thus, signals may work only for simple things like setting a flag
 variable in the handler.  Using signals under this port should
 currently be considered unsupported.
 
-Please send detailed descriptions of any problems and solutions that
-you may find to E<lt>F<perlbug@perl.org>E<gt>, along with the output
-produced by C<perl -V>.
+Please report detailed descriptions of any problems and solutions that
+you may find at E<lt>L<https://github.com/Perl/perl5/issues>E<gt>,
+along with the output produced by C<perl -V>.
 
 =head1 ACKNOWLEDGEMENTS
 
@@ -977,6 +795,6 @@ Win9x support was added in 5.6 (Benjamin Stuhl).
 
 Support for 64-bit Windows added in 5.8 (ActiveState Corp).
 
-Last updated: 30 April 2019
+Last updated: 06 October 2021
 
 =cut

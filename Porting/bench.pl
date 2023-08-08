@@ -902,22 +902,22 @@ sub parse_cachegrind {
             die "Error: while executing $id:\n"
               . "unexpected code or cachegrind output:\n$_\n";
         }
-        if (/I   refs:\s+([\d,]+)/) {
+        if (/I\s+refs:\s+([\d,]+)/) {
             $res{Ir} = $1;
         }
-        elsif (/I1  misses:\s+([\d,]+)/) {
+        elsif (/I1\s+misses:\s+([\d,]+)/) {
             $res{Ir_m1} = $1;
         }
-        elsif (/LLi misses:\s+([\d,]+)/) {
+        elsif (/LLi\s+misses:\s+([\d,]+)/) {
             $res{Ir_mm} = $1;
         }
-        elsif (/D   refs:\s+.*?([\d,]+) rd .*?([\d,]+) wr/) {
+        elsif (/D\s+refs:\s+.*?([\d,]+) rd .*?([\d,]+) wr/) {
             @res{qw(Dr Dw)} = ($1,$2);
         }
-        elsif (/D1  misses:\s+.*?([\d,]+) rd .*?([\d,]+) wr/) {
+        elsif (/D1\s+misses:\s+.*?([\d,]+) rd .*?([\d,]+) wr/) {
             @res{qw(Dr_m1 Dw_m1)} = ($1,$2);
         }
-        elsif (/LLd misses:\s+.*?([\d,]+) rd .*?([\d,]+) wr/) {
+        elsif (/LLd\s+misses:\s+.*?([\d,]+) rd .*?([\d,]+) wr/) {
             @res{qw(Dr_mm Dw_mm)} = ($1,$2);
         }
         elsif (/Branches:\s+.*?([\d,]+) cond .*?([\d,]+) ind/) {
@@ -1185,7 +1185,7 @@ sub grind_run {
                         $envstr .= "$_=$env->{$_} " for sort keys %$env;
                     }
                     my $cmd = "PERL_HASH_SEED=0 $envstr"
-                            . "valgrind --tool=cachegrind  --branch-sim=yes "
+                            . "valgrind --tool=cachegrind  --branch-sim=yes --cache-sim=yes "
                             . "--cachegrind-out-file=/dev/null "
                             . "$OPTS{grindargs} "
                             . "$perl $OPTS{perlargs} $args - $counts->[$j] 2>&1";
@@ -1219,6 +1219,10 @@ sub grind_run {
     my %fds;          # map fds  to jobs
     my $select = IO::Select->new();
 
+    my $njobs     = scalar @jobs;
+    my $donejobs  = 0;
+    my $starttime = time();
+
     while (@jobs or $running) {
 
         if ($OPTS{debug}) {
@@ -1233,7 +1237,22 @@ sub grind_run {
             my ($id, $cmd) =@$job{qw(id cmd)};
 
             my ($in, $out, $pid);
-            warn "Starting $id\n" if $OPTS{verbose};
+            $donejobs++;
+            if($OPTS{verbose}) {
+                my $donefrac = $donejobs / $njobs;
+                my $eta = "";
+                # Once we've done at least 20% we'll have a good estimate of
+                # the total runtime, hence ETA
+                if($donefrac >= 0.2) {
+                    my $now = time();
+                    my $duration  = ($now - $starttime) / $donefrac;
+                    my $remaining = ($starttime + $duration) - $now;
+                    $eta = sprintf ", remaining %d:%02d",
+                        $remaining / 60, $remaining % 60;
+                }
+                warn sprintf "Starting %s (%d of %d, %.2f%%%s)\n",
+                    $id, $donejobs, $njobs, 100 * $donefrac, $eta;
+            }
             eval { $pid = IPC::Open2::open2($out, $in, $cmd); 1; }
                 or die "Error: while starting cachegrind subprocess"
                    ." for $id:\n$@";
@@ -1726,7 +1745,7 @@ sub grind_print_compact {
         @fields = grep exists $OPTS{fields}{$_}, @fields;
     }
 
-    # calculate the the max width of the test names
+    # calculate the max width of the test names
 
     my $name_width = 0;
     for (@test_names) {

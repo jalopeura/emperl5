@@ -8,14 +8,24 @@ BEGIN {
     }
     {
     package t;
-       my $core = !!$ENV{PERL_CORE};
-       require($core ? '../../t/test.pl' : './t/test.pl');
+        my $core = !!$ENV{PERL_CORE};
+        if ($core) {
+            require '../../t/test.pl';
+            require '../../t/charset_tools.pl';
+        }
+        else {
+            require './t/test.pl';
+            require './t/charset_tools.pl';
+        }
     }
 }
 
 use Test::More;
 
-use Devel::Peek;
+BEGIN {
+    use_ok 'Devel::Peek';
+}
+require Tie::Hash;
 
 our $DEBUG = 0;
 open(SAVERR, ">&STDERR") or die "Can't dup STDERR: $!";
@@ -38,9 +48,11 @@ sub do_test {
     my $pattern = $_[2];
     my $do_eval = $_[5];
     if (open(OUT,'>', "peek$$")) {
-	open(STDERR, ">&OUT") or die "Can't dup OUT: $!";
+        my $setup_stderr = sub { open(STDERR, ">&OUT") or die "Can't dup OUT: $!" };
         if ($do_eval) {
             my $sub = eval "sub { Dump $_[1] }";
+            die $@ if $@;
+            $setup_stderr->();
             $sub->();
             print STDERR "*****\n";
             # second dump to compare with the first to make sure nothing
@@ -48,6 +60,7 @@ sub do_test {
             $sub->();
         }
         else {
+            $setup_stderr->();
             Dump($_[1]);
             print STDERR "*****\n";
             # second dump to compare with the first to make sure nothing
@@ -92,6 +105,11 @@ sub do_test {
 		if $Config{ccflags} =~
 			/-DPERL_(?:OLD_COPY_ON_WRITE|NO_COW)\b/
 			    || $] < 5.019003;
+            if ($Config::Config{ccflags} =~ /-DNODEFAULT_SHAREKEYS\b/) {
+                $pattern =~ s/,SHAREKEYS\b//g;
+                $pattern =~ s/\bSHAREKEYS,//g;
+                $pattern =~ s/\bSHAREKEYS\b//g;
+            }
 	    print $pattern, "\n" if $DEBUG;
 	    my ($dump, $dump2) = split m/\*\*\*\*\*\n/, scalar <IN>;
 	    print $dump, "\n"    if $DEBUG;
@@ -234,6 +252,30 @@ do_test('reference to scalar',
     COW_REFCNT = 1
 ');
 
+do_test('immediate boolean',
+        !!0,
+'SV = PVNV\\($ADDR\\) at $ADDR
+  REFCNT = \d+
+  FLAGS = \\(.*\\)
+  IV = 0
+  NV = 0
+  PV = $ADDR "" \[BOOL PL_No\]
+  CUR = 0
+  LEN = 0
+') if $] >= 5.035004;
+
+do_test('assignment of boolean',
+        do { my $tmp = !!1 },
+'SV = PVNV\\($ADDR\\) at $ADDR
+  REFCNT = \d+
+  FLAGS = \\(.*\\)
+  IV = 1
+  NV = 1
+  PV = $ADDR "1" \[BOOL PL_Yes\]
+  CUR = 1
+  LEN = 0
+') if $] >= 5.035004;
+
 my $c_pattern;
 if ($type eq 'N') {
   $c_pattern = '
@@ -342,13 +384,14 @@ do_test('reference to named subroutine without prototype',
        \\d+\\. $ADDR<\\d+> \\(\\d+,\\d+\\) "\\$repeat_todo"
        \\d+\\. $ADDR<\\d+> \\(\\d+,\\d+\\) "\\$pattern"
        \\d+\\. $ADDR<\\d+> \\(\\d+,\\d+\\) "\\$do_eval"
+\s+\\d+\\. $ADDR<\\d+> \\(\\d+,\\d+\\) "\\$setup_stderr"
+\s+\\d+\\. $ADDR<\\d+> \\(\\d+,\\d+\\) "&"
       \\d+\\. $ADDR<\\d+> \\(\\d+,\\d+\\) "\\$sub"
       \\d+\\. $ADDR<\\d+> FAKE "\\$DEBUG" flags=0x0 index=0
       \\d+\\. $ADDR<\\d+> \\(\\d+,\\d+\\) "\\$dump"
       \\d+\\. $ADDR<\\d+> \\(\\d+,\\d+\\) "\\$dump2"
     OUTSIDE = $ADDR \\(MAIN\\)');
 
-if ($] >= 5.011) {
 # note the conditionals on ENGINE and INTFLAGS were introduced in 5.19.9
 do_test('reference to regexp',
         qr(tic),
@@ -362,14 +405,16 @@ do_test('reference to regexp',
     PV = $ADDR "\\(\\?\\^:tic\\)"
     CUR = 8
     LEN = 0
-    STASH = $ADDR\\t"Regexp"'
-. ($] < 5.013 ? '' :
-'
-    COMPFLAGS = 0x0 \(\)
-    EXTFLAGS = 0x680000 \(CHECK_ALL,USE_INTUIT_NOML,USE_INTUIT_ML\)
-(?:    ENGINE = $ADDR \(STANDARD\)
-)?    INTFLAGS = 0x0(?: \(\))?
+    STASH = $ADDR\\s+"Regexp"
+    COMPFLAGS = 0x0 \\(\\)
+    EXTFLAGS = 0x680000 \\(CHECK_ALL,USE_INTUIT_NOML,USE_INTUIT_ML\\)
+    ENGINE = $ADDR \\(STANDARD\\)
+    INTFLAGS = 0x0 \\(\\)
     NPARENS = 0
+    LOGICAL_NPARENS = 0
+    LOGICAL_TO_PARNO = 0x0
+    PARNO_TO_LOGICAL = 0x0
+    PARNO_TO_LOGICAL_NEXT = 0x0
     LASTPAREN = 0
     LASTCLOSEPAREN = 0
     MINLEN = 3
@@ -380,20 +425,29 @@ do_test('reference to regexp',
     SUBOFFSET = 0
     SUBCOFFSET = 0
     SUBBEG = 0x0
-(?:    ENGINE = $ADDR
-)?    MOTHER_RE = $ADDR'
-. ($] < 5.019003 ? '' : '
-    SV = REGEXP\($ADDR\) at $ADDR
+    PAREN_NAMES = 0x0
+    SUBSTRS = $ADDR
+    PPRIVATE = $ADDR
+    OFFS = $ADDR
+      \\[ 0:0 \\]
+    QR_ANONCV = 0x0
+    SAVED_COPY = 0x0
+    MOTHER_RE = $ADDR
+    SV = REGEXP\\($ADDR\\) at $ADDR
       REFCNT = 2
-      FLAGS = \(POK,pPOK\)
-      PV = $ADDR "\(\?\^:tic\)"
+      FLAGS = \\(POK,pPOK\\)
+      PV = $ADDR "\\(\\?\\^:tic\\)"
       CUR = 8
-      LEN = \d+
-      COMPFLAGS = 0x0 \(\)
-      EXTFLAGS = 0x680000 \(CHECK_ALL,USE_INTUIT_NOML,USE_INTUIT_ML\)
-(?:      ENGINE = $ADDR \(STANDARD\)
-)?      INTFLAGS = 0x0(?: \(\))?
+      LEN = \\d+
+      COMPFLAGS = 0x0 \\(\\)
+      EXTFLAGS = 0x680000 \\(CHECK_ALL,USE_INTUIT_NOML,USE_INTUIT_ML\\)
+      ENGINE = $ADDR \\(STANDARD\\)
+      INTFLAGS = 0x0 \\(\\)
       NPARENS = 0
+      LOGICAL_NPARENS = 0
+      LOGICAL_TO_PARNO = 0x0
+      PARNO_TO_LOGICAL = 0x0
+      PARNO_TO_LOGICAL_NEXT = 0x0
       LASTPAREN = 0
       LASTCLOSEPAREN = 0
       MINLEN = 3
@@ -404,42 +458,15 @@ do_test('reference to regexp',
       SUBOFFSET = 0
       SUBCOFFSET = 0
       SUBBEG = 0x0
-(?:    ENGINE = $ADDR
-)?      MOTHER_RE = 0x0
       PAREN_NAMES = 0x0
       SUBSTRS = $ADDR
       PPRIVATE = $ADDR
       OFFS = $ADDR
-      QR_ANONCV = 0x0(?:
-      SAVED_COPY = 0x0)?') . '
-    PAREN_NAMES = 0x0
-    SUBSTRS = $ADDR
-    PPRIVATE = $ADDR
-    OFFS = $ADDR
-    QR_ANONCV = 0x0(?:
-    SAVED_COPY = 0x0)?'
-));
-} else {
-do_test('reference to regexp',
-        qr(tic),
-'SV = $RV\\($ADDR\\) at $ADDR
-  REFCNT = 1
-  FLAGS = \\(ROK\\)
-  RV = $ADDR
-  SV = PVMG\\($ADDR\\) at $ADDR
-    REFCNT = 1
-    FLAGS = \\(OBJECT,SMG\\)
-    IV = 0
-    NV = 0
-    PV = 0
-    MAGIC = $ADDR
-      MG_VIRTUAL = $ADDR
-      MG_TYPE = PERL_MAGIC_qr\(r\)
-      MG_OBJ = $ADDR
-        PAT = "\(\?^:tic\)"
-        REFCNT = 2
-    STASH = $ADDR\\t"Regexp"');
-}
+        \\[ 0:0 \\]
+      QR_ANONCV = 0x0
+      SAVED_COPY = 0x0
+      MOTHER_RE = 0x0
+');
 
 do_test('reference to blessed hash',
         (bless {}, "Tac"),
@@ -483,33 +510,33 @@ do_test('typeglob',
     FLAGS = $ADDR				# $] < 5.021004
     EGV = $ADDR\\t"a"');
 
-if (ord('A') == 193) {
-do_test('string with Unicode',
-	chr(256).chr(0).chr(512),
-'SV = PV\\($ADDR\\) at $ADDR
-  REFCNT = 1
-  FLAGS = \\((?:PADTMP,)?POK,READONLY,pPOK,UTF8\\)	# $] < 5.019003
-  FLAGS = \\((?:PADTMP,)?POK,(?:IsCOW,)?pPOK,UTF8\\)	# $] >=5.019003
-  PV = $ADDR "\\\214\\\101\\\0\\\235\\\101"\\\0 \[UTF8 "\\\x\{100\}\\\x\{0\}\\\x\{200\}"\]
-  CUR = 5
-  LEN = \\d+
-  COW_REFCNT = 1					# $] < 5.019007
-');
-} else {
-do_test('string with Unicode',
-	chr(256).chr(0).chr(512),
-'SV = PV\\($ADDR\\) at $ADDR
-  REFCNT = 1
-  FLAGS = \\((?:PADTMP,)?POK,READONLY,pPOK,UTF8\\)	# $] < 5.019003
-  FLAGS = \\((?:PADTMP,)?POK,(?:IsCOW,)?pPOK,UTF8\\)	# $] >=5.019003
-  PV = $ADDR "\\\304\\\200\\\0\\\310\\\200"\\\0 \[UTF8 "\\\x\{100\}\\\x\{0\}\\\x\{200\}"\]
-  CUR = 5
-  LEN = \\d+
-  COW_REFCNT = 1					# $] < 5.019007
-');
+# Get native character set representations for these code points
+my $cp100_bytes = t::byte_utf8a_to_utf8n("\xC4\x80");
+my $cp0_bytes =   t::byte_utf8a_to_utf8n("\x00");
+my $cp200_bytes = t::byte_utf8a_to_utf8n("\xC8\x80");
+
+# Convert to e.g., \\\\xC4
+my $prefix = '\\\\x';
+foreach my $ref (\$cp100_bytes, \$cp0_bytes, \$cp200_bytes) {
+    my $revised = "";
+    $$ref =~ s/(.)/sprintf("$prefix%02X", ord $1)/eg;
 }
 
-if (ord('A') == 193) {
+do_test('string with Unicode',
+	chr(256).chr(0).chr(512),
+'SV = PV\\($ADDR\\) at $ADDR
+  REFCNT = 1
+  FLAGS = \\((?:PADTMP,)?POK,READONLY,pPOK,UTF8\\)	# $] < 5.019003
+  FLAGS = \\((?:PADTMP,)?POK,(?:IsCOW,)?pPOK,UTF8\\)	# $] >=5.019003
+  PV = $ADDR "' . $cp100_bytes
+                . $cp0_bytes
+                . $cp200_bytes
+                . '"\\\0 \[UTF8 "\\\x\{100\}\\\x\{0\}\\\x\{200\}"\]
+  CUR = 5
+  LEN = \\d+
+  COW_REFCNT = 1					# $] < 5.019007
+');
+
 do_test('reference to hash containing Unicode',
 	{chr(256)=>chr(512)},
 'SV = $RV\\($ADDR\\) at $ADDR
@@ -524,11 +551,11 @@ do_test('reference to hash containing Unicode',
     KEYS = 1
     FILL = 1
     MAX = 7
-    Elt "\\\214\\\101" \[UTF8 "\\\x\{100\}"\] HASH = $ADDR
+    Elt "' . $cp100_bytes . '" \[UTF8 "\\\x\{100\}"\] HASH = $ADDR
     SV = PV\\($ADDR\\) at $ADDR
       REFCNT = 1
       FLAGS = \\(POK,(?:IsCOW,)?pPOK,UTF8\\)
-      PV = $ADDR "\\\235\\\101"\\\0 \[UTF8 "\\\x\{200\}"\]
+      PV = $ADDR "' . $cp200_bytes . '"\\\0 \[UTF8 "\\\x\{200\}"\]
       CUR = 2
       LEN = \\d+
       COW_REFCNT = 1				# $] < 5.019007
@@ -536,34 +563,6 @@ do_test('reference to hash containing Unicode',
 	$] >= 5.015
 	    ? undef
 	    : 'The hash iterator used in dump.c sets the OOK flag');
-} else {
-do_test('reference to hash containing Unicode',
-	{chr(256)=>chr(512)},
-'SV = $RV\\($ADDR\\) at $ADDR
-  REFCNT = 1
-  FLAGS = \\(ROK\\)
-  RV = $ADDR
-  SV = PVHV\\($ADDR\\) at $ADDR
-    REFCNT = [12]
-    FLAGS = \\(SHAREKEYS,HASKFLAGS\\)
-    ARRAY = $ADDR  \\(0:7, 1:1\\)
-    hash quality = 100.0%
-    KEYS = 1
-    FILL = 1
-    MAX = 7
-    Elt "\\\304\\\200" \[UTF8 "\\\x\{100\}"\] HASH = $ADDR
-    SV = PV\\($ADDR\\) at $ADDR
-      REFCNT = 1
-      FLAGS = \\(POK,(?:IsCOW,)?pPOK,UTF8\\)
-      PV = $ADDR "\\\310\\\200"\\\0 \[UTF8 "\\\x\{200\}"\]
-      CUR = 2
-      LEN = \\d+
-      COW_REFCNT = 1				# $] < 5.019007
-',      '',
-	$] >= 5.015
-	    ? undef
-	    : 'The hash iterator used in dump.c sets the OOK flag');
-}
 
 my $x="";
 $x=~/.??/g;
@@ -588,7 +587,7 @@ do_test('scalar with pos magic',
 ');
 
 #
-# TAINTEDDIR is not set on: OS2, AMIGAOS, WIN32, MSDOS
+# TAINTEDDIR is not set on: OS2, AMIGAOS, WIN32
 # environment variables may be invisibly case-forced, hence the (?i:PATH)
 # C<scalar(@ARGV)> is turned into an IV on VMS hence the (?:IV)?
 # Perl 5.18 ensures all env vars end up as strings only, hence the (?:,pIOK)?
@@ -984,6 +983,35 @@ SV = PVHV\($ADDR\) at $ADDR
     IV = 2
 HASH
 
+tie %tied, "Tie::StdHash";
+do_test('Dump %tied', '%tied', <<'HASH', "", undef, 1);
+SV = PVHV\($ADDR\) at $ADDR
+  REFCNT = 1
+  FLAGS = \(RMG,SHAREKEYS\)
+  MAGIC = $ADDR
+    MG_VIRTUAL = &PL_vtbl_pack
+    MG_TYPE = PERL_MAGIC_tied\(P\)
+    MG_FLAGS = 0x02
+      REFCOUNTED
+    MG_OBJ = $ADDR
+    SV = $RV\($ADDR\) at $ADDR
+      REFCNT = 1
+      FLAGS = \(ROK\)
+      RV = $ADDR
+      SV = PVHV\($ADDR\) at $ADDR
+        REFCNT = 1
+        FLAGS = \(OBJECT,SHAREKEYS\)
+        STASH = $ADDR	"Tie::StdHash"
+        ARRAY = 0x0
+        KEYS = 0
+        FILL = 0
+        MAX = 7
+  ARRAY = 0x0
+  KEYS = 0
+  FILL = 0
+  MAX = 7
+HASH
+
 $_ = "hello";
 do_test('rvalue substr', 'substr $_, 1, 2', <<'SUBSTR', '', undef, 1);
 SV = PV\($ADDR\) at $ADDR
@@ -1029,7 +1057,7 @@ use constant {
 
 unless ($Config{useithreads}) {
     # These end up as copies in pads under ithreads, which rather defeats the
-    # the point of what we're trying to test here.
+    # point of what we're trying to test here.
 
     do_test('regular string constant', perl,
 'SV = PV\\($ADDR\\) at $ADDR
@@ -1155,22 +1183,26 @@ unless ($Config{useithreads}) {
 # note the conditionals on ENGINE and INTFLAGS were introduced in 5.19.9
 do_test('UTF-8 in a regular expression',
         qr/\x{100}/,
-'SV = IV\($ADDR\) at $ADDR
+'SV = IV\\($ADDR\\) at $ADDR
   REFCNT = 1
-  FLAGS = \(ROK\)
+  FLAGS = \\(ROK\\)
   RV = $ADDR
-  SV = REGEXP\($ADDR\) at $ADDR
+  SV = REGEXP\\($ADDR\\) at $ADDR
     REFCNT = 1
     FLAGS = \(OBJECT,POK,FAKE,pPOK,UTF8\)
-    PV = $ADDR "\(\?\^u:\\\\\\\\x\{100\}\)" \[UTF8 "\(\?\^u:\\\\\\\\x\{100\}\)"\]
+    PV = $ADDR "\\(\\?\\^u:\\\\\\\\x\\{100\\}\\)" \\[UTF8 "\\(\\?\\^u:\\\\\\\\x\\{100\\}\\)"\\]
     CUR = 13
     LEN = 0
-    STASH = $ADDR	"Regexp"
-    COMPFLAGS = 0x0 \(\)
-    EXTFLAGS = $ADDR \(CHECK_ALL,USE_INTUIT_NOML,USE_INTUIT_ML\)
-(?:    ENGINE = $ADDR \(STANDARD\)
-)?    INTFLAGS = 0x0(?: \(\))?
+    STASH = $ADDR\\s+"Regexp"
+    COMPFLAGS = 0x0 \\(\\)
+    EXTFLAGS = $ADDR \\(CHECK_ALL,USE_INTUIT_NOML,USE_INTUIT_ML\\)
+(?:    ENGINE = $ADDR \\(STANDARD\\)
+)?    INTFLAGS = 0x0(?: \\(\\))?
     NPARENS = 0
+    LOGICAL_NPARENS = 0
+    LOGICAL_TO_PARNO = 0x0
+    PARNO_TO_LOGICAL = 0x0
+    PARNO_TO_LOGICAL_NEXT = 0x0
     LASTPAREN = 0
     LASTCLOSEPAREN = 0
     MINLEN = 1
@@ -1181,20 +1213,29 @@ do_test('UTF-8 in a regular expression',
     SUBOFFSET = 0
     SUBCOFFSET = 0
     SUBBEG = 0x0
-(?:    ENGINE = $ADDR
-)?    MOTHER_RE = $ADDR'
-. ($] < 5.019003 ? '' : '
-    SV = REGEXP\($ADDR\) at $ADDR
+    PAREN_NAMES = 0x0
+    SUBSTRS = $ADDR
+    PPRIVATE = $ADDR
+    OFFS = $ADDR
+      \\[ 0:0 \\]
+    QR_ANONCV = 0x0
+    SAVED_COPY = 0x0
+    MOTHER_RE = $ADDR
+    SV = REGEXP\\($ADDR\\) at $ADDR
       REFCNT = 2
-      FLAGS = \(POK,pPOK,UTF8\)
-      PV = $ADDR "\(\?\^u:\\\\\\\\x\{100\}\)" \[UTF8 "\(\?\^u:\\\\\\\\x\{100\}\)"\]
+      FLAGS = \\(POK,pPOK,UTF8\\)
+      PV = $ADDR "\\(\\?\\^u:\\\\\\\\x\\{100\\}\\)" \\[UTF8 "\\(\\?\\^u:\\\\\\\\x\\{100\\}\\)"\\]
       CUR = 13
-      LEN = \d+
-      COMPFLAGS = 0x0 \(\)
-      EXTFLAGS = $ADDR \(CHECK_ALL,USE_INTUIT_NOML,USE_INTUIT_ML\)
-(?:      ENGINE = $ADDR \(STANDARD\)
-)?      INTFLAGS = 0x0(?: \(\))?
+      LEN = \\d+
+      COMPFLAGS = 0x0 \\(\\)
+      EXTFLAGS = 0x680100 \\(CHECK_ALL,USE_INTUIT_NOML,USE_INTUIT_ML\\)
+      ENGINE = $ADDR \\(STANDARD\\)
+      INTFLAGS = 0x0 \\(\\)
       NPARENS = 0
+      LOGICAL_NPARENS = 0
+      LOGICAL_TO_PARNO = 0x0
+      PARNO_TO_LOGICAL = 0x0
+      PARNO_TO_LOGICAL_NEXT = 0x0
       LASTPAREN = 0
       LASTCLOSEPAREN = 0
       MINLEN = 1
@@ -1205,21 +1246,97 @@ do_test('UTF-8 in a regular expression',
       SUBOFFSET = 0
       SUBCOFFSET = 0
       SUBBEG = 0x0
-(?:    ENGINE = $ADDR
-)?      MOTHER_RE = 0x0
       PAREN_NAMES = 0x0
       SUBSTRS = $ADDR
       PPRIVATE = $ADDR
       OFFS = $ADDR
-      QR_ANONCV = 0x0(?:
-      SAVED_COPY = 0x0)?') . '
+        \\[ 0:0 \\]
+      QR_ANONCV = 0x0
+      SAVED_COPY = 0x0
+      MOTHER_RE = 0x0
+');
+
+do_test('Branch Reset regexp',
+        qr/(?|(foo)|(bar))(?|(baz)|(bop))/,
+'SV = IV\\($ADDR\\) at $ADDR
+  REFCNT = 1
+  FLAGS = \\(ROK\\)
+  RV = $ADDR
+  SV = REGEXP\\($ADDR\\) at $ADDR
+    REFCNT = 1
+    FLAGS = \\(OBJECT,POK,FAKE,pPOK\\)
+    PV = $ADDR "\\(\\?\\^:\\(\\?\\|\\(foo\\)\\|\\(bar\\)\\)\\(\\?\\|\\(baz\\)\\|\\(bop\\)\\)\\)"
+    CUR = 35
+    LEN = 0
+    STASH = $ADDR\\s+"Regexp"
+    COMPFLAGS = 0x0 \\(\\)
+    EXTFLAGS = 0x0 \\(\\)
+    ENGINE = $ADDR \\(STANDARD\\)
+    INTFLAGS = 0x0 \\(\\)
+    NPARENS = 4
+    LOGICAL_NPARENS = 2
+    LOGICAL_TO_PARNO = $ADDR
+      \\{ 0, 1, 3 \\}
+    PARNO_TO_LOGICAL = $ADDR
+      \\{ 0, 1, 1, 2, 2 \\}
+    PARNO_TO_LOGICAL_NEXT = $ADDR
+      \\{ 0, 2, 0, 4, 0 \\}
+    LASTPAREN = 0
+    LASTCLOSEPAREN = 0
+    MINLEN = 6
+    MINLENRET = 6
+    GOFS = 0
+    PRE_PREFIX = 4
+    SUBLEN = 0
+    SUBOFFSET = 0
+    SUBCOFFSET = 0
+    SUBBEG = 0x0
     PAREN_NAMES = 0x0
     SUBSTRS = $ADDR
     PPRIVATE = $ADDR
     OFFS = $ADDR
-    QR_ANONCV = 0x0(?:
-    SAVED_COPY = 0x0)?
+      \\[ 0:0, 0:0, 0:0, 0:0, 0:0 \\]
+    QR_ANONCV = 0x0
+    SAVED_COPY = 0x0
+    MOTHER_RE = $ADDR
+    SV = REGEXP\\($ADDR\\) at $ADDR
+      REFCNT = 2
+      FLAGS = \\(POK,pPOK\\)
+      PV = $ADDR "\\(\\?\\^:\\(\\?\\|\\(foo\\)\\|\\(bar\\)\\)\\(\\?\\|\\(baz\\)\\|\\(bop\\)\\)\\)"
+      CUR = 35
+      LEN = \\d+
+      COMPFLAGS = 0x0 \\(\\)
+      EXTFLAGS = 0x0 \\(\\)
+      ENGINE = $ADDR \\(STANDARD\\)
+      INTFLAGS = 0x0 \\(\\)
+      NPARENS = 4
+      LOGICAL_NPARENS = 2
+      LOGICAL_TO_PARNO = $ADDR
+        \\{ 0, 1, 3 \\}
+      PARNO_TO_LOGICAL = $ADDR
+        \\{ 0, 1, 1, 2, 2 \\}
+      PARNO_TO_LOGICAL_NEXT = $ADDR
+        \\{ 0, 2, 0, 4, 0 \\}
+      LASTPAREN = 0
+      LASTCLOSEPAREN = 0
+      MINLEN = 6
+      MINLENRET = 6
+      GOFS = 0
+      PRE_PREFIX = 4
+      SUBLEN = 0
+      SUBOFFSET = 0
+      SUBCOFFSET = 0
+      SUBBEG = 0x0
+      PAREN_NAMES = 0x0
+      SUBSTRS = $ADDR
+      PPRIVATE = $ADDR
+      OFFS = $ADDR
+        \\[ 0:0, 0:0, 0:0, 0:0, 0:0 \\]
+      QR_ANONCV = 0x0
+      SAVED_COPY = 0x0
+      MOTHER_RE = 0x0
 ');
+
 
 { # perl #117793: Extend SvREFCNT* to work on any perl variable type
   my %hash;
@@ -1465,12 +1582,13 @@ dumpindent is 4 at -e line 1.
      REFCNT = 1
      |   
 2    +--enter OP(0xNNN) ===> 3 [nextstate 0xNNN]
-     |   FLAGS = (UNKNOWN,SLABBED,MORESIB)
+     |   FLAGS = (VOID,SLABBED,MORESIB)
      |   
 3    +--nextstate COP(0xNNN) ===> 4 [pushmark 0xNNN]
      |   FLAGS = (VOID,SLABBED,MORESIB)
      |   LINE = 1
      |   PACKAGE = "t"
+     |   HINTS = 00000100
      |     |   
 5    +--entersub UNOP(0xNNN) ===> 1 [leave 0xNNN]
          TARG = 1
@@ -1503,4 +1621,58 @@ EODUMP
     $out =~ s/\(0x[0-9a-f]{3,}\)/(0xNNN)/g;
     is $out, $e, "DumpProg() has no 'Attempt to free X prematurely' warning";
 }
+
+{
+    my $epsilon_p = 1.0;
+    my $epsilon_n = 1.0;
+    if($Config{nvtype} eq 'long double' &&
+       $Config{longdblkind} >= 5 && $Config{longdblkind} <= 8) {
+      # For this (doubledouble) kind of NV we need to use a separate
+      # method for assigning values to $epsilon_p and $epsilon_n. 
+      # Theoretically, $epsilon_p should be set to 2 ** -107, and
+      # $epsilon_n to 2 ** -110. However, a known possible bug in "%.33g"
+      # formatting will render those values inaccurately, thereby
+      # incorrectly influencing the results of the "NV 1.0 + epsilon" 
+      # and "NV 1.0 - epsilon" tests. So we test for the presence of
+      # the bug, and set both of those "epsilon" variables to
+      # 2 ** -105 if the bug is detected.
+      # See the discussion at https://github.com/Perl/perl5/issues/19585.
+
+      if( sprintf("%.33g", 1.0 + (2 ** -108)) == 1
+          &&
+          sprintf("%.33g", 1.0 + (2 ** -107)) > 1 ) {
+
+          $epsilon_p = 2 ** -107;
+      }
+      else { $epsilon_p = 2 ** -105 } # Avoids the formatting bug.
+
+      if( sprintf("%.33g", 1.0 - (2 ** -111)) == 1
+          &&
+          sprintf("%.33g", 1.0 - (2 ** -110)) < 1 ) {
+
+          $epsilon_n = 2 ** -110;
+      }
+      else { $epsilon_n = 2 ** -105 } # Avoids the formatting bug.
+
+    }
+    else {
+        $epsilon_p /= 2 while 1.0 != 1.0 + $epsilon_p / 2;
+        $epsilon_n /= 2 while 1.0 != 1.0 - $epsilon_n / 2;
+    }
+
+    my $head = 'SV = NV\($ADDR\) at $ADDR
+(?:.+
+)*  ';
+    my $tail = '
+(?:.+
+)*';
+
+    do_test('NV 1.0', 1.0,
+            $head . 'NV = 1' . $tail);
+    do_test('NV 1.0 + epsilon', 1.0 + $epsilon_p,
+            $head . 'NV = 1\.00000000\d+' . $tail);
+    do_test('NV 1.0 - epsilon', 1.0 - $epsilon_n,
+            $head . 'NV = 0\.99999999\d+' . $tail);
+}
+
 done_testing();

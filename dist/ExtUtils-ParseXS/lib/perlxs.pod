@@ -22,8 +22,8 @@ which will provide the glue between Perl calling conventions and C
 calling conventions.
 
 The glue code pulls the arguments from the Perl stack, converts these
-Perl values to the formats expected by a C function, call this C function,
-transfers the return values of the C function back to Perl.
+Perl values to the formats expected by a C function, calls this C function,
+and then transfers the return values of the C function back to Perl.
 Return values here may be a conventional C return value or any C
 function arguments that may serve as output parameters.  These return
 values may be passed back to Perl either by putting them on the
@@ -78,6 +78,11 @@ See L<perlxstut> for a tutorial on the whole extension creation process.
 Note: For some extensions, Dave Beazley's SWIG system may provide a
 significantly more convenient mechanism for creating the extension
 glue code.  See L<http://www.swig.org/> for more information.
+
+For simple bindings to C libraries as well as other machine code libraries,
+consider instead using the much simpler
+L<libffi|http://sourceware.org/libffi/> interface via CPAN modules like
+L<FFI::Platypus> or L<FFI::Raw>.
 
 =head2 On The Road
 
@@ -194,7 +199,7 @@ with similar declarations
      bool make_char_uppercase(char *c);
 
 are used in absolutely incompatible manner.  Parameters to these functions
-could be described B<xsubpp> like this:
+could be described to B<xsubpp> like this:
 
      char *  s
      char    &c
@@ -598,7 +603,7 @@ and C<$type> can be used as in typemaps.
 
      bool_t
      rpcb_gettime(host,timep)
-          char *host = (char *)SvPV_nolen($arg);
+          char *host = (char *)SvPVbyte_nolen($arg);
           time_t &timep = 0;
         OUTPUT:
           timep
@@ -625,7 +630,7 @@ Here's a truly obscure example:
      bool_t
      rpcb_gettime(host,timep)
           time_t &timep; /* \$v{timep}=@{[$v{timep}=$arg]} */
-          char *host + SvOK($v{timep}) ? SvPV_nolen($arg) : NULL;
+          char *host + SvOK($v{timep}) ? SvPVbyte_nolen($arg) : NULL;
         OUTPUT:
           timep
 
@@ -988,7 +993,7 @@ The XS code, with ellipsis, follows.
           char *host = "localhost";
         CODE:
 	  if( items > 1 )
-	       host = (char *)SvPV_nolen(ST(1));
+	       host = (char *)SvPVbyte_nolen(ST(1));
 	  RETVAL = rpcb_gettime( host, &timep );
         OUTPUT:
           timep
@@ -1289,7 +1294,7 @@ prototypes.
           char *host = "localhost";
         CODE:
 		  if( items > 1 )
-		       host = (char *)SvPV_nolen(ST(1));
+		       host = (char *)SvPVbyte_nolen(ST(1));
 		  RETVAL = rpcb_gettime( host, &timep );
         OUTPUT:
           timep
@@ -1322,6 +1327,46 @@ C<BAR::getit()> for this function.
 	ALIAS:
 	    FOO::gettime = 1
 	    BAR::getit = 2
+	INIT:
+	  printf("# ix = %d\n", ix );
+        OUTPUT:
+          timep
+
+A warning will be produced when you create more than one alias to the same
+value. This may be worked around in a backwards compatible way by creating
+multiple defines which resolve to the same value, or with a modern version
+of ExtUtils::ParseXS you can use a symbolic alias, which are denoted with
+a C<< => >> instead of a C<< = >>. For instance you could change the above
+so that the alias section looked like this:
+
+	ALIAS:
+	    FOO::gettime = 1
+	    BAR::getit = 2
+            BAZ::gettime => FOO::gettime
+
+this would have the same effect as this:
+
+	ALIAS:
+	    FOO::gettime = 1
+	    BAR::getit = 2
+            BAZ::gettime = 1
+
+except that the latter will produce warnings during the build process. A
+mechanism that would work in a backwards compatible way with older
+versions of our tool chain would be to do this:
+
+    #define FOO_GETTIME 1
+    #define BAR_GETIT 2
+    #define BAZ_GETTIME 1
+
+    bool_t
+    rpcb_gettime(host,timep)
+          char *host
+          time_t &timep
+	ALIAS:
+	    FOO::gettime = FOO_GETTIME
+	    BAR::getit = BAR_GETIT
+            BAZ::gettime = BAZ_GETTIME
 	INIT:
 	  printf("# ix = %d\n", ix );
         OUTPUT:
@@ -1743,8 +1788,8 @@ example.
         if( sv_isobject($arg) && (SvTYPE(SvRV($arg)) == SVt_PVMG) )
             $var = ($type)SvIV((SV*)SvRV( $arg ));
         else{
-            warn("${Package}::$func_name() -- " .
-                "$var is not a blessed SV reference");
+            warn(\"${Package}::$func_name() -- \"
+                \"$var is not a blessed SV reference\");
             XSRETURN_UNDEF;
         }
 
@@ -1980,6 +2025,8 @@ all the data that needs to be interpreter-local.
 Always place the START_MY_CXT macro directly after the declaration
 of C<my_cxt_t>.
 
+=for apidoc Amnh||START_MY_CXT
+
 =item MY_CXT_INIT
 
 The MY_CXT_INIT macro initializes storage for the C<my_cxt_t> struct.
@@ -1989,10 +2036,14 @@ are maintaining multiple interpreters, it should be called once in each
 interpreter instance, except for interpreters cloned from existing ones.
 (But see L</MY_CXT_CLONE> below.)
 
+=for apidoc Amnh||MY_CXT_INIT
+
 =item dMY_CXT
 
 Use the dMY_CXT macro (a declaration) in all the functions that access
 MY_CXT.
+
+=for apidoc Amnh||dMY_CXT
 
 =item MY_CXT
 
@@ -2013,6 +2064,14 @@ then use this to access the C<index> member
 C<dMY_CXT> may be quite expensive to calculate, and to avoid the overhead
 of invoking it in each function it is possible to pass the declaration
 onto other functions using the C<aMY_CXT>/C<pMY_CXT> macros, eg
+
+=for apidoc Amnh||_aMY_CXT
+=for apidoc Amnh||aMY_CXT
+=for apidoc Amnh||aMY_CXT_
+=for apidoc Amnh||_pMY_CXT
+=for apidoc Amnh||pMY_CXT
+=for apidoc Amnh||pMY_CXT_
+=for apidoc Amnh||MY_CXT
 
     void sub1() {
 	dMY_CXT;
@@ -2035,6 +2094,8 @@ By default, when a new interpreter is created as a copy of an existing one
 my_cxt_t structure. Calling C<MY_CXT_CLONE> (typically via the package's
 C<CLONE()> function), causes a byte-for-byte copy of the structure to be
 taken, and any future dMY_CXT will cause the copy to be accessed instead.
+
+=for apidoc Amnh||MY_CXT_CLONE
 
 =item MY_CXT_INIT_INTERP(my_perl)
 
@@ -2082,7 +2143,8 @@ File C<RPC.xs>: Interface to some ONC+ RPC bind library functions.
      #include "perl.h"
      #include "XSUB.h"
 
-     #include <rpc/rpc.h>
+     /* Note: On glibc 2.13 and earlier, this needs be <rpc/rpc.h> */
+     #include <tirpc/rpc.h>
 
      typedef struct netconfig Netconfig;
 
@@ -2141,6 +2203,8 @@ File C<rpctest.pl>: Perl test program for the RPC extension.
      $a = rpcb_gettime("poplar");
      print "time = $a\n";
      print "netconf = $netconf\n";
+
+In Makefile.PL add -ltirpc and -I/usr/include/tirpc.
 
 =head1 CAVEATS
 
@@ -2252,7 +2316,7 @@ per-thread locales.  Perl makes this transparent to perl-space code.  It
 continues to use C<POSIX::setlocale()>, and the interpreter translates
 that into the per-thread functions.
 
-All other locale-senstive functions automatically use the per-thread
+All other locale-sensitive functions automatically use the per-thread
 locale, if that is turned on, and failing that, the global locale.  Thus
 calls to C<setlocale> are ineffective on POSIX systems for the current
 thread if that thread is using a per-thread locale.  If perl is compiled
@@ -2345,10 +2409,21 @@ or use the methods given in L<perlcall>.
 =head1 XS VERSION
 
 This document covers features supported by C<ExtUtils::ParseXS>
-(also known as C<xsubpp>) 3.13_01.
+(also known as C<xsubpp>) 3.51
+
+=head1 AUTHOR DIAGNOSTICS
+
+As of version 3.49 certain warnings are disabled by default. While developing
+you can set C<$ENV{AUTHOR_WARNINGS}> to true in your environment or in your
+Makefile.PL, or set C<$ExtUtils::ParseXS::AUTHOR_WARNINGS> to true via code, or
+pass C<< author_warnings=>1 >> into process_file() explicitly.  Currently this will
+enable stricter alias checking but more warnings might be added in the future.
+The kind of warnings this will enable are only helpful to the author of the XS
+file, and the diagnostics produced will not include installation specific
+details so they are only useful to the maintainer of the XS code itself.
 
 =head1 AUTHOR
 
 Originally written by Dean Roehrich <F<roehrich@cray.com>>.
 
-Maintained since 1996 by The Perl Porters <F<perlbug@perl.org>>.
+Maintained since 1996 by The Perl Porters <F<perl5-porters@perl.org>>.

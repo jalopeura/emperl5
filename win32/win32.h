@@ -15,54 +15,21 @@
 
 /* Win32 only optimizations for faster building */
 #ifdef PERL_IS_MINIPERL
-/* this macro will remove Winsock only on miniperl, PERL_IMPLICIT_SYS and
- * makedef.pl create dependencies that will keep Winsock linked in even with
- * this macro defined, even though sockets will be umimplemented from a script
- * level in full perl
- */
-#  define WIN32_NO_SOCKETS
 /* less I/O calls during each require */
 #  define PERL_DISABLE_PMC
 
-/* unnecessery for miniperl to lookup anything from an "installed" perl */
+/* unnecessary for miniperl to lookup anything from an "installed" perl */
 #  define WIN32_NO_REGISTRY
 
 /* allow minitest to work */
 #  define PERL_TEXTMODE_SCRIPTS
 #endif
 
-#ifdef WIN32_NO_SOCKETS
-#  undef HAS_SOCKET
-#  undef HAS_GETPROTOBYNAME
-#  undef HAS_GETPROTOBYNUMBER
-#  undef HAS_GETPROTOENT
-#  undef HAS_GETNETBYNAME
-#  undef HAS_GETNETBYADDR
-#  undef HAS_GETNETENT
-#  undef HAS_GETSERVBYNAME
-#  undef HAS_GETSERVBYPORT
-#  undef HAS_GETSERVENT
-#  undef HAS_GETHOSTBYNAME
-#  undef HAS_GETHOSTBYADDR
-#  undef HAS_GETHOSTENT
-#  undef HAS_SELECT
-#  undef HAS_IOCTL
-#  undef HAS_NTOHL
-#  undef HAS_HTONL
-#  undef HAS_HTONS
-#  undef HAS_NTOHS
-#  define WIN32SCK_IS_STDSCK
-#endif
-
 #if defined(PERL_IMPLICIT_SYS)
 #  define DYNAMIC_ENV_FETCH
 #  define HAS_GETENV_LEN
-#  define prime_env_iter()
 #  define WIN32IO_IS_STDIO		/* don't pull in custom stdio layer */
 #  define WIN32SCK_IS_STDSCK		/* don't pull in custom wsock layer */
-#  ifdef PERL_GLOBAL_STRUCT
-#    error PERL_GLOBAL_STRUCT cannot be defined with PERL_IMPLICIT_SYS
-#  endif
 #endif
 
 #ifdef __GNUC__
@@ -70,11 +37,6 @@
 #    define __int64 long long
 #  endif
 #  define Win32_Winsock
-#ifdef __cplusplus
-/* Mingw32 gcc -xc++ objects to __attribute((unused)) at least */
-#undef  PERL_UNUSED_DECL
-#define PERL_UNUSED_DECL
-#endif
 #endif
 
 
@@ -85,7 +47,7 @@
 
 /* now even GCC supports __declspec() */
 /* miniperl has no reason to export anything */
-#if defined(PERL_IS_MINIPERL) && !defined(UNDER_CE)
+#if defined(PERL_IS_MINIPERL)
 #  define DllExport
 #else
 #  if defined(PERLDLL)
@@ -119,7 +81,7 @@
 
 #if (defined(__GNUC__) && defined(__MINGW32__) && \
      !defined(__MINGW64_VERSION_MAJOR) && !defined(__clang__) && \
-	((__GNUC__ < 3) || ((__GNUC__ == 3) && (__GNUC_MINOR__ <= 5))))
+        ((__GNUC__ < 3) || ((__GNUC__ == 3) && (__GNUC_MINOR__ <= 5))))
 /* use default fallbacks from perl.h for this particular GCC */
 #else
 #  if !defined(PERLDLL) && !defined(PERL_EXT_RE_BUILD)
@@ -144,6 +106,8 @@
 #ifdef _MSC_VER
 #  define PERL_STATIC_NO_RET __declspec(noreturn) static
 #  define PERL_STATIC_INLINE_NO_RET __declspec(noreturn) PERL_STATIC_INLINE
+#  define PERL_STATIC_FORCE_INLINE __forceinline static
+#  define PERL_STATIC_FORCE_INLINE_NO_RET __declspec(noreturn) __forceinline static
 #endif
 
 #define  WIN32_LEAN_AND_MEAN
@@ -187,10 +151,10 @@ WINBASEAPI LPCH WINAPI GetEnvironmentStringsA(VOID);
 #endif
 
 struct tms {
-	long	tms_utime;
-	long	tms_stime;
-	long	tms_cutime;
-	long	tms_cstime;
+        long	tms_utime;
+        long	tms_stime;
+        long	tms_cutime;
+        long	tms_cstime;
 };
 
 #ifndef SYS_NMLN
@@ -234,18 +198,16 @@ struct utsname {
 #  define WIN32_NO_REGISTRY_M_(x) x,
 #endif
 
-#define PERL_NO_FORCE_LINK		/* no need for PL_force_link_funcs */
-
 #define ENV_IS_CASELESS
 
 #define PIPESOCK_MODE	"b"		/* pipes, sockets default to binmode */
 
 /* access() mode bits */
 #ifndef R_OK
-#  define	R_OK	4
-#  define	W_OK	2
-#  define	X_OK	1
-#  define	F_OK	0
+#  define R_OK  4
+#  define W_OK  2
+#  define X_OK  1
+#  define F_OK  0
 #endif
 
 /* for waitpid() */
@@ -259,31 +221,18 @@ struct utsname {
 
 /* VC uses non-standard way to determine the size and alignment if bit-fields */
 /* MinGW will compile with -mms-bitfields, so should use the same types */
-#define PERL_BITFIELD8  unsigned char
-#define PERL_BITFIELD16 unsigned short
-#define PERL_BITFIELD32 unsigned int
+#define PERL_BITFIELD8  U8
+#define PERL_BITFIELD16 U16
+#define PERL_BITFIELD32 U32
 
 #ifdef _MSC_VER			/* Microsoft Visual C++ */
 
-#ifndef UNDER_CE
 typedef long		uid_t;
 typedef long		gid_t;
 typedef unsigned short	mode_t;
-#endif
 
-#if _MSC_VER < 1800
-#define isnan		_isnan	/* Defined already in VC++ 12.0 */
-#endif
-#ifdef UNDER_CE /* revisit what function this becomes celib vs corelibc, prv warning here*/
-#  undef snprintf
-#endif
 #define snprintf	_snprintf
 #define vsnprintf	_vsnprintf
-
-/* on VS2003, msvcrt.lib is missing these symbols */
-#if _MSC_VER >= 1300 && _MSC_VER < 1400
-#  pragma intrinsic(_rotl64,_rotr64)
-#endif
 
 MSVC_DIAG_IGNORE(4756 4056)
 PERL_STATIC_INLINE
@@ -306,8 +255,8 @@ MSVC_DIAG_RESTORE
    importing __PL_nan_u across DLL boundaries in size in the importing DLL
    will be more than the 8 bytes it will take up being in each XS DLL if
    that DLL actually uses __PL_nan_u */
-extern const __declspec(selectany) union { unsigned __int64 __q; double __d; }
-__PL_nan_u = { 0x7FF8000000000000UI64 };
+union PerlNan { unsigned __int64 __q; double __d; };
+extern const __declspec(selectany) union PerlNan __PL_nan_u = { 0x7FF8000000000000UI64 };
 #define NV_NAN ((NV)__PL_nan_u.__d)
 
 /* The CRT was rewritten in VS2015. */
@@ -431,7 +380,9 @@ extern  void	*sbrk(ptrdiff_t need);
 #endif
 extern	char *	getlogin(void);
 extern	int	chown(const char *p, uid_t o, gid_t g);
-#if !defined(__MINGW64_VERSION_MAJOR) || __MINGW64_VERSION_MAJOR < 4
+#if((!defined(__MINGW64_VERSION_MAJOR) || __MINGW64_VERSION_MAJOR < 4) && \
+    (!defined(__MINGW32_MAJOR_VERSION) || __MINGW32_MAJOR_VERSION < 3 || \
+     (__MINGW32_MAJOR_VERSION == 3 && __MINGW32_MINOR_VERSION < 21)))
 extern  int	mkstemp(const char *path);
 #endif
 #endif
@@ -475,7 +426,6 @@ DllExport void		win32_get_child_IO(child_IO_table* ptr);
 DllExport HWND		win32_create_message_window(void);
 DllExport int		win32_async_check(pTHX);
 
-extern int		my_fclose(FILE *);
 extern char *		win32_get_privlib(WIN32_NO_REGISTRY_M_(const char *pl) STRLEN *const len);
 extern char *		win32_get_sitelib(const char *pl, STRLEN *const len);
 extern char *		win32_get_vendorlib(const char *pl, STRLEN *const len);
@@ -576,7 +526,6 @@ struct interp_intern {
     UINT	timerid;
     unsigned 	poll_count;
     Sighandler_t sigtable[SIG_SIZE];
-    bool sloppystat;
 };
 
 #define WIN32_POLL_INTERVAL 32768
@@ -610,119 +559,11 @@ struct interp_intern {
 #define w32_init_socktype	(PL_sys_intern.thr_intern.Winit_socktype)
 #define w32_use_showwindow	(PL_sys_intern.thr_intern.Wuse_showwindow)
 #define w32_showwindow	(PL_sys_intern.thr_intern.Wshowwindow)
-#define w32_sloppystat	(PL_sys_intern.sloppystat)
 
 #ifdef USE_ITHREADS
 void win32_wait_for_children(pTHX);
 #  define PERL_WAIT_FOR_CHILDREN win32_wait_for_children(aTHX)
 #endif
-
-/* The following ioinfo struct manipulations had been removed but were
- * reinstated to fix RT#120091/118059. However, they do not work with
- * the rewritten CRT in VS2015 so they are removed once again for VS2015
- * onwards, which will therefore suffer from the reintroduction of the
- * close socket bug. */
-#if (!defined(_MSC_VER)) || (defined(_MSC_VER) && _MSC_VER < 1900)
-
-#ifdef PERL_CORE
-
-/* C doesn't like repeat struct definitions */
-#if defined(__MINGW32__) && (__MINGW32_MAJOR_VERSION>=3)
-#  undef _CRTIMP
-#endif
-#ifndef _CRTIMP
-#  define _CRTIMP __declspec(dllimport)
-#endif
-
-
-/* VS2005 has multiple ioinfo struct definitions through VS2005's release life
- * VS2008-2012 have been stable but do not assume future VSs will have the
- * same ioinfo struct, just because past struct stability. If research is done
- * on the CRTs of future VSs, the version check can be bumped up so the newer
- * VS uses a fixed ioinfo size. (Actually, only VS2013 (_MSC_VER 1800) hasn't
- * been looked at; after that we cannot use the ioinfo struct anyway (see the
- * #if above).)
- */
-#if ! (_MSC_VER < 1400 || (_MSC_VER >= 1500 && _MSC_VER <= 1700) \
-  || defined(__MINGW32__))
-/* size of ioinfo struct is determined at runtime */
-#  define WIN32_DYN_IOINFO_SIZE
-#endif
-
-#ifndef WIN32_DYN_IOINFO_SIZE
-/*
- * Control structure for lowio file handles
- */
-typedef struct {
-    intptr_t osfhnd;/* underlying OS file HANDLE */
-    char osfile;    /* attributes of file (e.g., open in text mode?) */
-    char pipech;    /* one char buffer for handles opened on pipes */
-    int lockinitflag;
-    CRITICAL_SECTION lock;
-/* this struct definition breaks ABI compatibility with
- * not using, cl.exe's native VS version specitfic CRT. */
-#  if _MSC_VER >= 1400 && _MSC_VER < 1500
-#    error "This ioinfo struct is incomplete for Visual C 2005"
-#  endif
-/* VS2005 CRT has at least 3 different definitions of this struct based on the
- * CRT DLL's build number. */
-#  if _MSC_VER >= 1500
-#    ifndef _SAFECRT_IMPL
-    /* Not used in the safecrt downlevel. We do not define them, so we cannot
-     * use them accidentally */
-    char textmode : 7;/* __IOINFO_TM_ANSI or __IOINFO_TM_UTF8 or __IOINFO_TM_UTF16LE */
-    char unicode : 1; /* Was the file opened as unicode? */
-    char pipech2[2];  /* 2 more peak ahead chars for UNICODE mode */
-    __int64 startpos;      /* File position that matches buffer start */
-    BOOL utf8translations; /* Buffer contains translations other than CRLF*/
-    char dbcsBuffer;       /* Buffer for the lead byte of dbcs when converting from dbcs to unicode */
-    BOOL dbcsBufferUsed;   /* Bool for the lead byte buffer is used or not */
-#    endif
-#  endif
-} ioinfo;
-#else
-typedef intptr_t ioinfo;
-#endif
-
-/*
- * Array of arrays of control structures for lowio files.
- */
-EXTERN_C _CRTIMP ioinfo* __pioinfo[];
-
-/*
- * Definition of IOINFO_L2E, the log base 2 of the number of elements in each
- * array of ioinfo structs.
- */
-#define IOINFO_L2E	    5
-
-/*
- * Definition of IOINFO_ARRAY_ELTS, the number of elements in ioinfo array
- */
-#define IOINFO_ARRAY_ELTS   (1 << IOINFO_L2E)
-
-/*
- * Access macros for getting at an ioinfo struct and its fields from a
- * file handle
- */
-#ifdef WIN32_DYN_IOINFO_SIZE
-#  define _pioinfo(i) ((intptr_t *) \
-     (((Size_t)__pioinfo[(i) >> IOINFO_L2E])/* * to head of array ioinfo [] */\
-      /* offset to the head of a particular ioinfo struct */ \
-      + (((i) & (IOINFO_ARRAY_ELTS - 1)) * w32_ioinfo_size)) \
-   )
-/* first slice of ioinfo is always the OS handle */
-#  define _osfhnd(i)  (*(_pioinfo(i)))
-#else
-#  define _pioinfo(i) (__pioinfo[(i) >> IOINFO_L2E] + ((i) & (IOINFO_ARRAY_ELTS - 1)))
-#  define _osfhnd(i)  (_pioinfo(i)->osfhnd)
-#endif
-
-/* since we are not doing a dup2(), this works fine */
-#define _set_osfhnd(fh, osfh) (void)(_osfhnd(fh) = (intptr_t)osfh)
-
-#endif /* PERL_CORE */
-
-#endif /* !defined(_MSC_VER) || _MSC_VER<1900 */
 
 /* IO.xs and POSIX.xs define PERLIO_NOT_STDIO to 1 */
 #if defined(PERL_EXT_IO) || defined(PERL_EXT_POSIX)
@@ -735,17 +576,55 @@ EXTERN_C _CRTIMP ioinfo* __pioinfo[];
 DllExport void *win32_signal_context(void);
 #define PERL_GET_SIG_CONTEXT win32_signal_context()
 
-#ifdef UNDER_CE
-#define Win_GetModuleHandle   XCEGetModuleHandleA
-#define Win_GetProcAddress    XCEGetProcAddressA
-#define Win_GetModuleFileName XCEGetModuleFileNameA
-#define Win_CreateSemaphore   CreateSemaphoreW
-#else
 #define Win_GetModuleHandle   GetModuleHandle
 #define Win_GetProcAddress    GetProcAddress
 #define Win_GetModuleFileName GetModuleFileName
 #define Win_CreateSemaphore   CreateSemaphore
+
+#if defined(PERL_CORE) && !defined(O_ACCMODE)
+#  define O_ACCMODE (O_RDWR | O_WRONLY | O_RDONLY)
 #endif
+
+/* ucrt at least seems to allocate a whole bit per type,
+   just mask off one bit from the mask for our symlink
+   and socket file types.
+*/
+#define _S_IFLNK ((unsigned)(_S_IFDIR | _S_IFCHR))
+#define _S_IFSOCK ((unsigned)(_S_IFDIR | _S_IFIFO))
+/* mingw64 defines _S_IFBLK to 0x3000 which is _S_IFDIR | _S_IFIFO */
+#ifndef _S_IFBLK
+#  define _S_IFBLK ((unsigned)(_S_IFCHR | _S_IFIFO))
+#endif
+#undef S_ISLNK
+#define S_ISLNK(mode) (((mode) & _S_IFMT) == _S_IFLNK)
+#undef S_ISSOCK
+#define S_ISSOCK(mode) (((mode) & _S_IFMT) == _S_IFSOCK)
+#undef S_ISBLK
+#define S_ISBLK(mode) (((mode) & _S_IFMT) == _S_IFBLK)
+
+/*
+
+The default CRT struct stat uses unsigned short for st_dev and st_ino
+which obviously isn't enough, so we define our own structure.
+
+ */
+
+typedef DWORD Dev_t;
+typedef unsigned __int64 Ino_t;
+
+struct w32_stat {
+    Dev_t st_dev;
+    Ino_t st_ino;
+    unsigned short st_mode;
+    DWORD st_nlink;
+    short st_uid;
+    short st_gid;
+    Dev_t st_rdev;
+    Off_t st_size;
+    time_t st_atime;
+    time_t st_mtime;
+    time_t st_ctime;
+};
 
 #endif /* _INC_WIN32_PERL5 */
 

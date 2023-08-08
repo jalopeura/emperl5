@@ -112,6 +112,11 @@ eval 'package A; sub PS : lvalue';
 @attrs = eval 'attributes::get \&A::PS';
 is "@attrs", "lvalue";
 
+# Multiple attributes at once
+eval 'package A; sub PS2 : lvalue method';
+@attrs = eval 'attributes::get \&A::PS2';
+is "@attrs", "lvalue method", 'Multiple builtin attributes can be set at once';
+
 # Test attributes on predeclared subroutines, after definition
 eval 'package A; sub PS : lvalue; sub PS { }';
 @attrs = eval 'attributes::get \&A::PS';
@@ -506,5 +511,8 @@ Invalid HASH attribute: Dummy at - line 1.
 BEGIN failed--compilation aborted at - line 1.
 EOS
               "attribute on our hash with sub of same name");
+
+fresh_perl_is('$_ = ""; s/^/ { my $x : shared = 1; } /e;', "", {},
+              "attributes in sub-parse");
 
 done_testing();

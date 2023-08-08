@@ -20,11 +20,10 @@ require_ok( 'ExtUtils::ParseXS' );
 chdir('t') if -d 't';
 push @INC, '.';
 
-use Carp; $SIG{__WARN__} = \&Carp::cluck;
+use Carp; #$SIG{__WARN__} = \&Carp::cluck;
 
 # See the comments about this in 001-basics.t
-@INC = map { File::Spec->rel2abs($_) } @INC
-    if $^O =~ /android/;
+@INC = map { File::Spec->rel2abs($_) } @INC;
 
 #########################
 

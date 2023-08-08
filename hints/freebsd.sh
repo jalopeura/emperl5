@@ -207,7 +207,7 @@ $define|true|[yY]*)
 	0.*|1.*|2.0*|2.1*)   cat <<EOM >&4
 I did not know that FreeBSD $osvers supports POSIX threads.
 
-Feel free to tell perlbug@perl.org otherwise.
+Feel free to report that at https://github.com/Perl/perl5/issues otherwise.
 EOM
 	      exit 1
 	      ;;
@@ -335,7 +335,7 @@ then
     d_uselocale='undef'
 fi
 
-# https://rt.perl.org/Ticket/Display.html?id=131337
+# https://github.com/Perl/perl5/issues/15984
 # Reported in 11.0-CURRENT with g++-4.8.5:
 # If using g++, the Configure scan for dlopen() fails.
 # Easier for now to just to forcibly set it.
@@ -352,3 +352,25 @@ arm|mips)
   test "$optimize" || optimize='-O2'
   ;;
 esac
+
+# don't modify a supplied -Darchname
+case "$archname" in
+'')
+  cat > UU/archname.cbu <<'EOCBU'
+unamem=`uname -m`
+case "$archname" in
+"$unamem"-*)
+  arch=`uname -p`
+  archname=`echo "$archname" | sed -e "s/^$unamem-/$arch-/"`
+  ;;
+esac
+EOCBU
+  ;;
+esac
+
+# This function on this box has weird behavior.  See
+# https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=255646
+d_querylocale='undef'
+
+# See https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=265950
+d_duplocale='undef'

@@ -9,6 +9,7 @@
 # from information stored in
 #
 #    regcomp.sym
+#    op_reg_common.h
 #    regexp.h
 #
 # pod/perldebguts.pod is not completely regenerated.  Only the table of
@@ -17,11 +18,41 @@
 # Accepts the standard regen_lib -q and -v args.
 #
 # This script is normally invoked from regen.pl.
+#
+# F<regcomp.sym> defines the opcodes and states used in the regex
+# engine, it also includes documentation on the opcodes. This script
+# parses those definitions out and turns them into typedefs, defines,
+# and data structures, and maybe even code which the regex engine can
+# use to operate.
+#
+# F<regexp.h> and op_reg_common.h contain defines C<RXf_xxx> and
+# C<PREGf_xxx> that are used in flags in our code. These defines are
+# parsed out and data structures are created to allow the debug mode of
+# the regex engine to show things such as which flags were set during
+# compilation. In some cases we transform the C code in the header files
+# into perl code which we execute to C<eval()> the contents. For instance
+# in a situation like this:
+#
+#   #define RXf_X 0x1   /* the X mode */
+#   #define RXf_Y 0x2   /* the Y mode */
+#   #define RXf_Z (X|Y) /* the Z mode */
+#
+# this script might end up eval()ing something like C<0x1> and then
+# C<0x2> and then C<(0x1|0x2)> the results of which it then might use in
+# constructing a data structure, or pod in perldebguts, or a comment in
+# C<regnodes.h>. It also would separate out the "X", "Y", and "Z" and
+# use them, and would also use the data in the line comment if present.
+#
+# If you compile a regex under perl -Mre=Debug,ALL you can see much
+# of the content that this file generates and parses out of its input
+# files.
 
 BEGIN {
     # Get function prototypes
     require './regen/regen_lib.pl';
+    require './regen/HeaderParser.pm';
 }
+
 use strict;
 
 # NOTE I don't think anyone actually knows what all of these properties mean,
@@ -49,14 +80,17 @@ use strict;
 # name          Both    Name of op/state
 # id            Both    integer value for this opcode/state
 # optype        Both    Either 'op' or 'state'
-# line_num          Both    line_num number of the input file for this item.
-# type          Op      Type of node (aka regkind)
-# code          Op      what code is associated with this node (???)
-# args          Op      what type of args the node has (which regnode struct)
-# flags         Op      (???)
+# line_num      Both    line_num number of the input file for this item.
+# type          Op      Type of node (aka regnode_kind)
+# code          Op      Meta about the node, used to detect variable length nodes
+# suffix        Op      which regnode struct this uses, so if this is '1', it
+#                       uses 'struct regnode_1'
+# flags         Op      S for simple; V for varies
 # longj         Op      Boolean as to if this node is a longjump
-# comment       Both    Comment about node, if any
+# comment       Both    Comment about node, if any.  Placed in perlredebguts
+#                       as its description
 # pod_comment   Both    Special comments for pod output (preceding lines in def)
+#                       Such lines begin with '#*'
 
 # Global State
 my @all;    # all opcodes/state
@@ -97,22 +131,14 @@ sub register_node {
 }
 
 # Parse and add an opcode definition to the global state.
-# An opcode definition looks like this:
+# What an opcode definition looks like is given in regcomp.sym.
 #
-#                             +- args
-#                             | +- flags
-#                             | | +- longjmp
-# Name        Type       code | | | ; comment
-# --------------------------------------------------------------------------
-# IFMATCH     BRANCHJ,    off 1 . 2 ; Succeeds if the following matches.
-# UNLESSM     BRANCHJ,    off 1 . 2 ; Fails if the following matches.
-# SUSPEND     BRANCHJ,    off 1 V 1 ; "Independent" sub-RE.
-# IFTHEN      BRANCHJ,    off 1 V 1 ; Switch, should be preceded by switcher.
-# GROUPP      GROUPP,     num 1     ; Whether the group matched.
-#
-# Not every opcode definition has all of these. We should maybe make this
-# nicer/easier to read in the future. Also note that the above is tab
+# Not every opcode definition has all of the components. We should maybe make
+# this nicer/easier to read in the future. Also note that the above is tab
 # sensitive.
+
+# Special comments for an entry precede it, and begin with '#*' and are placed
+# in the generated pod file just before the entry.
 
 sub parse_opcode_def {
     my ( $text, $line_num, $pod_comment )= @_;
@@ -129,10 +155,10 @@ sub parse_opcode_def {
         or die "Failed to match $_";
 
     # the content of the "desc" field from the first step is extracted here:
-    @{$node}{qw(type code args flags longj)}= split /[,\s]\s*/, $node->{desc};
+    @{$node}{qw(type code suffix flags longj)}= split /[,\s]\s*/, $node->{desc};
 
     defined $node->{$_} or $node->{$_} = ""
-        for qw(type code args flags longj);
+        for qw(type code suffix flags longj);
 
     register_node($node); # has to be before the type_alias code below
 
@@ -248,6 +274,49 @@ EXTCONST U8 PL_${varname}_bitmask[] = {
 EOP
 }
 
+sub print_process_EXACTish {
+    my ($out)= @_;
+
+    # Creates some bitmaps for EXACTish nodes.
+
+    my @folded;
+    my @req8;
+
+    my $base;
+    for my $node (@ops) {
+        next unless $node->{type} eq 'EXACT';
+        my $name = $node->{name};
+        $base = $node->{id} if $name eq 'EXACT';
+
+        my $index = $node->{id} - $base;
+
+        # This depends entirely on naming conventions in regcomp.sym
+        $folded[$index] = $name =~ /^EXACTF/ || 0;
+        $req8[$index] = $name =~ /8/ || 0;
+    }
+
+    die "Can't cope with > 32 EXACTish nodes" if @folded > 32;
+
+    my $exactf = sprintf "%X", oct("0b" . join "", reverse @folded);
+    my $req8 =   sprintf "%X", oct("0b" . join "", reverse @req8);
+    print $out <<EOP,
+
+/* Is 'op', known to be of type EXACT, folding? */
+#define isEXACTFish(op) (__ASSERT_(REGNODE_TYPE(op) == EXACT) (PL_EXACTFish_bitmask & (1U << (op - EXACT))))
+
+/* Do only UTF-8 target strings match 'op', known to be of type EXACT? */
+#define isEXACT_REQ8(op) (__ASSERT_(REGNODE_TYPE(op) == EXACT) (PL_EXACT_REQ8_bitmask & (1U << (op - EXACT))))
+
+#ifndef DOINIT
+EXTCONST U32 PL_EXACTFish_bitmask;
+EXTCONST U32 PL_EXACT_REQ8_bitmask;
+#else
+EXTCONST U32 PL_EXACTFish_bitmask = 0x$exactf;
+EXTCONST U32 PL_EXACT_REQ8_bitmask = 0x$req8;
+#endif /* DOINIT */
+EOP
+}
+
 sub read_definition {
     my ( $file )= @_;
     my ( $seen_sep, $pod_comment )= "";
@@ -285,7 +354,7 @@ sub read_definition {
 
 # use fixed width to keep the diffs between regcomp.pl recompiles
 # as small as possible.
-my ( $width, $rwidth, $twidth )= ( 22, 12, 9 );
+my ( $base_name_width, $rwidth, $twidth )= ( 22, 12, 9 );
 
 sub print_state_defs {
     my ($out)= @_;
@@ -296,128 +365,225 @@ sub print_state_defs {
 #define %*s\t%d
 
 EOP
-        -$width,
+        -$base_name_width,
         REGNODE_MAX => $#ops,
-        -$width, REGMATCH_STATE_MAX => $#all;
+        -$base_name_width, REGMATCH_STATE_MAX => $#all;
 
     my %rev_type_alias= reverse %type_alias;
+    my $base_format = "#define %*s\t%d\t/* %#04x %s */\n";
+    my @withs;
+    my $in_states = 0;
+
+    my $max_name_width = 0;
+    for my $ref (\@ops, \@states) {
+        for my $node ($ref->@*) {
+            my $len = length $node->{name};
+            $max_name_width = $len if $max_name_width < $len;
+        }
+    }
+
+    die "Do a white-space only commit to increase \$base_name_width to"
+     .  " $max_name_width; then re-run"  if $base_name_width < $max_name_width;
+
+    print $out <<EOT;
+/* -- For regexec.c to switch on target being utf8 (t8) or not (tb, b='byte'); */
+#define with_t_UTF8ness(op, t_utf8) (((op) << 1) + (cBOOL(t_utf8)))
+/* -- same, but also with pattern (p8, pb) -- */
+#define with_tp_UTF8ness(op, t_utf8, p_utf8)                        \\
+\t\t(((op) << 2) + (cBOOL(t_utf8) << 1) + cBOOL(p_utf8))
+
+/* The #defines below give both the basic regnode and the expanded version for
+   switching on utf8ness */
+EOT
+
     for my $node (@ops) {
-        printf $out "#define\t%*s\t%d\t/* %#04x %s */\n",
-            -$width, $node->{name}, $node->{id}, $node->{id}, $node->{comment};
+        print_state_def_line($out, $node->{name}, $node->{id}, $node->{comment});
         if ( defined( my $alias= $rev_type_alias{ $node->{name} } ) ) {
-            printf $out "#define\t%*s\t%d\t/* %#04x %s */\n",
-                -$width, $alias, $node->{id}, $node->{id}, "type alias";
+            print_state_def_line($out, $alias, $node->{id}, $node->{comment});
         }
     }
 
     print $out "\t/* ------------ States ------------- */\n";
     for my $node (@states) {
-        printf $out "#define\t%*s\t(REGNODE_MAX + %d)\t/* %s */\n",
-            -$width, $node->{name}, $node->{id} - $#ops, $node->{comment};
+        print_state_def_line($out, $node->{name}, $node->{id}, $node->{comment});
     }
 }
 
-sub print_regkind {
+sub print_state_def_line
+{
+    my ($fh, $name, $id, $comment) = @_;
+
+    # The sub-names are like '_tb' or '_tb_p8' = max 6 chars wide
+    my $name_col_width = $base_name_width + 6;
+    my $base_id_width = 3;  # Max is '255' or 3 cols
+    my $mid_id_width  = 3;  # Max is '511' or 3 cols
+    my $full_id_width = 3;  # Max is '1023' but not close to using the 4th
+
+    my $line = "#define " . $name;
+    $line .= " " x ($name_col_width - length($name));
+
+    $line .= sprintf "%*s", $base_id_width, $id;
+    $line .= " " x $mid_id_width;
+    $line .= " " x ($full_id_width + 2);
+
+    $line .= "/* ";
+    my $hanging = length $line;     # Indent any subsequent line to this pos
+    $line .= sprintf "0x%02x", $id;
+
+    my $columns = 78;
+
+    # From the documentation: 'In fact, every resulting line will have length
+    # of no more than "$columns - 1"'
+    $line = wrap($columns + 1, "", " " x $hanging, "$line $comment");
+    chomp $line;            # wrap always adds a trailing \n
+    $line =~ s/ \s+ $ //x;  # trim, just in case.
+
+    # The comment may have wrapped.  Find the final \n and measure the length
+    # to the end.  If it is short enough, just append the ' */' to the line.
+    # If it is too close to the end of the space available, add an extra line
+    # that consists solely of blanks and the ' */'
+    my $len = length($line); my $rindex = rindex($line, "\n");
+    if (length($line) - rindex($line, "\n") - 1 <= $columns - 3) {
+        $line .= " */\n";
+    }
+    else {
+        $line .= "\n" . " " x ($hanging - 3) . "*/\n";
+    }
+
+    print $fh $line;
+
+    # And add the 2 subsidiary #defines used when switching on
+    # with_t_UTF8nes()
+    my $with_id_t = $id * 2;
+    for my $with (qw(tb  t8)) {
+        my $with_name = "${name}_$with";
+        print  $fh "#define ", $with_name;
+        print  $fh " " x ($name_col_width - length($with_name) + $base_id_width);
+        printf $fh "%*s", $mid_id_width, $with_id_t;
+        print  $fh " " x $full_id_width;
+        printf $fh "  /*";
+        print  $fh " " x (4 + 2);  # 4 is width of 0xHH that the base entry uses
+        printf $fh "0x%03x */\n", $with_id_t;
+
+        $with_id_t++;
+    }
+
+    # Finally add the 4 subsidiary #defines used when switching on
+    # with_tp_UTF8nes()
+    my $with_id_tp = $id * 4;
+    for my $with (qw(tb_pb  tb_p8  t8_pb  t8_p8)) {
+        my $with_name = "${name}_$with";
+        print  $fh "#define ", $with_name;
+        print  $fh " " x ($name_col_width - length($with_name) + $base_id_width + $mid_id_width);
+        printf $fh "%*s", $full_id_width, $with_id_tp;
+        printf $fh "  /*";
+        print  $fh " " x (4 + 2);  # 4 is width of 0xHH that the base entry uses
+        printf $fh "0x%03x */\n", $with_id_tp;
+
+        $with_id_tp++;
+    }
+
+    print $fh "\n"; # Blank line separates groups for clarity
+}
+
+sub print_typedefs {
     my ($out)= @_;
     print $out <<EOP;
 
-/* PL_regkind[] What type of regop or state is this. */
+/* typedefs for regex nodes - one typedef per node type */
+
+EOP
+    my $len= 0;
+    foreach my $node (@ops) {
+        if ($node->{suffix} and $len < length($node->{suffix})) {
+            $len= length $node->{suffix};
+        }
+    }
+    $len += length "struct regnode_";
+    $len = (int($len/5)+2)*5;
+    my $prefix= "tregnode";
+
+    foreach my $node (sort { $a->{name} cmp $b->{name} } @ops) {
+        my $struct_name= "struct regnode";
+        if (my $suffix= $node->{suffix}) {
+            $struct_name .= "_$suffix";
+        }
+        $node->{typedef}= $prefix . "_" . $node->{name};
+        printf $out "typedef %*s %s;\n", -$len, $struct_name, $node->{typedef};
+    }
+    print $out <<EOP;
+
+/* end typedefs */
+
+EOP
+
+}
+
+
+
+
+sub print_regnode_info {
+    my ($out)= @_;
+    print $out <<EOP;
+
+/* PL_regnode_info[] - Opcode/state names in string form, for debugging */
 
 #ifndef DOINIT
-EXTCONST U8 PL_regkind[];
+EXTCONST struct regnode_meta PL_regnode_info[];
 #else
-EXTCONST U8 PL_regkind[] = {
+EXTCONST struct regnode_meta PL_regnode_info[] = {
 EOP
-    use Data::Dumper;
-    foreach my $node (@all) {
-        print Dumper($node) if !defined $node->{type} or !defined( $node->{name} );
-        printf $out "\t%*s\t/* %*s */\n",
-            -1 - $twidth, "$node->{type},", -$width, $node->{name};
-        print $out "\t/* ------------ States ------------- */\n"
-            if $node->{id} == $#ops and $node->{id} != $#all;
+    my @fields= qw(type arg_len arg_len_varies off_by_arg);
+    foreach my $node_idx (0..$#all) {
+        my $node= $all[$node_idx];
+        {
+            my $size= 0;
+            $size= "EXTRA_SIZE($node->{typedef})" if $node->{suffix};
+            $node->{arg_len}= $size;
+
+        }
+        {
+            my $varies= 0;
+            $varies= 1 if $node->{code} and $node->{code}=~"str";
+            $node->{arg_len_varies}= $varies;
+        }
+        $node->{off_by_arg}= $node->{longj} || 0;
+        print $out "    {\n";
+        print $out "        /* #$node_idx $node->{optype} $node->{name} */\n";
+        foreach my $f_idx (0..$#fields) {
+            my $field= $fields[$f_idx];
+            printf $out  "        .%s = %s", $field, $node->{$field} // 0;
+            printf $out $f_idx == $#fields ? "\n" : ",\n";
+        }
+        print $out "    }";
+        print $out $node_idx==$#all ? "\n" : ",\n";
     }
 
     print $out <<EOP;
 };
-#endif
-EOP
-}
-
-sub wrap_ifdef_print {
-    my $out= shift;
-    my $token= shift;
-    print $out <<EOP;
-
-#ifdef $token
-EOP
-    $_->($out) for @_;
-    print $out <<EOP;
-#endif /* $token */
+#endif /* DOINIT */
 
 EOP
 }
 
-sub print_regarglen {
+
+sub print_regnode_name {
     my ($out)= @_;
     print $out <<EOP;
 
-/* regarglen[] - How large is the argument part of the node (in regnodes) */
-
-static const U8 regarglen[] = {
-EOP
-
-    foreach my $node (@ops) {
-        my $size= 0;
-        $size= "EXTRA_SIZE(struct regnode_$node->{args})" if $node->{args};
-
-        printf $out "\t%*s\t/* %*s */\n", -37, "$size,", -$rwidth, $node->{name};
-    }
-
-    print $out <<EOP;
-};
-EOP
-}
-
-sub print_reg_off_by_arg {
-    my ($out)= @_;
-    print $out <<EOP;
-
-/* reg_off_by_arg[] - Which argument holds the offset to the next node */
-
-static const char reg_off_by_arg[] = {
-EOP
-
-    foreach my $node (@ops) {
-        my $size= $node->{longj} || 0;
-
-        printf $out "\t%d,\t/* %*s */\n", $size, -$rwidth, $node->{name};
-    }
-
-    print $out <<EOP;
-};
-
-EOP
-}
-
-sub print_reg_name {
-    my ($out)= @_;
-    print $out <<EOP;
-
-/* reg_name[] - Opcode/state names in string form, for debugging */
+/* PL_regnode_name[] - Opcode/state names in string form, for debugging */
 
 #ifndef DOINIT
-EXTCONST char * PL_reg_name[];
+EXTCONST char * PL_regnode_name[];
 #else
-EXTCONST char * const PL_reg_name[] = {
+EXTCONST char * const PL_regnode_name[] = {
 EOP
 
     my $ofs= 0;
     my $sym= "";
     foreach my $node (@all) {
-        my $size= $node->{longj} || 0;
-
         printf $out "\t%*s\t/* $sym%#04x */\n",
-            -3 - $width, qq("$node->{name}",), $node->{id} - $ofs;
+            -3 - $base_name_width, qq("$node->{name}",), $node->{id} - $ofs;
         if ( $node->{id} == $#ops and @ops != @all ) {
             print $out "\t/* ------------ States ------------- */\n";
             $ofs= $#ops;
@@ -448,38 +614,44 @@ EOP
     my $val= 0;
     my %reverse;
     my $REG_EXTFLAGS_NAME_SIZE= 0;
+    my $hp= HeaderParser->new();
     foreach my $file ( "op_reg_common.h", "regexp.h" ) {
-        open my $in_fh, "<", $file or die "Can't read '$file': $!";
-        while (<$in_fh>) {
+        $hp->read_file($file);
+        foreach my $line_info (@{$hp->lines}) {
+            next unless $line_info->{type}     eq "content"
+                    and $line_info->{sub_type} eq "#define";
+            my $line= $line_info->{line};
+            $line=~s/\s*\\\n\s*/ /g;
 
             # optional leading '_'.  Return symbol in $1, and strip it from
-            # comment of line
-            if (s/^ \# \s* define \s+ ( _? RXf_ \w+ ) \s+ //xi) {
-                chomp;
+            # comment of line.  Currently doesn't handle comments running onto
+            # next line
+            if ($line=~s/^ \# \s* define \s+ ( _? RXf_ \w+ ) \s+ //xi) {
+                chomp($line);
                 my $define= $1;
                 my $orig= $_;
-                s{ /\* .*? \*/ }{ }x;    # Replace comments by a blank
+                $line=~s{ /\* .*? \*/ }{ }x;    # Replace comments by a blank
 
                 # Replace any prior defined symbols by their values
                 foreach my $key ( keys %definitions ) {
-                    s/\b$key\b/$definitions{$key}/g;
+                    $line=~s/\b$key\b/$definitions{$key}/g;
                 }
 
                 # Remove the U suffix from unsigned int literals
-                s/\b([0-9]+)U\b/$1/g;
+                $line=~s/\b([0-9]+)U\b/$1/g;
 
-                my $newval= eval $_;     # Get numeric definition
+                my $newval= eval $line;     # Get numeric definition
 
                 $definitions{$define}= $newval;
 
-                next unless $_ =~ /<</;    # Bit defines use left shift
+                next unless $line =~ /<</;    # Bit defines use left shift
                 if ( $val & $newval ) {
                     my @names= ( $define, $reverse{$newval} );
                     s/PMf_// for @names;
                     if ( $names[0] ne $names[1] ) {
                         die sprintf
                             "ERROR: both $define and $reverse{$newval} use 0x%08X (%s:%s)",
-                            $newval, $orig, $_;
+                            $newval, $orig, $line;
                     }
                     next;
                 }
@@ -553,29 +725,48 @@ EOP
     my $val= 0;
     my %reverse;
     my $REG_INTFLAGS_NAME_SIZE= 0;
+    my $hp= HeaderParser->new();
+    my $last_val = 0;
     foreach my $file ("regcomp.h") {
-        open my $fh, "<", $file or die "Can't read $file: $!";
-        while (<$fh>) {
+        $hp->read_file($file);
+        my @bit_tuples;
+        foreach my $line_info (@{$hp->lines}) {
+            next unless $line_info->{type}     eq "content"
+                    and $line_info->{sub_type} eq "#define";
+            my $line= $line_info->{line};
+            $line=~s/\s*\\\n\s*/ /g;
 
             # optional leading '_'.  Return symbol in $1, and strip it from
             # comment of line
             if (
-                m/^ \# \s* define \s+ ( PREGf_ ( \w+ ) ) \s+ 0x([0-9a-f]+)(?:\s*\/\*(.*)\*\/)?/xi
-                )
-            {
-                chomp;
+                $line =~ m/^ \# \s* define \s+ ( PREGf_ ( \w+ ) ) \s+ 0x([0-9a-f]+)(?:\s*\/\*(.*)\*\/)?/xi
+            ){
+                chomp $line;
                 my $define= $1;
                 my $abbr= $2;
                 my $hex= $3;
                 my $comment= $4;
                 my $val= hex($hex);
+                my $bin= sprintf "%b", $val;
+                if ($bin=~/1.*?1/) { die "Not expecting multiple bits in PREGf" }
+                my $bit= length($bin) - 1 ;
                 $comment= $comment ? " - $comment" : "";
-
-                printf $out qq(\t%-30s/* 0x%08x - %s%s */\n), qq("$abbr",),
-                    $val, $define, $comment;
-                $REG_INTFLAGS_NAME_SIZE++;
+                if ($bit_tuples[$bit]) {
+                    die "Duplicate PREGf bit '$bit': $define $val ($hex)";
+                }
+                $bit_tuples[$bit]= [ $bit, $val, $abbr, $define, $comment ];
             }
         }
+        foreach my $i (0..$#bit_tuples) {
+            my $bit_tuple= $bit_tuples[$i];
+            if (!$bit_tuple) {
+                $bit_tuple= [ $i, 1<<$i, "", "", "*UNUSED*" ];
+            }
+            my ($bit, $val, $abbr, $define, $comment)= @$bit_tuple;
+            printf $out qq(\t%-30s/* (1<<%2d) - 0x%08x - %s%s */\n),
+                qq("$abbr",), $bit, $val, $define, $comment;
+        }
+        $REG_INTFLAGS_NAME_SIZE=0+@bit_tuples;
     }
 
     print $out <<EOP;
@@ -622,7 +813,7 @@ format GuTS =
 .
 1;
 EOD
-    
+
     my $old_fh= select($guts);
     $~= "GuTS";
 
@@ -635,11 +826,11 @@ EOD
 
     print <<'END_OF_DESCR';
 
- # TYPE arg-description [num-args] [longjump-len] DESCRIPTION
+ # TYPE arg-description [regnode-struct-suffix] [longjump-len] DESCRIPTION
 END_OF_DESCR
     for my $n (@ops) {
         $node= $n;
-        $code= "$node->{code} " . ( $node->{args} || "" );
+        $code= "$node->{code} " . ( $node->{suffix} || "" );
         $code .= " $node->{longj}" if $node->{longj};
         if ( $node->{pod_comment} ||= "" ) {
 
@@ -660,21 +851,32 @@ END_OF_DESCR
     close_and_rename($guts);
 }
 
+my $confine_to_core = 'defined(PERL_CORE) || defined(PERL_EXT_RE_BUILD)';
 read_definition("regcomp.sym");
+if ($ENV{DUMP}) {
+    require Data::Dumper;
+    print Data::Dumper::Dumper(\@all);
+    exit(1);
+}
 my $out= open_new( 'regnodes.h', '>',
-    { by => 'regen/regcomp.pl', from => 'regcomp.sym' } );
-print_state_defs($out);
-print_regkind($out);
-wrap_ifdef_print(
-    $out,
-    "REG_COMP_C",
-    \&print_regarglen,
-    \&print_reg_off_by_arg
+    {
+        by      => 'regen/regcomp.pl',
+        from    => [ 'regcomp.sym', 'op_reg_common.h', 'regexp.h' ],
+    },
 );
-print_reg_name($out);
+print $out "#if $confine_to_core\n\n";
+print_typedefs($out);
+print_state_defs($out);
+
+print_regnode_name($out);
+print_regnode_info($out);
+
+
 print_reg_extflags_name($out);
 print_reg_intflags_name($out);
 print_process_flags($out);
+print_process_EXACTish($out);
+print $out "\n#endif /* $confine_to_core */\n";
 read_only_bottom_close_and_rename($out);
 
 do_perldebguts();

@@ -33,6 +33,18 @@ sub cat_utf8 {
     $data;
 }
 
+# write a format to a plain file, then read it back in and compare
+
+sub is_format {
+    my ($glob, $want, $desc) = @_;
+    local $::Level = $::Level + 1;
+    my $file = 'Op_write.tmp';
+    open $glob, '>', $file or die "Can't create '$file': $!";
+    write $glob;
+    close $glob or die "Could not close '$file': $!";
+    is(cat($file), $want, $desc);
+}
+
 # write a format to a utf8 file, then read it back in and compare
 
 sub is_format_utf8 {
@@ -100,7 +112,8 @@ for my $tref ( @NumTests ){
 my $bas_tests = 21;
 
 # number of tests in section 3
-my $bug_tests = 66 + 3 * 3 * 5 * 2 * 3 + 2 + 66 + 6 + 2 + 3 + 96 + 11 + 14;
+my $bug_tests = 66 + 3 * 3 * 5 * 2 * 3 + 2 + 66 + 6 + 2 + 3 + 96 + 11 + 14
+                + 12;
 
 # number of tests in section 4
 my $hmb_tests = 37;
@@ -1360,6 +1373,47 @@ $v28f
 
 like_format_utf8(\*OUT28f, $qr_hash_m);
 
+my $v29a;
+format OUT29a =
+[^<<<]~~
+$v29a
+.
+
+$v29a = "-ABCD";
+is_format(\*OUT29a, "[-   ]\n[ABCD]\n");
+
+$v29a = "A-BCD";
+is_format(\*OUT29a, "[A-  ]\n[BCD ]\n");
+
+$v29a = "AB-CD";
+is_format(\*OUT29a, "[AB- ]\n[CD  ]\n");
+
+$v29a = "ABC-D";
+is_format(\*OUT29a, "[ABC-]\n[D   ]\n");
+
+$v29a = "ABCD-";
+is_format(\*OUT29a, "[ABCD]\n[-   ]\n");
+
+$v29a = "ABCDE-";
+is_format(\*OUT29a, "[ABCD]\n[E-  ]\n");
+
+$v29a = "-ABCD";
+is_format_utf8(\*OUT29a, "[-   ]\n[ABCD]\n");
+
+$v29a = "A-BCD";
+is_format_utf8(\*OUT29a, "[A-  ]\n[BCD ]\n");
+
+$v29a = "AB-CD";
+is_format_utf8(\*OUT29a, "[AB- ]\n[CD  ]\n");
+
+$v29a = "ABC-D";
+is_format_utf8(\*OUT29a, "[ABC-]\n[D   ]\n");
+
+$v29a = "ABCD-";
+is_format_utf8(\*OUT29a, "[ABCD]\n[-   ]\n");
+
+$v29a = "ABCDE-";
+is_format_utf8(\*OUT29a, "[ABCD]\n[E-  ]\n");
 
 
 {
@@ -1912,7 +1966,7 @@ like $@, qr'Undefined format',
 # This syntax error used to cause a crash, double free, or a least
 # a bad read.
 # See the long-winded explanation at:
-#   https://rt.perl.org/rt3/Ticket/Display.html?id=43425#txn-1144500
+#   https://github.com/Perl/perl5/issues/8953#issuecomment-543978716
 eval q|
 format =
 @
@@ -1972,13 +2026,14 @@ write STRICT;
 close STRICT or die "Could not close: $!";
 is cat('Op_write.tmp'), "oof:\n", 'pragmata on format line';
 
-SKIP: {
-   skip "no weak refs" unless eval { require Scalar::Util };
+{
+   no warnings 'experimental::builtin';
+   use builtin 'weaken';
    sub Potshriggley {
 format Potshriggley =
 .
    }
-   Scalar::Util::weaken(my $x = *Potshriggley{FORMAT});
+   weaken(my $x = *Potshriggley{FORMAT});
    undef *Potshriggley;
    is $x, undef, 'formats in subs do not leak';
 }
@@ -2054,7 +2109,7 @@ fresh_perl_is('for(1..2){formline*0}', '', { stderr => 1 } , "#130722 - assertio
 # Just a complete test for format, including top-, left- and bottom marging
 # and format detection through glob entries
 
-if ($^O eq 'VMS' || $^O eq 'MSWin32' || $^O eq 'dos' ||
+if ($^O eq 'VMS' || $^O eq 'MSWin32' ||
     ($^O eq 'os2' and not eval '$OS2::can_fork')) {
   $test = curr_test();
  SKIP: {

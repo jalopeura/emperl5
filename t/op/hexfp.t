@@ -10,7 +10,7 @@ use strict;
 
 use Config;
 
-plan(tests => 123);
+plan(tests => 125);
 
 # Test hexfloat literals.
 
@@ -138,10 +138,10 @@ sub get_warn() {
 
 { # Test certain things that are not hexfloats and should stay that way.
     eval '0xp3';
-    like(get_warn(), qr/Missing operator before p3/);
+    like(get_warn(), qr/Missing operator before "p3"/);
 
     eval '5p3';
-    like(get_warn(), qr/Missing operator before p3/);
+    like(get_warn(), qr/Missing operator before "p3"/);
 
     my @a;
     eval '@a = 0x3..5';
@@ -149,7 +149,7 @@ sub get_warn() {
 
     undef $a;
     eval '$a = eval "0x.3"';
-    is($a, '03');
+    is($a, undef); # throws an error
 
     undef $a;
     eval '$a = eval "0xc.3"';
@@ -246,7 +246,7 @@ SKIP: {
     skip("non-80-bit-long-double", 4)
         unless ($Config{uselongdouble} &&
 		($Config{nvsize} == 16 || $Config{nvsize} == 12) &&
-		($Config{long_double_style_ieee_extended}));
+		($Config{d_long_double_style_ieee_extended}));
     is(0x1p-1074,  4.94065645841246544e-324);
     is(0x1p-1075,  2.47032822920623272e-324, '[perl #128919]');
     is(0x1p-1076,  1.23516411460311636e-324);
@@ -276,6 +276,20 @@ is(0b0p0, 0);
 is(0b1p0, 1);
 is(0b10p0, 2);
 is(0b1.1p0, 1.5);
+
+# previously these would pass "0x..." to the overload instead of the appropriate
+# "0b" or "0" prefix.
+fresh_perl_is(<<'CODE', "1", {}, "overload binary fp");
+use overload;
+BEGIN { overload::constant float => sub { return eval $_[0]; }; }
+print 0b0.1p1;
+CODE
+
+fresh_perl_is(<<'CODE', "1", {}, "overload octal fp");
+use overload;
+BEGIN { overload::constant float => sub { return eval $_[0]; }; }
+print 00.1p3;
+CODE
 
 # sprintf %a/%A testing is done in sprintf2.t,
 # trickier than necessary because of long doubles,

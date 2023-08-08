@@ -57,10 +57,10 @@ a I<level> of 0. The core always sets I<level> to 0 when it calls your
 function - the parameter is provided to allow your implementation to track
 depth if it needs to recurse.
 
-The function should return a reference to an array containing the parent
-classes in order. The names of the classes should be the result of calling
-C<HvENAME()> on the stash. In those cases where C<HvENAME()> returns null,
-C<HvNAME()> should be used instead.
+The function should return a reference to an array containing string SVs
+giving the names of parent classes in order. The names of the classes should
+be the result of calling C<HvENAME()> on the stash. In those cases where
+C<HvENAME()> returns null, C<HvNAME()> should be used instead.
 
 The caller is responsible for incrementing the reference count of the array
 returned if it wants to keep the structure. Hence, if you have created a
@@ -79,9 +79,14 @@ stash, and a pointer to your C<mro_alg> structure:
     meta = HvMROMETA(stash);
     private_sv = MRO_GET_PRIVATE_DATA(meta, &my_mro_alg);
 
+=for apidoc Amh|struct mro_meta *|HvMROMETA|HV *hv
+=for apidoc Amh|SV*|MRO_GET_PRIVATE_DATA|struct mro_meta *const smeta|const struct mro_alg *const which
+
 To set your private value, call C<Perl_mro_set_private_data()>:
 
     Perl_mro_set_private_data(aTHX_ meta, &c3_alg, private_sv);
+
+=for apidoc mro_set_private_data
 
 The private data cache will take ownership of a reference to private_sv,
 much the same way that C<hv_store()> takes ownership of a reference to the

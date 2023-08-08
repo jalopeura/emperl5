@@ -119,7 +119,7 @@ Document purpose, scope and target applications
 
 =item *
 
-Document each publically accessible method or subroutine, including params and return values
+Document each publicly accessible method or subroutine, including params and return values
 
 =item *
 
@@ -182,9 +182,8 @@ been done in Perl, and avoid re-inventing the wheel unless you have a
 good reason.
 
 Good places to look for pre-existing modules include
-L<http://search.cpan.org/> and L<https://metacpan.org>
-and asking on C<module-authors@perl.org>
-(L<http://lists.perl.org/list/module-authors.html>).
+L<MetaCPAN|https://metacpan.org> and asking on C<module-authors@perl.org>
+(L<https://lists.perl.org/list/module-authors.html>).
 
 If an existing module B<almost> does what you want, consider writing a
 patch, writing a subclass, or otherwise extending the existing module
@@ -247,15 +246,11 @@ hierarchy already exists under which you could place your module.
 =head2 Get feedback before publishing
 
 If you have never uploaded a module to CPAN before (and even if you have),
-you are strongly encouraged to get feedback on L<PrePAN|http://prepan.org>.
-PrePAN is a site dedicated to discussing ideas for CPAN modules with other
-Perl developers and is a great resource for new (and experienced) Perl
-developers.
-
-You should also try to get feedback from people who are already familiar
-with the module's application domain and the CPAN naming system.  Authors
-of similar modules, or modules with similar names, may be a good place to
-start, as are community sites like L<Perl Monks|http://www.perlmonks.org>.
+you are strongly encouraged to get feedback from people who are already
+familiar with the module's application domain and the CPAN naming system.
+Authors of similar modules, or modules with similar names, may be a good
+place to start, as are community sites like
+L<Perl Monks|https://www.perlmonks.org>.
 
 =head1 DESIGNING AND WRITING YOUR MODULE
 
@@ -497,7 +492,7 @@ The purpose, scope and target applications of your module
 
 =item *
 
-Use of each publically accessible method or subroutine, including
+Use of each publicly accessible method or subroutine, including
 parameters and return values
 
 =item *
@@ -699,8 +694,8 @@ Specify version requirements for other Perl modules in the
 pre-requisites in your Makefile.PL or Build.PL.
 
 Be sure to specify Perl version requirements both in Makefile.PL or
-Build.PL and with C<require 5.6.1> or similar.  See the section on
-C<use VERSION> of L<perlfunc/require> for details.
+Build.PL and with C<require 5.6.1> or similar.  See the documentation on
+L<C<use VERSION>|perlfunc/use VERSION> for details.
 
 =head2 Testing
 
@@ -798,7 +793,7 @@ L<ExtUtils::MakeMaker>, L<Module::Build>
 
 L<Test::Simple>, L<Test::Inline>, L<Carp::Assert>, L<Test::More>, L<Test::MockObject>
 
-=item L<http://pause.perl.org/>
+=item L<https://pause.perl.org/>
 
 Perl Authors Upload Server.  Contains links to information for module
 authors.

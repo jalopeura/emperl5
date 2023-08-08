@@ -7,11 +7,12 @@
 package ExtUtils::MakeMaker::version::regex;
 
 use strict;
+use warnings;
 
 use vars qw($VERSION $CLASS $STRICT $LAX);
 
-$VERSION = '7.34';
-$VERSION = eval $VERSION;
+$VERSION = '7.70';
+$VERSION =~ tr/_//d;
 
 #--------------------------------------------------------------------------#
 # Version regexp components

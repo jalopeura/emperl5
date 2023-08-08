@@ -11,7 +11,6 @@
 #define PERLIO_NOT_STDIO 1
 #include "perl.h"
 #include "XSUB.h"
-#define NEED_eval_pv
 #define NEED_newCONSTSUB
 #define NEED_newSVpvn_flags
 #include "ppport.h"
@@ -49,20 +48,12 @@ typedef FILE * OutputStream;
 
 #define MY_start_subparse(fmt,flags) start_subparse(fmt,flags)
 
-#ifndef gv_stashpvn
-#define gv_stashpvn(str,len,flags) gv_stashpv(str,flags)
-#endif
-
 #ifndef __attribute__noreturn__
 #  define __attribute__noreturn__
 #endif
 
 #ifndef NORETURN_FUNCTION_END
 # define NORETURN_FUNCTION_END /* NOT REACHED */ return 0
-#endif
-
-#ifndef dVAR
-#  define dVAR dNOOP
 #endif
 
 #ifndef OpSIBLING
@@ -76,32 +67,6 @@ not_here(const char *s)
     croak("%s not implemented on this architecture", s);
     NORETURN_FUNCTION_END;
 }
-
-#ifndef UVCHR_IS_INVARIANT   /* For use with Perls without this macro */
-#   if ('A' == 65)
-#       define UVCHR_IS_INVARIANT(cp) ((cp) < 128)
-#   elif (defined(NATIVE_IS_INVARIANT)) /* EBCDIC on old Perl */
-#       define UVCHR_IS_INVARIANT(cp) ((cp) < 256 && NATIVE_IS_INVARIANT(cp))
-#   elif defined(isASCII)    /* EBCDIC on very old Perl */
-        /* In EBCDIC, the invariants are the code points corresponding to ASCII,
-         * plus all the controls.  All but one EBCDIC control is below SPACE; it
-         * varies depending on the code page, determined by the ord of '^' */
-#       define UVCHR_IS_INVARIANT(cp) (isASCII(cp)                            \
-                                       || (cp) < ' '                          \
-                                       || (('^' == 106)    /* POSIX-BC */     \
-                                          ? (cp) == 95                        \
-                                          : (cp) == 0xFF)) /* 1047 or 037 */
-#   else    /* EBCDIC on very very old Perl */
-        /* This assumes isascii() is available, but that could be fixed by
-         * having the macro test for each printable ASCII char */
-#       define UVCHR_IS_INVARIANT(cp) (isascii(cp)                            \
-                                       || (cp) < ' '                          \
-                                       || (('^' == 106)    /* POSIX-BC */     \
-                                          ? (cp) == 95                        \
-                                          : (cp) == 0xFF)) /* 1047 or 037 */
-#   endif
-#endif
-
 
 #ifndef PerlIO
 #define PerlIO_fileno(f) fileno(f)
@@ -185,26 +150,6 @@ io_blocking(pTHX_ InputStream f, int block)
 #endif
 }
 
-static OP *
-io_pp_nextstate(pTHX)
-{
-    dVAR;
-    COP *old_curcop = PL_curcop;
-    OP *next = PL_ppaddr[PL_op->op_type](aTHX);
-    PL_curcop = old_curcop;
-    return next;
-}
-
-static OP *
-io_ck_lineseq(pTHX_ OP *o)
-{
-    OP *kid = cBINOPo->op_first;
-    for (; kid; kid = OpSIBLING(kid))
-	if (kid->op_type == OP_NEXTSTATE || kid->op_type == OP_DBSTATE)
-	    kid->op_ppaddr = io_pp_nextstate;
-    return o;
-}
-
 
 MODULE = IO	PACKAGE = IO::Seekable	PREFIX = f
 
@@ -214,7 +159,7 @@ fgetpos(handle)
     CODE:
 	if (handle) {
 #ifdef PerlIO
-#if PERL_VERSION < 8
+#if PERL_VERSION_LT(5,8,0)
 	    Fpos_t pos;
 	    ST(0) = sv_newmortal();
 	    if (PerlIO_getpos(handle, &pos) != 0) {
@@ -234,7 +179,7 @@ fgetpos(handle)
 	    if (fgetpos(handle, &pos)) {
 		ST(0) = &PL_sv_undef;
 	    } else {
-#  if PERL_VERSION >= 11
+#  if PERL_VERSION_GE(5,11,0)
 		ST(0) = newSVpvn_flags((char*)&pos, sizeof(Fpos_t), SVs_TEMP);
 #  else
 		ST(0) = sv_2mortal(newSVpvn((char*)&pos, sizeof(Fpos_t)));
@@ -254,7 +199,7 @@ fsetpos(handle, pos)
     CODE:
 	if (handle) {
 #ifdef PerlIO
-#if PERL_VERSION < 8
+#if PERL_VERSION_LT(5,8,0)
 	    char *p;
 	    STRLEN len;
 	    if (SvOK(pos) && (p = SvPV(pos,len)) && len == sizeof(Fpos_t)) {
@@ -304,7 +249,7 @@ new_tmpfile(packname = "IO::File")
 	if (gv)
 	    (void) hv_delete(GvSTASH(gv), GvNAME(gv), GvNAMELEN(gv), G_DISCARD);
 	if (gv && do_open(gv, "+>&", 3, FALSE, 0, 0, fp)) {
-	    ST(0) = sv_2mortal(newRV((SV*)gv));
+	    ST(0) = sv_2mortal(newRV_inc((SV*)gv));
 	    sv_bless(ST(0), gv_stashpv(packname, TRUE));
 	    SvREFCNT_dec(gv);   /* undo increment in newRV() */
 	}
@@ -409,13 +354,17 @@ ungetc(handle, c)
 
 int
 ferror(handle)
-	InputStream	handle
+	SV *	handle
+    PREINIT:
+        IO *io = sv_2io(handle);
+        InputStream in = IoIFP(io);
+        OutputStream out = IoOFP(io);
     CODE:
-	if (handle)
+	if (in)
 #ifdef PerlIO
-	    RETVAL = PerlIO_error(handle);
+	    RETVAL = PerlIO_error(in) || (out && in != out && PerlIO_error(out));
 #else
-	    RETVAL = ferror(handle);
+	    RETVAL = ferror(in) || (out && in != out && ferror(out));
 #endif
 	else {
 	    RETVAL = -1;
@@ -426,13 +375,21 @@ ferror(handle)
 
 int
 clearerr(handle)
-	InputStream	handle
+	SV *	handle
+    PREINIT:
+        IO *io = sv_2io(handle);
+        InputStream in = IoIFP(io);
+        OutputStream out = IoOFP(io);
     CODE:
 	if (handle) {
 #ifdef PerlIO
-	    PerlIO_clearerr(handle);
+	    PerlIO_clearerr(in);
+            if (in != out)
+                PerlIO_clearerr(out);
 #else
-	    clearerr(handle);
+	    clearerr(in);
+            if (in != out)
+                clearerr(out);
 #endif
 	    RETVAL = 0;
 	}
@@ -536,14 +493,18 @@ fsync(arg)
     PREINIT:
 	OutputStream handle = NULL;
     CODE:
-#ifdef HAS_FSYNC
+#if defined(HAS_FSYNC) || defined(_WIN32)
 	handle = IoOFP(sv_2io(arg));
 	if (!handle)
 	    handle = IoIFP(sv_2io(arg));
 	if (handle) {
 	    int fd = PerlIO_fileno(handle);
 	    if (fd >= 0) {
+#  ifdef _WIN32
+                RETVAL = _commit(fd);
+#  else
 		RETVAL = fsync(fd);
+#  endif
 	    } else {
 		RETVAL = -1;
 		errno = EBADF;
@@ -558,16 +519,71 @@ fsync(arg)
     OUTPUT:
 	RETVAL
 
-SV *
-_create_getline_subs(const char *code)
-    CODE:
-	OP *(*io_old_ck_lineseq)(pTHX_ OP *) = PL_check[OP_LINESEQ];
-	PL_check[OP_LINESEQ] = io_ck_lineseq;
-	RETVAL = SvREFCNT_inc(eval_pv(code,FALSE));
-	PL_check[OP_LINESEQ] = io_old_ck_lineseq;
-    OUTPUT:
-	RETVAL
+# To make these two work correctly with the open pragma, the readline op
+# needs to pick up the lexical hints at the method's callsite. This doesn't
+# work in pure Perl, because the hints are read from the most recent nextstate,
+# and the nextstate of the Perl subroutines show *here* hold the lexical state
+# for the IO package.
+#
+# There's no clean way to implement this - this approach, while complex, seems
+# to be the most robust, and avoids manipulating external state (ie op checkers)
+#
+# sub getline {
+#     @_ == 1 or croak 'usage: $io->getline()';
+#     my $this = shift;
+#     return scalar <$this>;
+# }
+#
+# sub getlines {
+#     @_ == 1 or croak 'usage: $io->getlines()';
+#     wantarray or
+# 	croak 'Can\'t call $io->getlines in a scalar context, use $io->getline';
+#     my $this = shift;
+#     return <$this>;
+# }
 
+# If this is deprecated, should it warn, and should it be removed at some point?
+# *gets = \&getline;  # deprecated
+
+void
+getlines(...)
+ALIAS:
+    IO::Handle::getline       =  1
+    IO::Handle::gets          =  2
+INIT:
+    UNOP myop;
+    SV *io;
+    OP *was = PL_op;
+PPCODE:
+    if (items != 1)
+        Perl_croak(aTHX_ "usage: $io->%s()", ix ? "getline" : "getlines");
+    if (!ix && GIMME_V != G_LIST)
+        Perl_croak(aTHX_ "Can't call $io->getlines in a scalar context, use $io->getline");
+    Zero(&myop, 1, UNOP);
+    myop.op_flags = (ix ? OPf_WANT_SCALAR : OPf_WANT_LIST ) | OPf_STACKED;
+    myop.op_ppaddr = PL_ppaddr[OP_READLINE];
+    myop.op_type = OP_READLINE;
+    /* I don't know if we need this, but it's correct as far as the control flow
+       goes. However, if we *do* need it, do we need to set anything else up? */
+    myop.op_next = PL_op->op_next;
+    /* Sigh, because pp_readline calls pp_rv2gv, and *it* has this wonderful
+       state check for PL_op->op_type == OP_READLINE */
+    PL_op = (OP *) &myop;
+    io = ST(0);
+    /* Our target (which we need to provide, as we don't have a pad entry.
+       I think that this is only needed for G_SCALAR - maybe we can get away
+       with NULL for list context? */
+    PUSHs(sv_newmortal());
+    XPUSHs(io);
+    PUTBACK;
+    /* And effectively we get away with tail calling pp_readline, as it stacks
+       exactly the return value(s) we need to return. */
+    PL_ppaddr[OP_READLINE](aTHX);
+    PL_op = was;
+    /* And we don't want to reach the line
+       PL_stack_sp = sp;
+       that xsubpp adds after our body becase PL_stack_sp is correct, not sp */
+    return;
 
 MODULE = IO	PACKAGE = IO::Socket
 

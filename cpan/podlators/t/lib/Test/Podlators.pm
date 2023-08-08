@@ -8,7 +8,8 @@
 
 package Test::Podlators;
 
-use 5.006;
+use 5.010;
+use base qw(Exporter);
 use strict;
 use warnings;
 
@@ -17,22 +18,12 @@ use Exporter;
 use File::Spec;
 use Test::More;
 
-# For Perl 5.006 compatibility.
-## no critic (ClassHierarchies::ProhibitExplicitISA)
+our $VERSION = '2.01';
 
-# Declare variables that should be set in BEGIN for robustness.
-our (@EXPORT_OK, @ISA, $VERSION);
-
-# Set $VERSION and everything export-related in a BEGIN block for robustness
-# against circular module loading (not that we load any modules, but
-# consistency is good).
-BEGIN {
-    @ISA       = qw(Exporter);
-    $VERSION   = '2.01';
-    @EXPORT_OK = qw(
-      read_snippet read_test_data slurp test_snippet test_snippet_with_io
-    );
-}
+# Export the test helper functions.
+our @EXPORT_OK = qw(
+    read_snippet read_test_data slurp test_snippet test_snippet_with_io
+);
 
 # The file handle used to capture STDERR while we mess with file descriptors.
 my $OLD_STDERR;
@@ -45,7 +36,7 @@ my $SAVED_STDERR;
 # scripts trying to create the temporary directory when running tests in
 # parallel.
 sub _stderr_cleanup {
-    if ($SAVED_STDERR && -f $SAVED_STDERR) {
+    if ($SAVED_STDERR && -e $SAVED_STDERR) {
         unlink($SAVED_STDERR);
     }
     return;
@@ -64,12 +55,8 @@ sub _stderr_save {
         mkdir($tmpdir, 0777) or BAIL_OUT("cannot create $tmpdir: $!");
     }
     my $path = File::Spec->catfile($tmpdir, "out$$.err");
-
-    ## no critic(InputOutput::RequireBriefOpen)
     open($OLD_STDERR, '>&', STDERR) or BAIL_OUT("cannot dup STDERR: $!");
     open(STDERR, '>', $path) or BAIL_OUT("cannot redirect STDERR: $!");
-    ## use critic
-
     $SAVED_STDERR = $path;
     return;
 }
@@ -88,10 +75,9 @@ sub _stderr_restore {
 }
 
 # Read one test snippet from the provided relative file name and return it.
-# For the format, see t/data/snippets/README.
+# For the format, see t/data/snippets/README.md.
 #
 # $path     - Relative path to read test data from
-# $encoding - Encoding of snippet (UTF-8 if not specified)
 #
 # Returns: Reference to hash of test data with the following keys:
 #            name      - Name of the test for status reporting
@@ -101,20 +87,18 @@ sub _stderr_restore {
 #            errors    - Expected errors
 #            exception - Text of exception (with file and line stripped)
 sub read_snippet {
-    my ($path, $encoding) = @_;
+    my ($path) = @_;
     $path = File::Spec->catfile('t', 'data', 'snippets', $path);
-    $encoding ||= 'UTF-8';
     my %data;
 
     # Read the sections and store them in the %data hash.
     my ($line, $section);
     open(my $fh, '<', $path) or BAIL_OUT("cannot open $path: $!");
     while (defined($line = <$fh>)) {
-        $line = decode($encoding, $line);
         if ($line =~ m{ \A \s* \[ (\S+) \] \s* \z }xms) {
             $section = $1;
+            $data{$section} = q{};
         } elsif ($section) {
-            $data{$section} ||= q{};
             $data{$section} .= $line;
         }
     }
@@ -248,11 +232,14 @@ sub slurp {
 # $class       - Class name of the formatter, as a string
 # $snippet     - Path to the snippet file defining the test
 # $options_ref - Hash of options with the following keys:
-#   encoding - Set to use a non-standard encoding
+#   encoding - Expect the output to be in this non-standard encoding
 sub test_snippet {
     my ($class, $snippet, $options_ref) = @_;
-    my $encoding = defined($options_ref) ? $options_ref->{encoding} : undef;
-    my $data_ref = read_snippet($snippet, $encoding);
+    my $data_ref = read_snippet($snippet);
+    $options_ref //= {};
+
+    # Determine the encoding to expect for the output portion of the snippet.
+    my $encoding = $options_ref->{encoding} // 'UTF-8';
 
     # Create the formatter object.
     my $parser = $class->new(%{ $data_ref->{options} }, name => 'TEST');
@@ -265,7 +252,7 @@ sub test_snippet {
     $parser->output_string(\$got);
     eval { $parser->parse_string_document($data_ref->{input}) };
     my $exception = $@;
-    my $stderr    = _stderr_restore();
+    my $stderr = _stderr_restore();
 
     # If we were testing Pod::Man, strip off everything prior to .nh from the
     # output so that we aren't testing the generated header.
@@ -278,8 +265,8 @@ sub test_snippet {
 
     # Check the output, errors, and any exception.
     is($got, $data_ref->{output}, "$data_ref->{name}: output");
-    if ($data_ref->{errors}) {
-        is($stderr, $data_ref->{errors}, "$data_ref->{name}: errors");
+    if ($data_ref->{errors} || $stderr) {
+        is($stderr, $data_ref->{errors} || q{}, "$data_ref->{name}: errors");
     }
     if ($data_ref->{exception} || $exception) {
         if ($exception) {
@@ -288,6 +275,45 @@ sub test_snippet {
         is($exception, $data_ref->{exception}, "$data_ref->{name}: exception");
     }
     return;
+}
+
+# Helper function to check the preamble of Pod::Man output.
+#
+# $name     - Name of the test
+# $fh       - File handle with results
+# $encoding - Expected encoding
+#
+# Returns: True if the preamble contains accent definitions
+sub _check_man_preamble {
+    my ($name, $fh, $encoding) = @_;
+    $encoding = lc($encoding);
+
+    # Check the encoding line.
+    my $line = <$fh>;
+    if ($encoding eq 'ascii') {
+        unlike(
+            $line, qr{ mode: [ ] troff }xms,
+            "$name: no preconv coding line",
+        );
+    } else {
+        is(
+            $line,
+            ".\\\" -*- mode: troff; coding: $encoding -*-\n",
+            "$name: preconv coding line",
+        );
+    }
+
+    # Consume the rest of the preamble and check for accent definitions.
+    my $saw_accents;
+    while (defined($line = <$fh>)) {
+        $line = decode($encoding, $line);
+        if ($line =~ m{ Accent [ ] mark [ ] definitions }xms) {
+            $saw_accents = 1;
+        }
+        last if $line =~ m{ \A [.]nh }xms;
+    }
+
+    return $saw_accents;
 }
 
 # Test a formatter with I/O streams on a particular POD snippet.  This does
@@ -299,10 +325,26 @@ sub test_snippet {
 # $class       - Class name of the formatter, as a string
 # $snippet     - Path to the snippet file defining the test
 # $options_ref - Hash of options with the following keys:
-#   perlio_utf8 - Set to 1 to set a PerlIO UTF-8 encoding on the output file
+#   encoding    - Expect the snippet to be in this non-standard encoding
+#   perlio_utf8 - Set to 1 to set PerlIO UTF-8 encoding on the output file
+#   perlio_iso  - Set to 1 to set PerlIO ISO 8859-1 encoding on the output file
+#   output      - Expect the output to be in this non-standard encoding
 sub test_snippet_with_io {
     my ($class, $snippet, $options_ref) = @_;
+    $options_ref //= {};
     my $data_ref = read_snippet($snippet);
+
+    # Determine the encoding to expect for the output portion of the snippet.
+    my $encoding = $options_ref->{encoding} // 'UTF-8';
+
+    # Determine the encoding to expect for the actual output.
+    my $outencoding = $options_ref->{output} // 'UTF-8';
+
+    # Additional test output based on whether we're using PerlIO.
+    my $perlio = q{};
+    if ($options_ref->{perlio_utf8} || $options_ref->{perlio_iso}) {
+        $perlio = ' (PerlIO)';
+    }
 
     # Create the formatter object.
     my $parser = $class->new(%{ $data_ref->{options} }, name => 'TEST');
@@ -317,7 +359,7 @@ sub test_snippet_with_io {
     my $input_file = File::Spec->catfile('t', 'tmp', "tmp$$.pod");
     open(my $input, '>', $input_file)
       or BAIL_OUT("cannot create $input_file: $!");
-    print {$input} encode('UTF-8', $data_ref->{input})
+    print {$input} $data_ref->{input}
       or BAIL_OUT("cannot write to $input_file: $!");
     close($input) or BAIL_OUT("cannot flush output to $input_file: $!");
 
@@ -330,39 +372,48 @@ sub test_snippet_with_io {
         ## no critic (ValuesAndExpressions::RequireInterpolationOfMetachars)
         eval 'binmode($output, ":encoding(utf-8)")';
         ## use critic
+    } elsif ($options_ref->{perlio_iso}) {
+        ## no critic (BuiltinFunctions::ProhibitStringyEval)
+        ## no critic (ValuesAndExpressions::RequireInterpolationOfMetachars)
+        eval 'binmode($output, ":encoding(iso-8859-1)")';
+        ## use critic
     }
 
     # Parse the input file into the output file.
     $parser->parse_from_file($input_file, $output);
     close($output) or BAIL_OUT("cannot flush output to $output_file: $!");
 
-    # Read back in the results, checking to ensure that we didn't output the
-    # accent definitions if we wrote UTF-8 output.
+    # Read back in the results.  For Pod::Man, also check the coding line, and
+    # ensure that we didn't output the accent definitions if we wrote UTF-8
+    # output.
     open(my $results, '<', $output_file)
       or BAIL_OUT("cannot open $output_file: $!");
-    my ($line, $saw_accents);
-    while (defined($line = <$results>)) {
-        $line = decode('UTF-8', $line);
-        if ($line =~ m{ Accent [ ] mark [ ] definitions }xms) {
-            $saw_accents = 1;
-        }
-        last if $line =~ m{ \A [.]nh }xms;
+    my $saw_accents;
+    if ($class eq 'Pod::Man') {
+        my $name = $data_ref->{name};
+        $saw_accents = _check_man_preamble($name, $results, $outencoding);
     }
     my $saw = do { local $/ = undef; <$results> };
-    $saw = decode('UTF-8', $saw);
+    $saw = decode($outencoding, $saw);
+    $saw =~ s{ \n\s+ \z }{\n}xms;
     close($results) or BAIL_OUT("cannot close output file: $!");
 
     # Clean up.
     unlink($input_file, $output_file);
 
     # Check the accent definitions and the output.
-    my $perlio = $options_ref->{perlio_utf8} ? ' (PerlIO)' : q{};
+    if ($class eq 'Pod::Man') {
+        is(
+            $saw_accents,
+            ($data_ref->{options}{encoding} || q{}) eq 'roff' ? 1 : undef,
+            "$data_ref->{name}: accent definitions$perlio",
+        );
+    }
     is(
-        $saw_accents,
-        $data_ref->{options}{utf8} ? undef : 1,
-        "$data_ref->{name}: accent definitions$perlio"
+        $saw,
+        decode($encoding, $data_ref->{output}),
+        "$data_ref->{name}: output$perlio",
     );
-    is($saw, $data_ref->{output}, "$data_ref->{name}: output$perlio");
     return;
 }
 
@@ -396,14 +447,11 @@ should be explicitly imported.
 
 =over 4
 
-=item read_snippet(PATH[, ENCODING])
+=item read_snippet(PATH)
 
 Read one test snippet from the provided relative file name and return it.  The
 path should be relative to F<t/data/snippets>.  For the format, see
 F<t/data/snippets/README>.
-
-ENCODING, if present, specifies the encoding of the snippet.  If not given,
-the snippet is assumed to be encoded in C<UTF-8>.
 
 The result will be a hash with the following keys:
 
@@ -489,17 +537,40 @@ it, and checking the results.  Results are reported with Test::More.
 
 OPTIONS, if present, is a reference to a hash of options.  Currently, only
 one key is supported: C<encoding>, which, if set, specifies the encoding of
-the snippet.
+the output portion of the snippet.
 
 =item test_snippet_with_io(CLASS, SNIPPET[, OPTIONS])
 
 The same as test_snippet(), except, rather than parsing the input into a
 string buffer, this function uses real, temporary input and output files.
-This can be used to test I/O layer handling and proper encoding.
+This can be used to test I/O layer handling and proper encoding.  It also
+does additional tests for the preamble to the *roff output.
 
-OPTIONS, if present, is a reference to a hash of options.  Currently, only one
-key is supported: C<perlio_utf8>, which, if set to true, will set a PerlIO
-UTF-8 encoding layer on the output file before writing to it.
+OPTIONS, if present, is a reference to a hash of options chosen from the
+following:
+
+=over 4
+
+=item encoding
+
+The encoding to expect from the snippet file.  Default if not specified is
+UTF-8.
+
+=item output
+
+The encoding to expect from the output.  Default if not specified is UTF-8.
+
+=item perlio_iso
+
+If set to true, set a PerlIO ISO-8859-1 encoding layer on the output file
+before writing to it.
+
+=item perlio_utf8
+
+If set to true, set a PerlIO UTF-8 encoding layer on the output file before
+writing to it.
+
+=back
 
 =back
 
@@ -509,7 +580,7 @@ Russ Allbery <rra@cpan.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2015, 2016, 2018 Russ Allbery <rra@cpan.org>
+Copyright 2015-2016, 2018-2020, 2022 Russ Allbery <rra@cpan.org>
 
 This program is free software; you may redistribute it and/or modify it
 under the same terms as Perl itself.

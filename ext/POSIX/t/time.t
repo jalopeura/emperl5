@@ -22,8 +22,8 @@ SKIP: {
     # actually do anything.  Cygwin works in some places, but not others.  The
     # other Win32's below are guesses.
     skip "No tzset()", 2
-       if $^O eq "VMS" || $^O eq "cygwin" || $^O eq "djgpp" ||
-          $^O eq "MSWin32" || $^O eq "dos" || $^O eq "interix";
+       if $^O eq "VMS" || $^O eq "cygwin" ||
+          $^O eq "MSWin32" || $^O eq "interix";
     tzset();
     my @tzname = tzname();
     like($tzname[0], qr/(GMT|UTC)/i, "tzset() to GMT/UTC");
@@ -52,10 +52,15 @@ is(asctime(POSIX::localtime(12345678)), ctime(12345678),
    "asctime() and ctime() at 12345678");
 
 # Careful!  strftime() is locale sensitive.  Let's take care of that
-my $orig_loc = 'C';
+my $orig_time_loc = 'C';
+my $orig_ctype_loc = 'C';
 if (locales_enabled('LC_TIME')) {
-    $orig_loc = setlocale(LC_TIME) || die "Cannot get locale information:  $!";
+    $orig_time_loc = setlocale(LC_TIME) || die "Cannot get time locale information:  $!";
     setlocale(LC_TIME, "C") || die "Cannot setlocale() to C:  $!";
+}
+if (locales_enabled('LC_CTYPE')) {
+    $orig_ctype_loc = setlocale(LC_CTYPE) || die "Cannot get ctype locale information:  $!";
+    setlocale(LC_CTYPE, "C") || die "Cannot setlocale() to C:  $!";
 }
 my $jan_16 = 15 * 86400;
 is(ctime($jan_16), strftime("%a %b %d %H:%M:%S %Y\n", CORE::localtime($jan_16)),
@@ -78,7 +83,10 @@ is(ord strftime($ss, POSIX::localtime(time)),
 unlike($ss, qr/\w/, 'Still not internally UTF-8 encoded');
 
 if (locales_enabled('LC_TIME')) {
-    setlocale(LC_TIME, $orig_loc) || die "Cannot setlocale() back to orig: $!";
+    setlocale(LC_TIME, $orig_time_loc) || die "Cannot setlocale(LC_TIME) back to orig: $!";
+}
+if (locales_enabled('LC_CTYPE')) {
+    setlocale(LC_CTYPE, $orig_ctype_loc) || die "Cannot setlocale(LC_CTYPE) back to orig: $!";
 }
 
 # clock() seems to have different definitions of what it does between POSIX

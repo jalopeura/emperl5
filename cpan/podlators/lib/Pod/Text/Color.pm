@@ -12,18 +12,15 @@
 
 package Pod::Text::Color;
 
-use 5.006;
+use 5.010;
 use strict;
 use warnings;
 
 use Pod::Text ();
 use Term::ANSIColor qw(color colored);
 
-use vars qw(@ISA $VERSION);
-
-@ISA = qw(Pod::Text);
-
-$VERSION = '4.11';
+our @ISA = qw(Pod::Text);
+our $VERSION = '5.01';
 
 ##############################################################################
 # Overrides
@@ -97,9 +94,6 @@ sub wrap {
     # $shortchar matches some sequence of $char ending in codes followed by
     # whitespace or the end of the string.  $longchar matches exactly $width
     # $chars, used when we have to truncate and hard wrap.
-    #
-    # $shortchar and $longchar are created in a slightly odd way because the
-    # construct ${char}{0,$width} didn't do the right thing until Perl 5.8.x.
     my $code = '(?:\e\[[\d;]+m)';
     my $char = "(?>$code*[^\\n])";
     my $shortchar = '^(' . $char . "{0,$width}(?>$code*)" . ')(?:\s+|\z)';
@@ -173,11 +167,22 @@ options.
 Term::ANSIColor is used to get colors and therefore must be installed to use
 this module.
 
-=head1 BUGS
+=head1 COMPATIBILITY
 
-This is just a basic proof of concept.  It should be seriously expanded to
-support configurable coloration via options passed to the constructor, and
-B<pod2text> should be taught about those.
+Pod::Text::Color 0.05 (based on L<Pod::Parser>) was the first version of this
+module included with Perl, in Perl 5.6.0.
+
+The current API based on L<Pod::Simple> was added in Pod::Text::Color 2.00.
+Pod::Text::Color 2.01 was included in Perl 5.9.3, the first version of Perl to
+incorporate those changes.
+
+Several problems with wrapping and line length were fixed as recently as
+Pod::Text::Color 4.11, included in Perl 5.29.1.
+
+This module inherits its API and most behavior from Pod::Text, so the details
+in L<Pod::Text/COMPATIBILITY> also apply.  Pod::Text and Pod::Text::Color have
+had the same module version since 4.00, included in Perl 5.23.7.  (They
+unfortunately diverge in confusing ways prior to that.)
 
 =head1 AUTHOR
 
@@ -185,7 +190,7 @@ Russ Allbery <rra@cpan.org>.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 1999, 2001, 2004, 2006, 2008, 2009, 2018 Russ Allbery
+Copyright 1999, 2001, 2004, 2006, 2008, 2009, 2018-2019, 2022 Russ Allbery
 <rra@cpan.org>
 
 This program is free software; you may redistribute it and/or modify it

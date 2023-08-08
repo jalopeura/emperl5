@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 27;
+use Test::More tests => 29;
 use List::Util qw(pairgrep pairfirst pairmap pairs unpairs pairkeys pairvalues);
 
 no warnings 'misc'; # avoid "Odd number of elements" warnings most of the time
@@ -104,6 +104,10 @@ is_deeply( [ pairs one => 1, two => ],
   my @p = pairs one => 1, two => 2;
   is( $p[0]->key,   "one", 'pairs ->key' );
   is( $p[0]->value, 1,     'pairs ->value' );
+  is_deeply( $p[0]->TO_JSON,
+             [ one => 1 ],
+             'pairs ->TO_JSON' );
+  is( ref($p[0]->TO_JSON), 'ARRAY', 'pairs ->TO_JSON is not blessed' );
 }
 
 is_deeply( [ unpairs [ four => 4 ], [ five => 5 ], [ six => 6 ] ],

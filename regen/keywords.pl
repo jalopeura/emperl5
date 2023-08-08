@@ -14,11 +14,11 @@ use Devel::Tokenizer::C 0.05;
 require './regen/regen_lib.pl';
 
 my $h = open_new('keywords.h', '>',
-		 { by => 'regen/keywords.pl', from => 'its data',
-		   file => 'keywords.h', style => '*',
-		   copyright => [1994 .. 1997, 1999 .. 2002, 2005 .. 2007]});
+                 { by => 'regen/keywords.pl', from => 'its data',
+                   file => 'keywords.h', style => '*',
+                   copyright => [1994 .. 1997, 1999 .. 2002, 2005 .. 2007]});
 my $c = open_new('keywords.c', '>',
-		 { by => 'regen/keywords.pl', from => 'its data', style => '*'});
+                 { by => 'regen/keywords.pl', from => 'its data', style => '*'});
 
 my %by_strength;
 
@@ -46,14 +46,23 @@ my %feature_kw = (
     evalbytes => 'evalbytes',
     __SUB__   => '__SUB__',
     fc        => 'fc',
+    isa       => 'isa',
+    try       => 'try',
+    catch     => 'try',
+    finally   => 'try',
+    defer     => 'defer',
+    class     => 'class',
+    field     => 'class',
+    method    => 'class',
+    ADJUST    => 'class',
 );
 
 my %pos = map { ($_ => 1) } @{$by_strength{'+'}};
 
 my $t = Devel::Tokenizer::C->new(TokenFunc     => \&perl_keyword,
-				 TokenString   => 'name',
-				 StringLength  => 'len',
-				 MergeSwitches => 1,
+                                 TokenString   => 'name',
+                                 StringLength  => 'len',
+                                 MergeSwitches => 1,
                                 );
 
 $t->add_tokens(@{$by_strength{'+'}}, @{$by_strength{'-'}}, 'elseif');
@@ -114,6 +123,7 @@ __END__
 +__DATA__
 +__END__
 -__SUB__
++ADJUST
 +AUTOLOAD
 +BEGIN
 +UNITCHECK
@@ -131,6 +141,7 @@ __END__
 -bless
 -break
 -caller
++catch
 -chdir
 -chmod
 -chomp
@@ -138,6 +149,7 @@ __END__
 -chown
 -chr
 -chroot
+-class
 -close
 -closedir
 -cmp
@@ -148,6 +160,7 @@ __END__
 -dbmclose
 -dbmopen
 +default
++defer
 +defined
 +delete
 -die
@@ -172,7 +185,9 @@ __END__
 -exp
 -fc
 -fcntl
+-field
 -fileno
++finally
 -flock
 +for
 +foreach
@@ -217,6 +232,7 @@ __END__
 -index
 -int
 -ioctl
+-isa
 -join
 -keys
 -kill
@@ -235,6 +251,7 @@ __END__
 -lt
 +m
 +map
+-method
 -mkdir
 -msgctl
 -msgget
@@ -337,6 +354,7 @@ __END__
 -time
 -times
 +tr
++try
 -truncate
 -uc
 -ucfirst

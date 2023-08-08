@@ -45,7 +45,7 @@ declare the output character set as UTF-8 before parsing, like so:
 package Pod::Simple::XHTML;
 use strict;
 use vars qw( $VERSION @ISA $HAS_HTML_ENTITIES );
-$VERSION = '3.35';
+$VERSION = '3.43';
 use Pod::Simple::Methody ();
 @ISA = ('Pod::Simple::Methody');
 
@@ -92,7 +92,7 @@ the call to C<parse_file>:
 
 In turning L<Foo::Bar> into http://whatever/Foo%3a%3aBar, what
 to put before the "Foo%3a%3aBar". The default value is
-"http://search.cpan.org/perldoc?".
+"https://metacpan.org/pod/".
 
 =head2 perldoc_url_postfix
 
@@ -247,7 +247,7 @@ sub new {
   my $self = shift;
   my $new = $self->SUPER::new(@_);
   $new->{'output_fh'} ||= *STDOUT{IO};
-  $new->perldoc_url_prefix('http://search.cpan.org/perldoc?');
+  $new->perldoc_url_prefix('https://metacpan.org/pod/');
   $new->man_url_prefix('http://man.he.net/man');
   $new->html_charset('ISO-8859-1');
   $new->nix_X_codes(1);
@@ -400,6 +400,8 @@ sub start_head1 {  $_[0]{'in_head'} = 1; $_[0]{htext} = ''; }
 sub start_head2 {  $_[0]{'in_head'} = 2; $_[0]{htext} = ''; }
 sub start_head3 {  $_[0]{'in_head'} = 3; $_[0]{htext} = ''; }
 sub start_head4 {  $_[0]{'in_head'} = 4; $_[0]{htext} = ''; }
+sub start_head5 {  $_[0]{'in_head'} = 5; $_[0]{htext} = ''; }
+sub start_head6 {  $_[0]{'in_head'} = 6; $_[0]{htext} = ''; }
 
 sub start_item_number {
     $_[0]{'scratch'} = "</li>\n" if ($_[0]{'in_li'}->[-1] && pop @{$_[0]{'in_li'}});
@@ -483,6 +485,8 @@ sub end_head1       { shift->_end_head(@_); }
 sub end_head2       { shift->_end_head(@_); }
 sub end_head3       { shift->_end_head(@_); }
 sub end_head4       { shift->_end_head(@_); }
+sub end_head5       { shift->_end_head(@_); }
+sub end_head6       { shift->_end_head(@_); }
 
 sub end_item_bullet { $_[0]{'scratch'} .= '</p>'; $_[0]->emit }
 sub end_item_number { $_[0]{'scratch'} .= '</p>'; $_[0]->emit }
@@ -685,8 +689,8 @@ sub emit {
 Resolves a POD link target (typically a module or POD file name) and section
 name to a URL. The resulting link will be returned for the above examples as:
 
-  http://search.cpan.org/perldoc?Net::Ping#INSTALL
-  http://search.cpan.org/perldoc?perlpodspec
+  https://metacpan.org/pod/Net::Ping#INSTALL
+  https://metacpan.org/pod/perlpodspec
   #SYNOPSIS
 
 Note that when there is only a section argument the URL will simply be a link

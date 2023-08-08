@@ -14,11 +14,11 @@ use strict;
 
 # Some (safe?) bets.
 
-ok(keys %Config > 500, "Config has more than 500 entries");
+cmp_ok(keys %Config, '>', 500, "Config has more than 500 entries");
 
 my ($first) = Config::config_sh() =~ /^(\S+)=/m;
 die "Can't find first entry in Config::config_sh()" unless defined $first;
-print "# First entry is '$first'\n";
+note("First entry is '$first'");
 
 # It happens that the we know what the first key should be. This is somewhat
 # cheating, but there was briefly a bug where the key got a bonus newline.
@@ -31,11 +31,12 @@ ok(!exists($Config{"\n$first"}),
 is($Config{PERL_REVISION}, 5, "PERL_REVISION is 5");
 
 # Check that old config variable names are aliased to their new ones.
-my %grandfathers = ( PERL_VERSION       => 'PATCHLEVEL',
-                     PERL_SUBVERSION    => 'SUBVERSION',
-                     PERL_CONFIG_SH     => 'CONFIG'
-                   );
-while( my($new, $old) = each %grandfathers ) {
+my %legacy = (
+    PERL_VERSION       => 'PATCHLEVEL',
+    PERL_SUBVERSION    => 'SUBVERSION',
+    PERL_CONFIG_SH     => 'CONFIG'
+);
+while( my($new, $old) = each %legacy ) {
     isnt($Config{$new}, undef,       "$new is defined");
     is($Config{$new}, $Config{$old}, "$new is aliased to $old");
 }
@@ -49,6 +50,39 @@ ok(!exists $Config{python},  "has no python");
 ok( exists $Config{d_fork},  "has d_fork");
 
 ok(!exists $Config{d_bork},  "has no d_bork");
+
+{
+    # check taint_support and tain_disabled are set up as expected.
+
+    ok( exists $Config{taint_support}, "has taint_support");
+
+    ok( exists $Config{taint_disabled}, "has taint_disabled");
+
+    is( $Config{taint_support}, ($Config{taint_disabled} ? "" : "define"),
+        "taint_support = !taint_disabled");
+
+    ok( ($Config{taint_support} eq "" or $Config{taint_support} eq "define"),
+        "taint_support is a valid value");
+
+    ok( ( $Config{taint_disabled} eq "" or $Config{taint_disabled} eq "silent" or
+        $Config{taint_disabled} eq "define"),
+        "taint_disabled is a valid value");
+
+    my @opts = Config::non_bincompat_options();
+    my @want_taint_disabled = ("", "define", "silent");
+    my @want_taint_support = ("define", "", "");
+    my ($silent_no_taint_support) = grep $_ eq "SILENT_NO_TAINT_SUPPORT", @opts;
+    my ($no_taint_support) = grep $_ eq "NO_TAINT_SUPPORT", @opts;
+    my $no_taint_support_count = 0 + grep /NO_TAINT_SUPPORT/, @opts;
+    my $want_count = $silent_no_taint_support ? 2 : $no_taint_support ? 1 : 0;
+
+    is ($no_taint_support_count, $want_count,
+        "non_bincompat_options info on taint support is as expected");
+    is( $Config{taint_disabled}, $want_taint_disabled[$no_taint_support_count],
+        "taint_disabled is aligned with non_bincompat_options() data");
+    is( $Config{taint_support}, $want_taint_support[$no_taint_support_count],
+        "taint_support is aligned with non_bincompat_options() data");
+}
 
 like($Config{ivsize}, qr/^(4|8)$/, "ivsize is 4 or 8 (it is $Config{ivsize})");
 
@@ -150,7 +184,7 @@ my @api;
 
 my @rev = @Config{qw(PERL_API_REVISION PERL_API_VERSION PERL_API_SUBVERSION)};
 
-print ("# test tagged responses, multi-line and single-line\n");
+note("test tagged responses, multi-line and single-line");
 foreach my $api ($out3, $out4) {
     @api = $api =~ /PERL_API_(\w+)=(.*?)(?:;\n|\s)/mg;
     is($api[0], "REVISION", "REVISION tag");
@@ -161,7 +195,7 @@ foreach my $api ($out3, $out4) {
     is($api[3], "'$rev[2]'", "SUBVERSION is $rev[2]");
 }
 
-print("# test non-tagged responses, multi-line and single-line\n");
+note("test non-tagged responses, multi-line and single-line");
 foreach my $api ($out5, $out6) {
     @api = split /(?: |;\n)/, $api;
     is($api[0], "'$rev[0]'", "revision is $rev[0]");

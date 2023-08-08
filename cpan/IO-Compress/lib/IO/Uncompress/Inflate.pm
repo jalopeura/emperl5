@@ -5,15 +5,15 @@ use strict ;
 use warnings;
 use bytes;
 
-use IO::Compress::Base::Common  2.084 qw(:Status );
-use IO::Compress::Zlib::Constants 2.084 ;
+use IO::Compress::Base::Common  2.204 qw(:Status );
+use IO::Compress::Zlib::Constants 2.204 ;
 
-use IO::Uncompress::RawInflate  2.084 ;
+use IO::Uncompress::RawInflate  2.204 ;
 
 require Exporter ;
 our ($VERSION, @ISA, @EXPORT_OK, %EXPORT_TAGS, $InflateError);
 
-$VERSION = '2.084';
+$VERSION = '2.204';
 $InflateError = '';
 
 @ISA    = qw(IO::Uncompress::RawInflate Exporter);
@@ -62,14 +62,14 @@ sub ckMagic
 
     *$self->{HeaderPending} = $magic ;
 
-    return $self->HeaderError("Header size is " . 
-                                        ZLIB_HEADER_SIZE . " bytes") 
+    return $self->HeaderError("Header size is " .
+                                        ZLIB_HEADER_SIZE . " bytes")
         if length $magic != ZLIB_HEADER_SIZE;
 
     #return $self->HeaderError("CRC mismatch.")
     return undef
         if ! $self->isZlibMagic($magic) ;
-                      
+
     *$self->{Type} = 'rfc1950';
     return $magic;
 }
@@ -88,7 +88,7 @@ sub chkTrailer
     my $trailer = shift;
 
     my $ADLER32 = unpack("N", $trailer) ;
-    *$self->{Info}{ADLER32} = $ADLER32;    
+    *$self->{Info}{ADLER32} = $ADLER32;
     return $self->TrailerError("CRC mismatch")
         if *$self->{Strict} && $ADLER32 != *$self->{Uncomp}->adler32() ;
 
@@ -102,7 +102,7 @@ sub isZlibMagic
     my $self = shift;
     my $buffer = shift ;
 
-    return 0 
+    return 0
         if length $buffer < ZLIB_HEADER_SIZE ;
 
     my $hdr = unpack("n", $buffer) ;
@@ -114,16 +114,16 @@ sub isZlibMagic
     my $cm =    bits($CMF, ZLIB_CMF_CM_OFFSET,    ZLIB_CMF_CM_BITS) ;
 
     # Only Deflate supported
-    return $self->HeaderError("Not Deflate (CM is $cm)") 
+    return $self->HeaderError("Not Deflate (CM is $cm)")
         if $cm != ZLIB_CMF_CM_DEFLATED ;
 
     # Max window value is 7 for Deflate.
     my $cinfo = bits($CMF, ZLIB_CMF_CINFO_OFFSET, ZLIB_CMF_CINFO_BITS) ;
-    return $self->HeaderError("CINFO > " . ZLIB_CMF_CINFO_MAX . 
-                              " (CINFO is $cinfo)") 
+    return $self->HeaderError("CINFO > " . ZLIB_CMF_CINFO_MAX .
+                              " (CINFO is $cinfo)")
         if $cinfo > ZLIB_CMF_CINFO_MAX ;
 
-    return 1;    
+    return 1;
 }
 
 sub bits
@@ -145,19 +145,19 @@ sub _readDeflateHeader
 #
 #        *$self->{HeaderPending} = $buffer ;
 #
-#        return $self->HeaderError("Header size is " . 
-#                                            ZLIB_HEADER_SIZE . " bytes") 
+#        return $self->HeaderError("Header size is " .
+#                                            ZLIB_HEADER_SIZE . " bytes")
 #            if length $buffer != ZLIB_HEADER_SIZE;
 #
 #        return $self->HeaderError("CRC mismatch.")
 #            if ! isZlibMagic($buffer) ;
 #    }
-                                        
+
     my ($CMF, $FLG) = unpack "C C", $buffer;
     my $FDICT = bits($FLG, ZLIB_FLG_FDICT_OFFSET,  ZLIB_FLG_FDICT_BITS ),
 
     my $cm = bits($CMF, ZLIB_CMF_CM_OFFSET, ZLIB_CMF_CM_BITS) ;
-    $cm == ZLIB_CMF_CM_DEFLATED 
+    $cm == ZLIB_CMF_CM_DEFLATED
         or return $self->HeaderError("Not Deflate (CM is $cm)") ;
 
     my $DICTID;
@@ -208,7 +208,7 @@ IO::Uncompress::Inflate - Read RFC 1950 files/buffers
     my $status = inflate $input => $output [,OPTS]
         or die "inflate failed: $InflateError\n";
 
-    my $z = new IO::Uncompress::Inflate $input [OPTS]
+    my $z = IO::Uncompress::Inflate->new( $input [OPTS] )
         or die "inflate failed: $InflateError\n";
 
     $status = $z->read($buffer)
@@ -270,7 +270,8 @@ The functional interface needs Perl5.005 or better.
 =head2 inflate $input_filename_or_reference => $output_filename_or_reference [, OPTS]
 
 C<inflate> expects at least two parameters,
-C<$input_filename_or_reference> and C<$output_filename_or_reference>.
+C<$input_filename_or_reference> and C<$output_filename_or_reference>
+and zero or more optional parameters (see L</Optional Parameters>)
 
 =head3 The C<$input_filename_or_reference> parameter
 
@@ -283,7 +284,7 @@ It can take one of the following forms:
 
 =item A filename
 
-If the <$input_filename_or_reference> parameter is a simple scalar, it is
+If the C<$input_filename_or_reference> parameter is a simple scalar, it is
 assumed to be a filename. This file will be opened for reading and the
 input data will be read from it.
 
@@ -380,9 +381,9 @@ files/buffers.
 
 =head2 Optional Parameters
 
-Unless specified below, the optional parameters for C<inflate>,
-C<OPTS>, are the same as those used with the OO interface defined in the
-L</"Constructor Options"> section below.
+The optional parameters for the one-shot function C<inflate>
+are (for the most part) identical to those used with the OO interface defined in the
+L</"Constructor Options"> section. The exceptions are listed below
 
 =over 5
 
@@ -500,7 +501,7 @@ uncompressed data to a buffer, C<$buffer>.
     use IO::Uncompress::Inflate qw(inflate $InflateError) ;
     use IO::File ;
 
-    my $input = new IO::File "<file1.txt.1950"
+    my $input = IO::File->new( "<file1.txt.1950" )
         or die "Cannot open 'file1.txt.1950': $!\n" ;
     my $buffer ;
     inflate $input => \$buffer
@@ -535,7 +536,7 @@ and if you want to compress each file one at a time, this will do the trick
 
 The format of the constructor for IO::Uncompress::Inflate is shown below
 
-    my $z = new IO::Uncompress::Inflate $input [OPTS]
+    my $z = IO::Uncompress::Inflate->new( $input [OPTS] )
         or die "IO::Uncompress::Inflate failed: $InflateError\n";
 
 Returns an C<IO::Uncompress::Inflate> object on success and undef on failure.
@@ -935,7 +936,7 @@ C<InputLength> option in the constructor.
 
 =head1 Importing
 
-No symbolic constants are required by this IO::Uncompress::Inflate at present.
+No symbolic constants are required by IO::Uncompress::Inflate at present.
 
 =over 5
 
@@ -954,6 +955,12 @@ Same as doing this
 
 See L<IO::Compress::FAQ|IO::Compress::FAQ/"Compressed files and Net::FTP">
 
+=head1 SUPPORT
+
+General feedback/questions/bug reports should be sent to
+L<https://github.com/pmqs/IO-Compress/issues> (preferred) or
+L<https://rt.cpan.org/Public/Dist/Display.html?Name=IO-Compress>.
+
 =head1 SEE ALSO
 
 L<Compress::Zlib>, L<IO::Compress::Gzip>, L<IO::Uncompress::Gunzip>, L<IO::Compress::Deflate>, L<IO::Compress::RawDeflate>, L<IO::Uncompress::RawInflate>, L<IO::Compress::Bzip2>, L<IO::Uncompress::Bunzip2>, L<IO::Compress::Lzma>, L<IO::Uncompress::UnLzma>, L<IO::Compress::Xz>, L<IO::Uncompress::UnXz>, L<IO::Compress::Lzip>, L<IO::Uncompress::UnLzip>, L<IO::Compress::Lzop>, L<IO::Uncompress::UnLzop>, L<IO::Compress::Lzf>, L<IO::Uncompress::UnLzf>, L<IO::Compress::Zstd>, L<IO::Uncompress::UnZstd>, L<IO::Uncompress::AnyInflate>, L<IO::Uncompress::AnyUncompress>
@@ -965,15 +972,18 @@ L<Archive::Tar|Archive::Tar>,
 L<IO::Zlib|IO::Zlib>
 
 For RFC 1950, 1951 and 1952 see
-L<http://www.faqs.org/rfcs/rfc1950.html>,
-L<http://www.faqs.org/rfcs/rfc1951.html> and
-L<http://www.faqs.org/rfcs/rfc1952.html>
+L<https://datatracker.ietf.org/doc/html/rfc1950>,
+L<https://datatracker.ietf.org/doc/html/rfc1951> and
+L<https://datatracker.ietf.org/doc/html/rfc1952>
 
 The I<zlib> compression library was written by Jean-loup Gailly
 C<gzip@prep.ai.mit.edu> and Mark Adler C<madler@alumni.caltech.edu>.
 
 The primary site for the I<zlib> compression library is
 L<http://www.zlib.org>.
+
+The primary site for the I<zlib-ng> compression library is
+L<https://github.com/zlib-ng/zlib-ng>.
 
 The primary site for gzip is L<http://www.gzip.org>.
 
@@ -987,8 +997,7 @@ See the Changes file.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (c) 2005-2019 Paul Marquess. All rights reserved.
+Copyright (c) 2005-2023 Paul Marquess. All rights reserved.
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
-

@@ -34,7 +34,8 @@ Chris C<BinGOs> Williams, Zefram, Ævar Arnfjörð Bjarmason, Stevan
 Little, Dave Rolsky, Max Maischein, Abigail, Jesse Luehrs, Tony Cook,
 Dominic Hargreaves, Aaron Crane, Aristotle Pagaltzis, Matthew Horsfall,
 Peter Martini, Sawyer X, Chad 'Exodist' Granum, Renee Bäcker, Eric Herman,
-John SJ Anderson, Karen Etheridge, and Zak B. Elep.
+John SJ Anderson, Karen Etheridge, Zak B. Elep, Tom Hukins, Richard Leach,
+Neil Bowers and Yves Orton.
 
 =head2 PUMPKIN?
 
@@ -65,8 +66,8 @@ the strings?).
 =head1 THE RECORDS
 
  Pump-  Release         Date            Notes
- king                                   (by no means
-                                         comprehensive,
+ kin                                    (by no means
+ Holder                                  comprehensive,
                                          see Changes*
                                          for details)
  ======================================================================
@@ -279,7 +280,8 @@ the strings?).
           5.004_04-t3   1997-Oct-10     aka perl5.004m4t3
           5.004_04-t4   1997-Oct-14     aka perl5.004m4t4
           5.004_04      1997-Oct-15
-          5.004_04-m1   1998-Mar-04     (5.004m5t1) Maint. trials for 5.004_05.
+          5.004_04-m1   1998-Mar-04     (5.004m5t1) Maint. trials for
+                                        5.004_05.
           5.004_04-m2   1998-May-01
           5.004_04-m3   1998-May-15
           5.004_04-m4   1998-May-19
@@ -653,6 +655,8 @@ the strings?).
  Steve     5.28.1       2018-Nov-29
  Steve     5.28.2-RC1   2019-Apr-05
  Steve     5.28.2       2019-Apr-19
+ Steve     5.28.3-RC1   2020-May-18
+ Steve     5.28.3       2020-Jun-01
 
  Sawyer X  5.29.0       2018-Jun-26     The 5.29 development track
  Steve     5.29.1       2018-Jul-20
@@ -669,6 +673,88 @@ the strings?).
  Sawyer X  5.30.0-RC1   2019-May-11     The 5.30 maintenance track
  Sawyer X  5.30.0-RC2   2019-May-17
  Sawyer X  5.30.0       2019-May-22
+ Steve     5.30.1-RC1   2019-Oct-27
+ Steve     5.30.1       2019-Nov-10
+ Steve     5.30.2-RC1   2020-Feb-29
+ Steve     5.30.2       2020-Mar-14
+ Steve     5.30.3-RC1   2020-May-18
+ Steve     5.30.3       2020-Jun-01
+
+ Sawyer X  5.31.0       2019-May-24     The 5.31 development track
+ Ether     5.31.1       2019-Jun-20
+ Steve     5.31.2       2019-Jul-20
+ Tom H     5.31.3       2019-Aug-20
+ Max M     5.31.4       2019-Sep-20
+ Steve     5.31.5       2019-Oct-20
+ BinGOs    5.31.6       2019-Nov-20
+ Nicolas R 5.31.7       2019-Dec-20
+ Matthew H 5.31.8       2020-Jan-20
+ Renee     5.31.9       2020-Feb-20
+ Sawyer X  5.31.10      2020-Mar-20
+ Sawyer X  5.31.11      2020-Apr-28
+
+ Sawyer X  5.32.0-RC0   2020-May-30     The 5.32 maintenance track
+ Sawyer X  5.32.0-RC1   2020-Jun-07
+ Sawyer X  5.32.0       2020-Jun-20
+ Steve     5.32.1-RC1   2021-Jan-09
+ Steve     5.32.1       2021-Jan-23
+
+ Sawyer X  5.33.0       2020-Jul-17     The 5.33 development track
+ Ether     5.33.1       2020-Aug-20
+ Sawyer X  5.33.2       2020-Sep-20
+ Steve     5.33.3       2020-Oct-20
+ Tom H     5.33.4       2020-Nov-20
+ Max M     5.33.5       2020-Dec-20
+ Richard L 5.33.6       2021-Jan-20
+ Renee     5.33.7       2021-Feb-20
+ Nicolas R 5.33.8       2021-Mar-20
+ Todd R    5.33.9       2021-Apr-20
+
+ Sawyer X  5.34.0-RC1   2021-May-04     The 5.34 maintenance track
+ Sawyer X  5.34.0-RC2   2021-May-15
+ Sawyer X  5.34.0       2021-May-20
+ Steve     5.34.1-RC1   2022-Feb-27
+ Steve     5.34.1-RC2   2022-Mar-06
+ Steve     5.34.1       2022-Mar-13
+
+ Ricardo   5.35.0       2021-May-20     The 5.35 development track
+ Max       5.35.1       2021-Jun-20
+ Neil B    5.35.2       2021-Jul-23
+ Ether     5.35.3       2021-Aug-20
+ Matthew H 5.35.4       2021-Sep-20
+ Leon T    5.35.5       2021-Oct-21
+ Richard L 5.35.6       2021-Nov-20
+ Neil B    5.35.7       2021-Dec-20
+ Nicolas R 5.35.8       2022-Jan-20
+ Renee     5.35.9       2022-Feb-20
+ Sawyer X  5.35.10      2022-Mar-20
+ Steve     5.35.11      2022-Apr-20
+
+ Ricardo   5.36.0-RC1   2022-May-20     The 5.36 maintenance track
+ Ricardo   5.36.0-RC2   2022-May-20
+ Ricardo   5.36.0-RC3   2022-May-22
+ Ricardo   5.36.0       2022-May-27
+ Steve     5.36.1-RC1   2023-Apr-10
+ Steve     5.36.1-RC2   2023-Apr-11
+ Steve     5.36.1-RC3   2023-Apr-16
+ Steve     5.36.1       2023-Apr-23
+
+ Ricardo   5.37.0       2022-May-27     The 5.37 development track
+ Matthew H 5.37.1       2022-Jun-20
+ Nicolas R 5.37.2       2022-Jul-20
+ Neil B    5.37.3       2022-Aug-20
+ Ether     5.37.4       2022-Sep-20
+ Todd R    5.37.5       2022-Oct-20
+ Max M     5.37.6       2022-Nov-20
+ Richard L 5.37.7       2022-Dec-20
+ Renee     5.37.8       2023-Jan-20
+ Ether     5.37.9       2023-Feb-20
+ Yves      5.37.10      2023-Mar-20
+ Steve     5.37.11      2023-Apr-20
+
+ Ricardo   5.38.0-RC1   2023-Jun-15     The 5.38 maintenance track
+ Ricardo   5.38.0-RC2   2023-Jun-23
+ Ricardo   5.38.0       2023-Jul-02
 
 =head2 SELECTED RELEASE SIZES
 
@@ -755,6 +841,10 @@ explained below.
  5.26.0         9140 121  24925 1200 40643 3017  10514 2614   7854 211
  5.28.0        13056 128  27267 1230 41745 3130  10952 2715   8185 218
  5.30.0        13535 128  26294 1237 39643 3080  11083 2711   8252 222
+ 5.32.0        14147 127  25562 1255 40869 3098  11334 2734   8407 225
+ 5.34.0        14620 126  28150 1262 42711 3138  11535 2774   8791 228
+ 5.36.0        15300 129  27899 1270 48275 3236  11899 2863   8858 224
+ 5.38.0        15793 139  29070 1270 48250 3219  11950 2863   9129 239
 
 The "core"..."doc" mean the following files from the Perl source code
 distribution.  The glob notation ** means recursively, (.) means
@@ -1100,6 +1190,39 @@ the Perl source distribution for somewhat more selected releases.
  vos           12      7        12      7        12      7
  win32       1313     65      1326     65      1331     65
  x2p            -      -         -      -         -      -
+
+                  5.32.0           5.34.0           5.36.0
+
+ Configure    588      1       592      1       603      1
+ Cross        126     15       126     15       122     15
+ djgpp         21      7        22      7         -      -
+ h2pl          24     15        24     15        13     15
+ hints        363     86       364     86       359     84
+ NetWare      484     61       533     61         -      -
+ os2          552     70       580     70       538     70
+ plan9        308     17       325     20       318     20
+ Porting     1482     75      1514     75      1559     78
+ qnx            5      4         5      4         1      4
+ symbian      307     54         -      -         -      -
+ utils        583     52       597     52       607     52
+ vms          527     12       549     12       545     12
+ vos           12      7        12      7         8      7
+ win32       1011     47      1001     46       966     45
+
+                  5.38.0
+
+ Configure    604      1
+ Cross        122     15
+ h2pl          13     15
+ hints        358     83
+ os2          538     70
+ plan9        322     20
+ Porting     1640     80
+ qnx            1      4
+ utils        606     52
+ vms          544     12
+ vos            8      7
+ win32        982     45
 
 =head2 SELECTED PATCH SIZES
 

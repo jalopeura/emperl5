@@ -1,46 +1,8 @@
-#ifndef PERL_SEEN_HV_MACRO_H /* compile once */
-#define PERL_SEEN_HV_MACRO_H
+#ifndef PERL_SEEN_HV_MACRO_H_ /* compile once */
+#define PERL_SEEN_HV_MACRO_H_
 
 #if IVSIZE == 8
 #define CAN64BITHASH
-#endif
-
-/*-----------------------------------------------------------------------------
- * Endianess, misalignment capabilities and util macros
- *
- * The following 3 macros are defined in this section. The other macros defined
- * are only needed to help derive these 3.
- *
- * U8TO16_LE(x)   Read a little endian unsigned 32-bit int
- * U8TO32_LE(x)   Read a little endian unsigned 32-bit int
- * U8TO28_LE(x)   Read a little endian unsigned 32-bit int
- * ROTL32(x,r)      Rotate x left by r bits
- * ROTL64(x,r)      Rotate x left by r bits
- * ROTR32(x,r)      Rotate x right by r bits
- * ROTR64(x,r)      Rotate x right by r bits
- */
-
-#ifndef U32_ALIGNMENT_REQUIRED
-  #if (BYTEORDER == 0x1234 || BYTEORDER == 0x12345678)
-    #define U8TO16_LE(ptr)   (*((const U16*)(ptr)))
-    #define U8TO32_LE(ptr)   (*((const U32*)(ptr)))
-    #define U8TO64_LE(ptr)   (*((const U64*)(ptr)))
-  #elif (BYTEORDER == 0x4321 || BYTEORDER == 0x87654321)
-    #if defined(__GNUC__) && (__GNUC__>4 || (__GNUC__==4 && __GNUC_MINOR__>=3))
-      #define U8TO16_LE(ptr)   (__builtin_bswap16(*((U16*)(ptr))))
-      #define U8TO32_LE(ptr)   (__builtin_bswap32(*((U32*)(ptr))))
-      #define U8TO64_LE(ptr)   (__builtin_bswap64(*((U64*)(ptr))))
-    #endif
-  #endif
-#endif
-
-#ifndef U8TO16_LE
-    /* Without a known fast bswap32 we're just as well off doing this */
-  #define U8TO16_LE(ptr)   ((U32)(ptr)[0]|(U32)(ptr)[1]<<8)
-  #define U8TO32_LE(ptr)   ((U32)(ptr)[0]|(U32)(ptr)[1]<<8|(U32)(ptr)[2]<<16|(U32)(ptr)[3]<<24)
-  #define U8TO64_LE(ptr)   ((U64)(ptr)[0]|(U64)(ptr)[1]<<8|(U64)(ptr)[2]<<16|(U64)(ptr)[3]<<24|\
-                            (U64)(ptr)[4]<<32|(U64)(ptr)[5]<<40|\
-                            (U64)(ptr)[6]<<48|(U64)(ptr)[7]<<56)
 #endif
 
 #ifdef CAN64BITHASH
@@ -49,6 +11,48 @@
    lack of uint64_t is no worse than failing right now with an #error.  */
   #define U64 uint64_t
   #endif
+#endif
+
+
+/*-----------------------------------------------------------------------------
+ * Endianess and util macros
+ *
+ * The following 3 macros are defined in this section. The other macros defined
+ * are only needed to help derive these 3.
+ *
+ * U8TO16_LE(x)   Read a little endian unsigned 16-bit int
+ * U8TO32_LE(x)   Read a little endian unsigned 32-bit int
+ * U8TO64_LE(x)   Read a little endian unsigned 64-bit int
+ * ROTL32(x,r)      Rotate x left by r bits
+ * ROTL64(x,r)      Rotate x left by r bits
+ * ROTR32(x,r)      Rotate x right by r bits
+ * ROTR64(x,r)      Rotate x right by r bits
+ */
+
+#ifndef U8TO16_LE
+  #define _shifted_octet(type,ptr,idx,shift) (((type)(((const U8*)(ptr))[(idx)]))<<(shift))
+    #if defined(USE_UNALIGNED_PTR_DEREF) && (BYTEORDER == 0x1234 || BYTEORDER == 0x12345678)
+        #define U8TO16_LE(ptr)   (*((const U16*)(ptr)))
+        #define U8TO32_LE(ptr)   (*((const U32*)(ptr)))
+        #define U8TO64_LE(ptr)   (*((const U64*)(ptr)))
+    #else
+        #define U8TO16_LE(ptr)   (_shifted_octet(U16,(ptr),0, 0)|\
+                                  _shifted_octet(U16,(ptr),1, 8))
+
+        #define U8TO32_LE(ptr)   (_shifted_octet(U32,(ptr),0, 0)|\
+                                  _shifted_octet(U32,(ptr),1, 8)|\
+                                  _shifted_octet(U32,(ptr),2,16)|\
+                                  _shifted_octet(U32,(ptr),3,24))
+
+        #define U8TO64_LE(ptr)   (_shifted_octet(U64,(ptr),0, 0)|\
+                                  _shifted_octet(U64,(ptr),1, 8)|\
+                                  _shifted_octet(U64,(ptr),2,16)|\
+                                  _shifted_octet(U64,(ptr),3,24)|\
+                                  _shifted_octet(U64,(ptr),4,32)|\
+                                  _shifted_octet(U64,(ptr),5,40)|\
+                                  _shifted_octet(U64,(ptr),6,48)|\
+                                  _shifted_octet(U64,(ptr),7,56))
+    #endif
 #endif
 
 /* Find best way to ROTL32/ROTL64 */

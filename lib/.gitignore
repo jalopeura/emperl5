@@ -59,6 +59,7 @@
 /ExtUtils/MM_MacOS.pm
 /ExtUtils/MM_NW5.pm
 /ExtUtils/MM_OS2.pm
+/ExtUtils/MM_OS390.pm
 /ExtUtils/MM_QNX.pm
 /ExtUtils/MM_UWIN.pm
 /ExtUtils/MM_Unix.pm
@@ -73,6 +74,7 @@
 /ExtUtils/Miniperl.pm
 /ExtUtils/Mkbootstrap.pm
 /ExtUtils/Mksymlists.pm
+/ExtUtils/PL2Bat.pm
 /ExtUtils/Packlist.pm
 /ExtUtils/ParseXS.pm
 /ExtUtils/ParseXS.pod
@@ -93,6 +95,7 @@
 /File/Temp.pm
 /FileCache.pm
 /Filter/
+/FindBin.pm
 /GDBM_File.pm
 /Getopt/Long.pm
 /HTTP/
@@ -134,18 +137,13 @@
 /PerlIO/
 /Pod/Checker.pm
 /Pod/Escapes.pm
-/Pod/Find.pm
 /Pod/Functions.pm
 /Pod/Html.pm
-/Pod/InputObjects.pm
+/Pod/Html/
 /Pod/Man.pm
 /Pod/ParseLink.pm
-/Pod/ParseUtils.pm
-/Pod/Parser.pm
 /Pod/Perldoc.pm
 /Pod/Perldoc/
-/Pod/PlainText.pm
-/Pod/Select.pm
 /Pod/Simple.pm
 /Pod/Simple.pod
 /Pod/Simple/
@@ -192,6 +190,7 @@
 /autodie/
 /autouse.pm
 /base.pm
+/bigfloat.pm
 /bigint.pm
 /bignum.pm
 /bigrat.pm
@@ -223,6 +222,7 @@
 /perlxstut.pod
 /perlxstypemap.pod
 /re.pm
+/stable.pm
 /threads.pm
 /threads/
 /version.pm

@@ -1,16 +1,14 @@
 package File::Glob;
 
 use strict;
-our($VERSION, @ISA, @EXPORT_OK, @EXPORT_FAIL, %EXPORT_TAGS, $DEFAULT_FLAGS);
+our($DEFAULT_FLAGS);
 
 require XSLoader;
-
-@ISA = qw(Exporter);
 
 # NOTE: The glob() export is only here for compatibility with 5.6.0.
 # csh_glob() should not be used directly, unless you know what you're doing.
 
-%EXPORT_TAGS = (
+our %EXPORT_TAGS = (
     'glob' => [ qw(
         GLOB_ABEND
         GLOB_ALPHASORT
@@ -33,9 +31,9 @@ require XSLoader;
 );
 $EXPORT_TAGS{bsd_glob} = [@{$EXPORT_TAGS{glob}}];
 
-@EXPORT_OK   = (@{$EXPORT_TAGS{'glob'}}, 'csh_glob');
+our @EXPORT_OK   = (@{$EXPORT_TAGS{'glob'}}, 'csh_glob');
 
-$VERSION = '1.32';
+our $VERSION = '1.40';
 
 sub import {
     require Exporter;
@@ -66,15 +64,8 @@ sub import {
 XSLoader::load();
 
 $DEFAULT_FLAGS = GLOB_CSH();
-if ($^O =~ /^(?:MSWin32|VMS|os2|dos|riscos)$/) {
+if ($^O =~ /^(?:MSWin32|VMS|os2|riscos)$/) {
     $DEFAULT_FLAGS |= GLOB_NOCASE();
-}
-
-# File::Glob::glob() removed in perl-5.30 because its prototype is different
-# from CORE::glob() (use bsd_glob() instead)
-sub glob {
-    die "File::Glob::glob() was removed in perl 5.30. " .
-         "Use File::Glob::bsd_glob() instead. $!";
 }
 
 1;
