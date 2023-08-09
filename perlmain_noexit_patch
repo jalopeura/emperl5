@@ -1,6 +1,6 @@
 --- perlmain.c.orig	2023-08-07 09:00:53.149530483 -0700
 +++ perlmain.c	2023-08-07 08:59:46.000000000 -0700
-@@ -54,14 +54,13 @@
+@@ -54,16 +54,14 @@
  static void xs_init (pTHX);
  static PerlInterpreter *my_perl;
  
@@ -17,9 +17,11 @@
  main(int argc, char **argv, char **env)
 -#endif
  {
-     int exitstatus, i;
+-    int exitstatus, i;
  #ifndef NO_ENV_ARRAY_IN_MAIN
-@@ -72,25 +71,10 @@
+     PERL_UNUSED_ARG(env);
+ #endif
+@@ -72,25 +70,10 @@
      /* noop unless Configure is given -Accflags=-DPERL_GPROF_CONTROL */
      PERL_GPROF_MONCONTROL(0);
  
@@ -46,7 +48,7 @@
  #endif
  
      PERL_SYS_FPU_INIT;
-@@ -103,29 +87,33 @@
+@@ -103,29 +86,33 @@
  	PL_perl_destruct_level = 0;
      }
      PL_exit_flags |= PERL_EXIT_DESTRUCT_END;
@@ -102,7 +104,7 @@
  
  #ifndef PERL_MICRO
      /* Unregister our signal handler before destroying my_perl */
-@@ -142,7 +130,13 @@
+@@ -142,7 +129,13 @@
  
      PERL_SYS_TERM();
  

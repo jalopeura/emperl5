@@ -211,7 +211,7 @@ GTAGS
 /make.log
 
 # various emperl/WebPerl related build (by)products
-/_cflags.js
+*.wasm
 /cppstdin
 /perl.bc
 /lib/WebPerl.pm
