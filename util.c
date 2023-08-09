@@ -2988,16 +2988,6 @@ Perl_rsignal_restore(pTHX_ int signo, Sigsave_t *save)
 
 #else /* !HAS_SIGACTION */
 
-#ifdef __EMSCRIPTEN__
-/* see iperlsys.h for explanation */
-void (*Perl_Emscripten_signal(int sig, void (*func)(int)))(int) {
-    if (sig==14) /* special case copied from $EMSCRIPTEN/src/library_signals.js */
-        return signal(sig, func);
-    errno = ENOSYS;
-    return SIG_ERR;
-}
-#endif
-
 Sighandler_t
 Perl_rsignal(pTHX_ int signo, Sighandler_t handler)
 {

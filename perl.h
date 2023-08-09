@@ -3531,8 +3531,7 @@ typedef struct padname PADNAME;
    and then they have the gall to warn that a value computed is not used. Hence
    cast to void.  */
 #    define PERL_FPU_INIT (void)fpsetmask(0)
-/* Note: Emscripten doesn't support signals (see Perl_Emscripten_signal in iperlsys.h for details */
-#  elif defined(SIGFPE) && defined(SIG_IGN) && !defined(PERL_MICRO) && !defined(__EMSCRIPTEN__)
+#  elif defined(SIGFPE) && defined(SIG_IGN) && !defined(PERL_MICRO)
 #    define PERL_FPU_INIT       PL_sigfpe_saved = (Sighandler_t) signal(SIGFPE, SIG_IGN)
 #    define PERL_FPU_PRE_EXEC   { Sigsave_t xfpe; rsignal_save(SIGFPE, PL_sigfpe_saved, &xfpe);
 #    define PERL_FPU_POST_EXEC    rsignal_restore(SIGFPE, &xfpe); }

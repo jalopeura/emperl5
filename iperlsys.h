@@ -1119,20 +1119,7 @@ struct IPerlProcInfo
 #  define PerlProc_waitpid(p,s,f) waitpid((p), (s), (f))
 #  define PerlProc_setjmp(b, n) Sigsetjmp((b), (n))
 #  define PerlProc_longjmp(b, n)Siglongjmp((b), (n))
-
-#ifdef __EMSCRIPTEN__
-/* Emscripten (1.37.35) does not support signals (except for SIGALRM),
- * and with ASSERTIONS enabled, outputs an annoying message. So instead
- * of patching Emscripten, we're using Perl_Emscripten_signal to
- * intercept the calls, since there doesn't seem to be a way to
- * config.h our way out of this one.
- */
-void (*Perl_Emscripten_signal(int, void (*)(int)))(int);
-#  define PerlProc_signal(n, h) Perl_Emscripten_signal((n), (h))
-#else
 #  define PerlProc_signal(n, h) signal((n), (h))
-#endif
-
 #  define PerlProc_fork()       my_fork()
 #  define PerlProc_getpid()     getpid()
 #  define PerlProc_gettimeofday(t,z)    gettimeofday((t),(z))
