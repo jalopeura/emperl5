@@ -378,7 +378,7 @@ Perl_PerlProc_pipe_cloexec(pTHX_ int *pipefd)
 int
 Perl_PerlSock_socket_cloexec(pTHX_ int domain, int type, int protocol)
 {
-#  if defined(SOCK_CLOEXEC) && !defined(__EMSCRIPTEN__)
+#  if defined(SOCK_CLOEXEC)
     DO_ONEOPEN_EXPERIMENTING_CLOEXEC(
         PL_strategy_socket,
         PerlSock_socket(domain, type | SOCK_CLOEXEC, protocol),
@@ -393,7 +393,7 @@ Perl_PerlSock_accept_cloexec(pTHX_ int listenfd, struct sockaddr *addr,
     Sock_size_t *addrlen)
 {
 #  if !defined(PERL_IMPLICIT_SYS) && \
-        defined(HAS_ACCEPT4) && defined(SOCK_CLOEXEC) && !defined(__EMSCRIPTEN__)
+        defined(HAS_ACCEPT4) && defined(SOCK_CLOEXEC)
     /*
      * struct IPerlSock doesn't cover accept4(), and there's no clear
      * way to extend it, so for the time being this just isn't available
@@ -418,7 +418,7 @@ Perl_PerlSock_socketpair_cloexec(pTHX_ int domain, int type, int protocol,
     int *pairfd)
 {
     PERL_ARGS_ASSERT_PERLSOCK_SOCKETPAIR_CLOEXEC;
-#  if defined(SOCK_CLOEXEC) && !defined(__EMSCRIPTEN__)
+#  ifdef SOCK_CLOEXEC
     DO_PIPEOPEN_EXPERIMENTING_CLOEXEC(PL_strategy_socketpair, pairfd,
         PerlSock_socketpair(domain, type | SOCK_CLOEXEC, protocol, pairfd),
         PerlSock_socketpair(domain, type, protocol, pairfd));
