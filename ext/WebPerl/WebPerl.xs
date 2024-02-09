@@ -26,12 +26,154 @@
 
 #include <emscripten.h>
 
+SV* json_object;
+
 extern int emperl_end_perl();
 
+SV* webperl_perlify(pTHX_ const char* in) {
+	if (in == NULL) {
+		return NULL;
+	}
+
+	dSP;
+	dTARGET;
+	ENTER;
+	SAVETMPS;
+
+	PUSHMARK(SP);
+	EXTEND(SP, 2);
+	PUSHs(json_object);
+	PUSHp(in, strlen(in));
+	PUTBACK;
+
+	I32 count = call_pv("Cpanel::JSON::XS::decode", G_SCALAR);
+
+	SPAGAIN;
+
+	if (count != 1) {
+		croak("Unable to jsonify result");
+	}
+
+	SV* out = POPs;
+
+	// increment the refcount so it will survive FREETMPS
+	SvREFCNT_inc(out);
+
+	PUTBACK;
+	FREETMPS;
+	LEAVE;
+
+	// mortalize it so it doesn't hang around
+	sv_2mortal(out);
+
+	// this is left mortal, so caller needs to use it quick or increment the refcount
+	return out;
+}
+
+const char* webperl_jsonify(pTHX_ SV* in) {
+	dSP;
+	ENTER;
+	SAVETMPS;
+
+	PUSHMARK(SP);
+	EXTEND(SP, 2);
+	PUSHs(json_object);
+	PUSHs(in);
+	PUTBACK;
+
+	I32 count = call_pv("Cpanel::JSON::XS::encode", G_SCALAR);
+
+	SPAGAIN;
+
+	if (count != 1) {
+		croak("Unable to jsonify result");
+	}
+
+	SV* out = POPs;
+
+	// increment the refcount so it will survive FREETMPS
+	SvREFCNT_inc(out);
+
+	PUTBACK;
+	FREETMPS;
+	LEAVE;
+
+	// mortalize it so it doesn't hang around
+	sv_2mortal(out);
+
+	return SvPV_nolen(out);
+}
+
 // a simple wrapper for eval_pv
-const char* webperl_eval_perl(const char* code) {
+const char* webperl_eval_perl(pTHX_ const char* code) {
 	SV *rv = eval_pv(code, TRUE);
-	return SvOK(rv) ? SvPV_nolen(rv) : NULL;
+	return webperl_jsonify(aTHX_ rv);
+}
+
+// a wrapper for call_pv
+const char* webperl_call_perl(pTHX_ const char* sub_name, const char* json_args, I32 flags) {
+	dSP;
+	ENTER;
+	SAVETMPS;
+
+	PUSHMARK(SP);
+	SV* aref_args = NULL;
+	if (json_args) {
+		aref_args = webperl_perlify(json_args);
+		if (SvROK(aref_args)) {
+			AV* array = (AV*)SvRV(aref_args);
+			int count = av_count(array);
+			if (count > 0) {
+				SV** item;
+				EXTEND(SP, count);
+				for (int i = 0; i < count; i++) {
+					item = av_fetch(array, i, 1);
+					if (item != NULL) {
+						PUSHs(*item);
+					}
+				}
+			}
+		}
+	}
+	PUTBACK;
+
+	I32 count = call_pv(sub_name, flags);
+
+	SPAGAIN;
+
+	SV* rv;
+	if (count) {
+		if ((flags & G_WANT) == G_LIST) {
+			AV* array = newAV();
+			for (int i = 0; i < count; i++) {
+				SV* item = POPs;
+				SvREFCNT_inc(item);
+				av_unshift(array, 1);
+				av_store(array, 0, item);
+			}
+			rv = newRV_noinc((SV*)array);
+		}
+		else {
+			rv = POPs;
+			SvREFCNT_inc(rv);
+		}
+	}
+	else {
+		rv = &PL_sv_undef;
+	}
+
+	PUTBACK;
+	FREETMPS;
+	LEAVE;
+
+	// mortalize it so it doesn't hang around
+	sv_2mortal(rv);
+
+	return webperl_jsonify(aTHX_ rv);
+}
+
+int webperl_pointer_size() {
+	return Size_t_size;
 }
 
 // STRLEN=MEM_SIZE=Size_t, and the code below (accessing HEAP32) currently assumes this is 4 bytes
@@ -127,3 +269,5 @@ end_perl()
 	OUTPUT:
 		RETVAL
 
+BOOT:
+	json_object = get_sv("WebPerl::JSON", GV_ADD);
