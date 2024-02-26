@@ -67,6 +67,7 @@ glibpth=''
 
 usemymalloc="n"
 usemallocwrap="define"
+usemultiplicity="define"
 uselargefiles="n"
 usenm='undef'
 d_procselfexe='undef'

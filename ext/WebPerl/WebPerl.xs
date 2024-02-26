@@ -26,6 +26,10 @@
 
 #include <emscripten.h>
 
+#ifdef MULTIPLICITY
+#include "multiperl.c"
+#endif
+
 SV* json_object;
 
 extern int emperl_end_perl();
@@ -36,14 +40,13 @@ SV* webperl_perlify(pTHX_ const char* in) {
 	}
 
 	dSP;
-	dTARGET;
 	ENTER;
 	SAVETMPS;
 
 	PUSHMARK(SP);
 	EXTEND(SP, 2);
 	PUSHs(json_object);
-	PUSHp(in, strlen(in));
+	mPUSHp(in, strlen(in));
 	PUTBACK;
 
 	I32 count = call_pv("Cpanel::JSON::XS::decode", G_SCALAR);
@@ -112,29 +115,32 @@ const char* webperl_eval_perl(pTHX_ const char* code) {
 
 // a wrapper for call_pv
 const char* webperl_call_perl(pTHX_ const char* sub_name, const char* json_args, I32 flags) {
+	SV* aref_args = NULL;
+	if (json_args) {
+		aref_args = webperl_perlify(aTHX_ json_args);
+	}
+
 	dSP;
 	ENTER;
 	SAVETMPS;
 
 	PUSHMARK(SP);
-	SV* aref_args = NULL;
-	if (json_args) {
-		aref_args = webperl_perlify(json_args);
-		if (SvROK(aref_args)) {
-			AV* array = (AV*)SvRV(aref_args);
-			int count = av_count(array);
-			if (count > 0) {
-				SV** item;
-				EXTEND(SP, count);
-				for (int i = 0; i < count; i++) {
-					item = av_fetch(array, i, 1);
-					if (item != NULL) {
-						PUSHs(*item);
-					}
+
+	if (SvROK(aref_args)) {
+		AV* array = (AV*)SvRV(aref_args);
+		int count = av_count(array);
+		if (count > 0) {
+			SV** item;
+			EXTEND(SP, count);
+			for (int i = 0; i < count; i++) {
+				item = av_fetch(array, i, 1);
+				if (item != NULL) {
+					PUSHs(*item);
 				}
 			}
 		}
 	}
+
 	PUTBACK;
 
 	I32 count = call_pv(sub_name, flags);
@@ -142,7 +148,7 @@ const char* webperl_call_perl(pTHX_ const char* sub_name, const char* json_args,
 	SPAGAIN;
 
 	SV* rv;
-	if (count) {
+	if (count > 0) {
 		if ((flags & G_WANT) == G_LIST) {
 			AV* array = newAV();
 			for (int i = 0; i < count; i++) {
@@ -266,6 +272,13 @@ end_perl()
 	CODE:
 		// TODO Later: end_perl() doesn't cause Module.onExit to be called, right?
 		RETVAL = emperl_end_perl();
+	OUTPUT:
+		RETVAL
+
+int
+perl_context()
+	CODE:
+		RETVAL = (int)(uintptr_t)(PERL_GET_CONTEXT);
 	OUTPUT:
 		RETVAL
 

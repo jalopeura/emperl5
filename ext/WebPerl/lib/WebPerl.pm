@@ -114,6 +114,7 @@ sub _code_reg {
 		$callcode = _perlstr($subkey);
 	}
 	return 'Perl.dispatch.bind(null,'
+			. perl_context() . ','
 			. $JSON->encode( 'WebPerl::_call_code('.$callcode.')' )
 		.')';
 }
